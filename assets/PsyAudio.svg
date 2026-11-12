@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="PsyAudio">
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#2a2840"/>
+      <stop offset="1" stop-color="#11111b"/>
+    </linearGradient>
+    <linearGradient id="glyph" x1="0" y1="1" x2="1" y2="0">
+      <stop stop-color="#b48ef2"/>
+      <stop offset="1" stop-color="#e3d1fc"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="55" fill="url(#ground)"/>
+  <rect x="9" y="9" width="238" height="238" rx="54" fill="none" stroke="#cba6f7" stroke-opacity=".45" stroke-width="2"/>
+  <path d="M 150.969 182.013 A 68 68 0 1 1 150.969 71.987" fill="none" stroke="url(#glyph)" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="94" cy="127" r="15" fill="none" stroke="url(#glyph)" stroke-width="10"/>
+  <g fill="url(#glyph)">
+    <rect x="125" y="111" width="16" height="34" rx="8"/>
+    <rect x="156" y="86" width="16" height="84" rx="8"/>
+    <rect x="187" y="101" width="16" height="54" rx="8"/>
+  </g>
+</svg>
