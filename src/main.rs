@@ -37,7 +37,24 @@ fn first_instance() -> bool {
     !(handle.is_null() || unsafe { GetLastError() } == ERROR_ALREADY_EXISTS)
 }
 
-#[cfg(not(windows))]
+/// Whether no other PsyAudio window is running (an exclusive lock on a file next to the
+/// settings, held for the process's life; the system drops it when the process ends).
+#[cfg(target_os = "linux")]
+fn first_instance() -> bool {
+    use std::os::fd::AsRawFd;
+    let path = settings::handoff_dir().with_file_name("instance.lock");
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let Ok(file) = std::fs::OpenOptions::new().create(true).truncate(false).write(true).open(&path) else { return true };
+    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
+        return false;
+    }
+    std::mem::forget(file);
+    true
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 fn first_instance() -> bool {
     true
 }
@@ -54,7 +71,7 @@ fn main() -> eframe::Result<()> {
             files.push(PathBuf::from(a));
         }
     }
-    // the Explorer menu starts one PsyAudio per file: hand them to the open window instead
+    // the Explorer menu starts one PsyAudio per file, Dolphin one per selection: hand them to the open window instead
     let first = screenshot.is_none() && first_instance();
     PRIMARY.store(first, std::sync::atomic::Ordering::Relaxed);
     if screenshot.is_none() && !first && !files.is_empty() && settings::write_handoff(&settings::handoff_dir(), &files).is_ok() {

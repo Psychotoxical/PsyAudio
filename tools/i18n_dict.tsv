@@ -101,7 +101,7 @@ Zieldatei kann nicht angelegt werden: {e}	Cannot create output file: {e}
 CD ist nicht in der AccurateRip-Datenbank	CD is not in the AccurateRip database
 AccurateRip nicht erreichbar: {e}	AccurateRip not reachable: {e}
 Keine Treffer bei MusicBrainz	No matches on MusicBrainz
-Laufwerk {letter}: kann nicht geöffnet werden	Cannot open drive {letter}:
+Laufwerk {0} kann nicht geöffnet werden	Cannot open drive {0}
 Laufwerksbefehl fehlgeschlagen (Fehler {0})	Drive command failed (error {0})
 Keine Audio-CD im Laufwerk	No audio CD in the drive
 Keine Titel auf der CD	No tracks on the CD
@@ -287,7 +287,7 @@ Zur Konverter-Liste	To the converter list
 Kein CD-Laufwerk gefunden	No CD drive found
 Titel {0}	Track {0}
 Audio-CDs sicher auslesen, mit AccurateRip prüfen und Titel-Infos von MusicBrainz holen.	Rip audio CDs securely, verify with AccurateRip and fetch track info from MusicBrainz.
-Laufwerk {d}:	Drive {d}:
+Laufwerk {d}	Drive {d}
 Kein Laufwerk	No drive
 CD lesen	Read CD
 Auswerfen	Eject
@@ -382,7 +382,7 @@ Alle Einstellungen auf Standard	Reset all settings to default
 Einstellungen zurückgesetzt	Settings reset
 PsyAudio – Protokoll der Audio-Extraktion	PsyAudio – audio extraction log
 Album: {0} – {1}	Album: {0} – {1}
-Laufwerk {letter}:  Versatz {0} Samples  Modus: {1}	Drive {letter}:  offset {0} samples  mode: {1}
+Laufwerk {letter}  Versatz {0} Samples  Modus: {1}	Drive {letter}  offset {0} samples  mode: {1}
 Lesen…	Reading…
 Lesen {0} %	Reading {0} %
 Titel {number}: Fehler {e}	Track {number}: error {e}
@@ -606,3 +606,5 @@ Latte, hell	Latte, light
 Thema	Theme
 Verlustfrei	Lossless
 Komprimiert	Compressed
+Dolphin-Integration	Dolphin integration
+Fügt im Dolphin-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).	Adds “Convert with PsyAudio” to the Dolphin right-click menu of audio files (for your user account only).
