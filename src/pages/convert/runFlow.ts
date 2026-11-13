@@ -6,7 +6,7 @@ import { useFiles } from "../../store/files";
 import { applyEvent, failedItems, newRun, type RunEvent, useRun } from "../../store/run";
 import { useSettings } from "../../store/settings";
 import { useUi } from "../../store/ui";
-import { addFiles } from "./addFiles";
+import { addFiles, queueInfo } from "./addFiles";
 
 let queued: RunEvent[] = [];
 let scheduled = false;
@@ -34,7 +34,7 @@ function refreshInfo() {
   if (files.length === 0) return;
   void readFileInfo(
     files.map((f) => [f.id, f.path]),
-    (i) => useFiles.getState().setInfo(i.id, i.tags, i.info, i.cover),
+    queueInfo,
   );
 }
 

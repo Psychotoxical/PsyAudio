@@ -52,7 +52,22 @@ export async function scanDrives(): Promise<void> {
   }
 }
 
-function onLookup(e: LookupEvent) {
+/** Counts the discs read (and ejects): answers of a lookup for an older disc are dropped. */
+let discNumber = 0;
+
+export function nextDisc(): number {
+  discNumber += 1;
+  return discNumber;
+}
+
+/** Applies the lookup answers for disc `generation`, as long as it is still the disc shown. */
+export function lookupHandler(generation: number) {
+  return (e: LookupEvent) => {
+    if (generation === discNumber) applyLookup(e);
+  };
+}
+
+function applyLookup(e: LookupEvent) {
   const s = useCd.getState();
   switch (e.kind) {
     case "Candidates": {
@@ -85,7 +100,7 @@ export async function searchInfo(accuraterip = false): Promise<void> {
     ar: accuraterip ? { state: "busy", pressings: 0, reason: null } : s.ar,
   }));
   try {
-    await lookupDisc(true, accuraterip, onLookup);
+    await lookupDisc(true, accuraterip, lookupHandler(discNumber));
   } catch (e) {
     useCd.setState({ lookup: "failed", lookupError: String(e) });
   }
@@ -104,6 +119,7 @@ export async function readCd(): Promise<void> {
     candidates: [],
     rip: null,
   });
+  nextDisc();
   try {
     const disc = await readDisc(drive);
     useCd.setState({
@@ -128,6 +144,7 @@ export async function ejectCd(): Promise<void> {
   if (!drive) return;
   try {
     await ejectDisc(drive);
+    nextDisc();
     useCd.setState({ disc: null, cover: null, candidates: [], rows: [], rip: null });
   } catch (e) {
     notify(e);

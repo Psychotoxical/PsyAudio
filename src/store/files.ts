@@ -19,7 +19,10 @@ interface FilesState {
   selected: Set<number>;
   /** Adds files not in the list yet; returns the ones added. */
   add: (rows: FileRow[]) => FileRow[];
-  setInfo: (id: number, tags: Record<string, string>, info: Info, cover: boolean) => void;
+  /** Tags and info of several files in one update (they arrive one by one from Rust). */
+  setInfos: (
+    infos: { id: number; tags: Record<string, string>; info: Info; cover: boolean }[],
+  ) => void;
   setSelected: (selected: Set<number>) => void;
   removeSelected: () => void;
   clear: () => void;
@@ -38,8 +41,16 @@ export const useFiles = create<FilesState>((set, get) => ({
     if (fresh.length) set({ files: [...get().files, ...fresh] });
     return fresh;
   },
-  setInfo: (id, tags, info, cover) =>
-    set({ files: get().files.map((f) => (f.id === id ? { ...f, tags, info, cover } : f)) }),
+  setInfos: (infos) => {
+    if (infos.length === 0) return;
+    const byId = new Map(infos.map((i) => [i.id, i]));
+    set({
+      files: get().files.map((f) => {
+        const i = byId.get(f.id);
+        return i ? { ...f, tags: i.tags, info: i.info, cover: i.cover } : f;
+      }),
+    });
+  },
   setSelected: (selected) => set({ selected }),
   removeSelected: () => {
     const { files, selected } = get();

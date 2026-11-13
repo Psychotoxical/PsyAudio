@@ -41,7 +41,9 @@ mod tests {
 
     #[test]
     fn tags_are_read_from_the_file_name() {
-        let got = tags_from_name("C:\\Musik\\03 Band - Lied.flac".into(), naming::TAG_SCHEME.iter().map(|s| s.to_string()).collect());
+        // built by the OS: on Linux and macOS a backslash is part of the file name, not a separator
+        let path = std::env::temp_dir().join("Musik").join("03 Band - Lied.flac");
+        let got = tags_from_name(path.to_string_lossy().into_owned(), naming::TAG_SCHEME.iter().map(|s| s.to_string()).collect());
         assert_eq!(got.first().map(|kv| kv.0.as_str()), Some("track"));
         assert_eq!(got.iter().find(|kv| kv.0 == "title").map(|kv| kv.1.as_str()), Some("Lied"));
     }

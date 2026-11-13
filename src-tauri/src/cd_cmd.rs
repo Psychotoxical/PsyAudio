@@ -70,6 +70,19 @@ mod tests {
     }
 
     #[test]
+    fn old_lookup_does_not_touch_new_disc() {
+        let mut cd = CdState::default();
+        let first = cd.generation;
+        cd.new_disc(Some('G'), None);
+        cd.set_cover(first, vec![1, 2, 3]);
+        cd.set_ar(first, Ok(Vec::new()));
+        assert!(cd.cover.is_none() && cd.ar.is_none(), "a lookup of the disc before must not land here");
+        let now = cd.generation;
+        cd.set_cover(now, vec![4]);
+        assert_eq!(cd.cover.as_deref(), Some(&[4u8][..]));
+    }
+
+    #[test]
     fn rip_events_carry_codes() {
         let e = rip_event(RipMsg::TrackDone(2, TrackStatus::Insecure { sectors: 4 }, None));
         let v = serde_json::to_value(e).unwrap();
@@ -80,12 +93,37 @@ mod tests {
 /// The disc read last, with what the lookups found (kept between commands).
 #[derive(Default)]
 pub struct CdState {
+    /// Counts the discs read (and ejects): a lookup still running for the disc before must not
+    /// write its cover or AccurateRip data onto the next one.
+    generation: u64,
     drive: Option<char>,
     toc: Option<Toc>,
     /// AccurateRip's data, or why there is none; `None` while not asked yet.
     ar: Option<Result<Vec<Pressing>, String>>,
     ar_pending: bool,
     cover: Option<Vec<u8>>,
+}
+
+impl CdState {
+    /// A disc was read (or the tray opened): forget the old one and its lookups.
+    fn new_disc(&mut self, drive: Option<char>, toc: Option<Toc>) {
+        *self = CdState { generation: self.generation + 1, drive, toc, ..CdState::default() };
+    }
+
+    /// The cover found by a lookup started for disc `generation`.
+    fn set_cover(&mut self, generation: u64, cover: Vec<u8>) {
+        if generation == self.generation {
+            self.cover = Some(cover);
+        }
+    }
+
+    /// AccurateRip's answer for disc `generation`.
+    fn set_ar(&mut self, generation: u64, r: Result<Vec<Pressing>, String>) {
+        if generation == self.generation {
+            self.ar = Some(r);
+            self.ar_pending = false;
+        }
+    }
 }
 
 fn drive_char(id: &str) -> Result<char, String> {
@@ -138,8 +176,7 @@ pub async fn read_disc(state: State<'_, AppState>, drive: String) -> Result<Disc
     let d = drive_char(&drive)?;
     let toc = tauri::async_runtime::spawn_blocking(move || cdrip::Drive::open(d).and_then(|dr| dr.toc())).await.map_err(|e| e.to_string())??;
     let info = disc_info(&toc);
-    let mut cd = state.cd.lock().unwrap_or_else(|e| e.into_inner());
-    *cd = CdState { drive: Some(d), toc: Some(toc), ..CdState::default() };
+    state.cd.lock().unwrap_or_else(|e| e.into_inner()).new_disc(Some(d), Some(toc));
     Ok(info)
 }
 
@@ -218,12 +255,12 @@ fn image_mime(data: &[u8]) -> &'static str {
 #[tauri::command]
 pub fn lookup_disc(app: AppHandle, musicbrainz: bool, accuraterip: bool, on: Channel<LookupEvent>) -> Result<(), String> {
     let state = app.state::<AppState>();
-    let toc = {
+    let (toc, generation) = {
         let mut cd = state.cd.lock().unwrap_or_else(|e| e.into_inner());
         if accuraterip {
             cd.ar_pending = true;
         }
-        cd.toc.clone().ok_or_else(|| t("Zuerst eine CD lesen").to_string())?
+        (cd.toc.clone().ok_or_else(|| t("Zuerst eine CD lesen").to_string())?, cd.generation)
     };
     if musicbrainz {
         let (toc, on, app) = (toc.clone(), on.clone(), app.clone());
@@ -233,7 +270,7 @@ pub fn lookup_disc(app: AppHandle, musicbrainz: bool, accuraterip: bool, on: Cha
                 if let Some(cover) = list.first().and_then(|m| cdrip::cover_art(&m.release_id)) {
                     let data_base64 = base64::engine::general_purpose::STANDARD.encode(&cover);
                     let _ = on.send(LookupEvent::Cover { mime: image_mime(&cover).into(), data_base64 });
-                    app.state::<AppState>().cd.lock().unwrap_or_else(|e| e.into_inner()).cover = Some(cover);
+                    app.state::<AppState>().cd.lock().unwrap_or_else(|e| e.into_inner()).set_cover(generation, cover);
                 }
             }
             Err(reason) => {
@@ -248,12 +285,7 @@ pub fn lookup_disc(app: AppHandle, musicbrainz: bool, accuraterip: bool, on: Cha
                 Ok(db) => LookupEvent::AccurateRip { pressings: db.len() },
                 Err(reason) => LookupEvent::Failed { source: "accuraterip", reason: reason.clone() },
             };
-            {
-                let state = app.state::<AppState>();
-                let mut cd = state.cd.lock().unwrap_or_else(|e| e.into_inner());
-                cd.ar = Some(r);
-                cd.ar_pending = false;
-            }
+            app.state::<AppState>().cd.lock().unwrap_or_else(|e| e.into_inner()).set_ar(generation, r);
             let _ = on.send(event);
         });
     }
@@ -268,7 +300,7 @@ pub async fn eject(state: State<'_, AppState>, drive: String) -> Result<(), Stri
         return Err(t("Erst das Rippen abwarten oder abbrechen").into());
     }
     tauri::async_runtime::spawn_blocking(move || cdrip::Drive::open(d).and_then(|dr| dr.eject())).await.map_err(|e| e.to_string())??;
-    *state.cd.lock().unwrap_or_else(|e| e.into_inner()) = CdState::default();
+    state.cd.lock().unwrap_or_else(|e| e.into_inner()).new_disc(None, None);
     Ok(())
 }
 

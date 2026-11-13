@@ -1,21 +1,33 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { confirmClose, onCloseRequested } from "../ipc/close";
+import { confirmClose, onCloseNow, onCloseRequested } from "../ipc/close";
+import { flushSettings } from "../store/settings";
+
+/** Saves the settings still waiting, then lets Rust stop the work and close. */
+async function quit() {
+  await flushSettings();
+  await confirmClose(true);
+}
 
 /** "PsyAudio beenden?" when the window is closed while converting or ripping (as in egui). */
 export function CloseDialog() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    const off = onCloseRequested(() => setOpen(true));
+    const offs = [
+      onCloseRequested(() => setOpen(true)),
+      // nothing runs: a settings change still waiting for its save goes to disk first
+      onCloseNow(() => void quit()),
+    ];
     return () => {
-      void off.then((un) => un());
+      for (const off of offs) void off.then((un) => un());
     };
   }, []);
   if (!open) return null;
   const answer = (cancelWork: boolean) => {
     setOpen(false);
-    void confirmClose(cancelWork);
+    if (cancelWork) void quit();
+    else void confirmClose(false);
   };
   return (
     <div className="overlay">

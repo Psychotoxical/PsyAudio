@@ -53,7 +53,17 @@ pub fn on_close_requested(window: &Window, api: &CloseRequestApi) {
     let state = window.state::<AppState>();
     let decision = close_decision(state.jobs.busy_with(Kind::Conversion), state.jobs.busy_with(Kind::Rip), state.closing.load(Ordering::SeqCst));
     match decision {
-        CloseDecision::Allow => {}
+        CloseDecision::Allow => {
+            // the window saves a settings change still waiting, then confirms; if it does not
+            // answer, PsyAudio closes anyway
+            api.prevent_close();
+            let _ = window.emit_to("main", "close-now", ());
+            let app = window.app_handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(UNANSWERED_CLOSE);
+                app.exit(0);
+            });
+        }
         CloseDecision::Ask => {
             api.prevent_close();
             let _ = window.emit_to("main", "close-requested", ());
@@ -61,6 +71,9 @@ pub fn on_close_requested(window: &Window, api: &CloseRequestApi) {
         CloseDecision::Wait => api.prevent_close(),
     }
 }
+
+/// How long a close with nothing running waits for the window to save its settings.
+const UNANSWERED_CLOSE: Duration = Duration::from_secs(2);
 
 /// How long closing waits for the work to stop before it ends PsyAudio anyway (a hanging
 /// encoder must not keep a window open that can no longer be closed).

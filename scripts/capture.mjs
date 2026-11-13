@@ -96,10 +96,10 @@ try {
     } else if (opt === "--close") {
       // the window's close button: WM_CLOSE to the main window
       execFileSync("powershell", ["-NoProfile", "-Command", `[void](Get-Process -Id ${child.pid}).CloseMainWindow()`]);
-      await sleep(600);
     } else if (opt === "--expect-exit") {
-      for (let i = 0; i < 100 && child.exitCode === null; i++) await sleep(250);
-      console.log("exited:", child.exitCode !== null ? `yes (code ${child.exitCode})` : "no");
+      const from = Date.now();
+      while (child.exitCode === null && Date.now() - from < 25000) await sleep(50);
+      console.log("exited:", child.exitCode !== null ? `yes (code ${child.exitCode}, ${Date.now() - from} ms after --close)` : "no");
       process.exit(0);
     } else if (opt.startsWith("--wait=")) {
       const sel = JSON.stringify(opt.slice(7));
