@@ -22,7 +22,7 @@ fn english() -> &'static HashMap<&'static str, &'static str> {
 }
 
 /// Translate a German interface text into the chosen language.
-pub fn t<'a>(s: &'a str) -> &'a str {
+pub fn t(s: &str) -> &str {
     if LANG.load(Ordering::Relaxed) == 0 {
         return s;
     }

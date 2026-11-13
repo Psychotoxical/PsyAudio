@@ -16,8 +16,7 @@ pub const OLD_EXPLORER_MENU_KEY: &str = r"Software\Classes\SystemFileAssociation
 #[cfg(windows)]
 mod reg {
     use windows_sys::Win32::System::Registry::{
-        RegCloseKey, RegCreateKeyExW, RegDeleteTreeW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, KEY_WRITE,
-        REG_OPTION_NON_VOLATILE, REG_SZ,
+        RegCloseKey, RegCreateKeyExW, RegDeleteTreeW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, KEY_WRITE, REG_OPTION_NON_VOLATILE, REG_SZ,
     };
 
     fn wide(s: &str) -> Vec<u16> {
@@ -96,28 +95,6 @@ mod reg {
     }
 }
 
-#[cfg(test)]
-mod explorer_menu_tests {
-    use super::*;
-
-    #[test]
-    fn every_readable_extension_gets_its_own_entry() {
-        let keys = explorer_menu_keys();
-        for e in ["opus", "mp3", "flac", "ape", "wv", "dsf", "mpc"] {
-            let want = format!(r"Software\Classes\SystemFileAssociations\.{e}\shell\PsyAudio");
-            assert!(keys.contains(&want), "{e}");
-        }
-        assert_eq!(keys.len(), audio::INPUT_EXTENSIONS.len());
-        let unique: std::collections::HashSet<&String> = keys.iter().collect();
-        assert_eq!(unique.len(), keys.len(), "no extension twice");
-    }
-
-    #[test]
-    fn the_old_group_entry_is_known_for_cleanup() {
-        assert_eq!(OLD_EXPLORER_MENU_KEY, r"Software\Classes\SystemFileAssociations\audio\shell\PsyAudio");
-    }
-}
-
 /// Add or remove the Explorer right-click entry for audio files (current user only).
 pub fn file_manager_menu(add: bool) -> String {
     #[cfg(windows)]
@@ -129,9 +106,9 @@ pub fn file_manager_menu(add: bool) -> String {
             let cmd = format!("\"{}\" \"%1\"", exe.display());
             let icon = exe.display().to_string();
             let label = crate::i18n::t("Mit PsyAudio konvertieren");
-            let ok = explorer_menu_keys().iter().all(|k| {
-                reg::set(k, &[(None, label), (Some("Icon"), &icon)]) && reg::set(&format!(r"{k}\command"), &[(None, &cmd)])
-            });
+            let ok = explorer_menu_keys()
+                .iter()
+                .all(|k| reg::set(k, &[(None, label), (Some("Icon"), &icon)]) && reg::set(&format!(r"{k}\command"), &[(None, &cmd)]));
             if ok {
                 crate::i18n::t("Kontextmenü eingerichtet").into()
             } else {
@@ -211,6 +188,28 @@ pub fn keep_awake(on: bool) {
     }
     #[cfg(not(windows))]
     let _ = on;
+}
+
+#[cfg(test)]
+mod explorer_menu_tests {
+    use super::*;
+
+    #[test]
+    fn every_readable_extension_gets_its_own_entry() {
+        let keys = explorer_menu_keys();
+        for e in ["opus", "mp3", "flac", "ape", "wv", "dsf", "mpc"] {
+            let want = format!(r"Software\Classes\SystemFileAssociations\.{e}\shell\PsyAudio");
+            assert!(keys.contains(&want), "{e}");
+        }
+        assert_eq!(keys.len(), audio::INPUT_EXTENSIONS.len());
+        let unique: std::collections::HashSet<&String> = keys.iter().collect();
+        assert_eq!(unique.len(), keys.len(), "no extension twice");
+    }
+
+    #[test]
+    fn the_old_group_entry_is_known_for_cleanup() {
+        assert_eq!(OLD_EXPLORER_MENU_KEY, r"Software\Classes\SystemFileAssociations\audio\shell\PsyAudio");
+    }
 }
 
 #[cfg(all(test, target_os = "linux"))]

@@ -37,11 +37,7 @@ impl Audio {
         Audio { rate: self.rate, channels: self.channels, bits: self.bits, float: self.float, lossless: self.lossless, data }
     }
     pub fn frames(&self) -> usize {
-        if self.channels == 0 {
-            0
-        } else {
-            self.data.len() / self.channels
-        }
+        self.data.len().checked_div(self.channels).unwrap_or(0)
     }
     pub fn seconds(&self) -> f64 {
         if self.rate == 0 {
@@ -57,16 +53,12 @@ impl Audio {
 
 /// File extensions the program reads.
 pub const INPUT_EXTENSIONS: &[&str] = &[
-    "mp3", "mp2", "flac", "wav", "wave", "aif", "aiff", "aifc", "m4a", "m4b", "mp4", "aac", "alac",
-    "ogg", "oga", "opus", "wma", "ape", "wv", "mpc", "spx", "dsf", "dff", "caf", "ac3", "mka",
-    "webm", "amr", "au", "snd", "tta", "w64",
+    "mp3", "mp2", "flac", "wav", "wave", "aif", "aiff", "aifc", "m4a", "m4b", "mp4", "aac", "alac", "ogg", "oga", "opus", "wma", "ape", "wv", "mpc", "spx",
+    "dsf", "dff", "caf", "ac3", "mka", "webm", "amr", "au", "snd", "tta", "w64",
 ];
 
 pub fn is_audio_file(p: &Path) -> bool {
-    p.extension()
-        .and_then(|e| e.to_str())
-        .map(|e| INPUT_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
-        .unwrap_or(false)
+    p.extension().and_then(|e| e.to_str()).map(|e| INPUT_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str())).unwrap_or(false)
 }
 
 /// Where FFmpeg can be found: settings first, then PATH.
@@ -138,7 +130,7 @@ pub fn decode(path: &Path, ffmpeg: Option<&Path>, cancel: &AtomicBool, progress:
         Err(Fail::Stop(e)) => Err(e),
         Err(Fail::Unsupported(e)) => match ffmpeg {
             Some(ff) => decode_ffmpeg(path, ff, cancel),
-            None => Err(crate::i18n::tf(crate::i18n::t("{e} (für dieses Format wird FFmpeg benötigt – siehe Einstellungen)"), &[("e", format!("{e}"))])),
+            None => Err(crate::i18n::tf(crate::i18n::t("{e} (für dieses Format wird FFmpeg benötigt – siehe Einstellungen)"), &[("e", e.to_string())])),
         },
     }
 }
@@ -160,7 +152,8 @@ fn decode_builtin(path: &Path, cancel: &AtomicBool, progress: Progress) -> Resul
     use symphonia::core::meta::MetadataOptions;
     use symphonia::core::probe::Hint;
 
-    let file = std::fs::File::open(path).map_err(|e| Fail::Stop(crate::i18n::tf(crate::i18n::t("Datei kann nicht geöffnet werden: {e}"), &[("e", format!("{e}"))])))?;
+    let file = std::fs::File::open(path)
+        .map_err(|e| Fail::Stop(crate::i18n::tf(crate::i18n::t("Datei kann nicht geöffnet werden: {e}"), &[("e", format!("{e}"))])))?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let mut hint = Hint::new();
     if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
@@ -170,11 +163,8 @@ fn decode_builtin(path: &Path, cancel: &AtomicBool, progress: Progress) -> Resul
         .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
         .map_err(|e| Fail::Unsupported(crate::i18n::tf(crate::i18n::t("Format nicht erkannt: {e}"), &[("e", format!("{e}"))])))?;
     let mut format = probed.format;
-    let track = format
-        .tracks()
-        .iter()
-        .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
-        .ok_or(Fail::Unsupported(crate::i18n::t("keine Audiospur gefunden").into()))?;
+    let track =
+        format.tracks().iter().find(|t| t.codec_params.codec != CODEC_TYPE_NULL).ok_or(Fail::Unsupported(crate::i18n::t("keine Audiospur gefunden").into()))?;
     let track_id = track.id;
     let params = track.codec_params.clone();
     let total_frames = params.n_frames.unwrap_or(0);
@@ -185,10 +175,22 @@ fn decode_builtin(path: &Path, cancel: &AtomicBool, progress: Progress) -> Resul
     use symphonia::core::codecs::*;
     let lossless = matches!(
         codec,
-        CODEC_TYPE_FLAC | CODEC_TYPE_ALAC | CODEC_TYPE_PCM_S16LE | CODEC_TYPE_PCM_S16BE | CODEC_TYPE_PCM_S24LE
-            | CODEC_TYPE_PCM_S24BE | CODEC_TYPE_PCM_S32LE | CODEC_TYPE_PCM_S32BE | CODEC_TYPE_PCM_F32LE
-            | CODEC_TYPE_PCM_F32BE | CODEC_TYPE_PCM_F64LE | CODEC_TYPE_PCM_F64BE | CODEC_TYPE_PCM_U8
-            | CODEC_TYPE_PCM_S8 | CODEC_TYPE_PCM_S24LE_PLANAR | CODEC_TYPE_PCM_S16LE_PLANAR
+        CODEC_TYPE_FLAC
+            | CODEC_TYPE_ALAC
+            | CODEC_TYPE_PCM_S16LE
+            | CODEC_TYPE_PCM_S16BE
+            | CODEC_TYPE_PCM_S24LE
+            | CODEC_TYPE_PCM_S24BE
+            | CODEC_TYPE_PCM_S32LE
+            | CODEC_TYPE_PCM_S32BE
+            | CODEC_TYPE_PCM_F32LE
+            | CODEC_TYPE_PCM_F32BE
+            | CODEC_TYPE_PCM_F64LE
+            | CODEC_TYPE_PCM_F64BE
+            | CODEC_TYPE_PCM_U8
+            | CODEC_TYPE_PCM_S8
+            | CODEC_TYPE_PCM_S24LE_PLANAR
+            | CODEC_TYPE_PCM_S16LE_PLANAR
     );
     let float = matches!(codec, CODEC_TYPE_PCM_F32LE | CODEC_TYPE_PCM_F32BE | CODEC_TYPE_PCM_F64LE | CODEC_TYPE_PCM_F64BE);
     let mut audio = Audio {
@@ -325,9 +327,8 @@ pub fn ffprobe_info(ffmpeg: &Path, path: &Path) -> Option<(u32, usize, u16, Stri
 
 fn decode_ffmpeg(path: &Path, ffmpeg: &Path, cancel: &AtomicBool) -> Result<Audio, String> {
     let (rate, channels, bits, codec) = stream_layout(ffprobe_info(ffmpeg, path))?;
-    let lossless = ["flac", "alac", "wavpack", "ape", "tta", "mlp", "truehd"].iter().any(|c| codec.starts_with(c))
-        || codec.starts_with("pcm")
-        || codec.starts_with("dsd");
+    let lossless =
+        ["flac", "alac", "wavpack", "ape", "tta", "mlp", "truehd"].iter().any(|c| codec.starts_with(c)) || codec.starts_with("pcm") || codec.starts_with("dsd");
     let mut cmd = Command::new(ffmpeg);
     cmd.args(["-v", "error", "-nostdin", "-i"])
         .arg(path)
@@ -367,11 +368,17 @@ fn decode_ffmpeg(path: &Path, ffmpeg: &Path, cancel: &AtomicBool) -> Result<Audi
     if !status.success() || !err.trim().is_empty() {
         return Err(crate::i18n::tf(crate::i18n::t("FFmpeg konnte die Datei nicht lesen: {0}"), &[("0", err.trim().lines().next().unwrap_or("").to_string())]));
     }
-    let data: Vec<f32> = bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+    let data: Vec<f32> = bytes.as_chunks::<4>().0.iter().map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
     Ok(Audio {
         rate,
         channels,
-        bits: if lossless && bits > 0 { bits.min(32) } else if lossless { 24 } else { 16 },
+        bits: if lossless && bits > 0 {
+            bits.min(32)
+        } else if lossless {
+            24
+        } else {
+            16
+        },
         float: codec.contains("f32") || codec.contains("f64"),
         lossless,
         data,
@@ -492,7 +499,13 @@ pub fn write_wav(path: &Path, a: &Audio, fmt: PcmFormat) -> Result<(), String> {
     h.extend_from_slice(&riff_len.to_le_bytes());
     h.extend_from_slice(b"WAVEfmt ");
     h.extend_from_slice(&fmt_len.to_le_bytes());
-    let tag: u16 = if extensible { 0xFFFE } else if float { 3 } else { 1 };
+    let tag: u16 = if extensible {
+        0xFFFE
+    } else if float {
+        3
+    } else {
+        1
+    };
     h.extend_from_slice(&tag.to_le_bytes());
     h.extend_from_slice(&ch.to_le_bytes());
     h.extend_from_slice(&a.rate.to_le_bytes());
@@ -520,7 +533,8 @@ pub fn write_wav(path: &Path, a: &Audio, fmt: PcmFormat) -> Result<(), String> {
     }
     h.extend_from_slice(b"data");
     h.extend_from_slice(&(body.len() as u32).to_le_bytes());
-    let mut f = std::fs::File::create(path).map_err(|e| crate::i18n::tf(crate::i18n::t("Zieldatei kann nicht angelegt werden: {e}"), &[("e", format!("{e}"))]))?;
+    let mut f =
+        std::fs::File::create(path).map_err(|e| crate::i18n::tf(crate::i18n::t("Zieldatei kann nicht angelegt werden: {e}"), &[("e", format!("{e}"))]))?;
     f.write_all(&h).and_then(|_| f.write_all(&body)).map_err(|e| e.to_string())?;
     if body.len() & 1 == 1 {
         f.write_all(&[0]).map_err(|e| e.to_string())?;
@@ -536,7 +550,7 @@ fn ext80(rate: f64) -> [u8; 10] {
     }
     let mut exp: i32 = 16383 + 63;
     let mut mant = rate;
-    while mant < 9.223372036854775808e18 {
+    while mant < 9.223_372_036_854_776e18 {
         mant *= 2.0;
         exp -= 1;
     }
@@ -581,7 +595,8 @@ pub fn write_aiff(path: &Path, a: &Audio, bits: u16) -> Result<(), String> {
     h.extend_from_slice(b"SSND");
     h.extend_from_slice(&ssnd_len.to_be_bytes());
     h.extend_from_slice(&[0u8; 8]);
-    let mut f = std::fs::File::create(path).map_err(|e| crate::i18n::tf(crate::i18n::t("Zieldatei kann nicht angelegt werden: {e}"), &[("e", format!("{e}"))]))?;
+    let mut f =
+        std::fs::File::create(path).map_err(|e| crate::i18n::tf(crate::i18n::t("Zieldatei kann nicht angelegt werden: {e}"), &[("e", format!("{e}"))]))?;
     f.write_all(&h).and_then(|_| f.write_all(&body)).map_err(|e| e.to_string())?;
     if body.len() & 1 == 1 {
         f.write_all(&[0]).map_err(|e| e.to_string())?;

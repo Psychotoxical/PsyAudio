@@ -6,10 +6,19 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum Effect {
-    Resample { rate: u32 },
-    BitDepth { bits: u16, dither: bool },
-    ChannelCount { channels: usize },
-    ChannelMapper { mode: u8 }, // 0 swap, 1 left only, 2 right only
+    Resample {
+        rate: u32,
+    },
+    BitDepth {
+        bits: u16,
+        dither: bool,
+    },
+    ChannelCount {
+        channels: usize,
+    },
+    ChannelMapper {
+        mode: u8,
+    }, // 0 swap, 1 left only, 2 right only
     /// Mode 0 peak to peak, 1 ReplayGain (track), 2 EBU R128 (track),
     /// 3 adaptive EBU R128, 4 adaptive peak, 5 fixed amplification, 6 reduce if above.
     VolumeNormalize {
@@ -24,23 +33,72 @@ pub enum Effect {
         #[serde(default)]
         fixed_db: f32,
     },
-    ReplayGain { target_lufs: f32, max_gain: f32, album: bool, clip_prevention: bool, true_peak_ratio: u32 },
-    ReplayGainApply { album: bool, limit_peaks: bool, missing_db: f32 },
-    Fade { in_ms: u32, out_ms: u32 },
-    Trim { start_ms: u32, end_ms: u32 },
-    TrimSilence { begin: bool, end: bool, digital_only: bool, threshold_db: f32 },
+    ReplayGain {
+        target_lufs: f32,
+        max_gain: f32,
+        album: bool,
+        clip_prevention: bool,
+        true_peak_ratio: u32,
+    },
+    ReplayGainApply {
+        album: bool,
+        limit_peaks: bool,
+        missing_db: f32,
+    },
+    Fade {
+        in_ms: u32,
+        out_ms: u32,
+    },
+    Trim {
+        start_ms: u32,
+        end_ms: u32,
+    },
+    TrimSilence {
+        begin: bool,
+        end: bool,
+        digital_only: bool,
+        threshold_db: f32,
+    },
     Reverse,
-    Lowpass { hz: f32 },
-    Highpass { hz: f32 },
-    Bandpass { low: f32, high: f32 },
-    GraphicEq { gains: [f32; 9] },
-    Compressor { threshold_db: f32, ratio: f32, attack_ms: f32, release_ms: f32 },
-    Karaoke { keep_voice: bool },
-    Speed { percent: f32 },
-    WriteSilence { start_ms: u32, end_ms: u32 },
-    Loop { times: u32 },
-    MinimumLength { seconds: f32 },
-    MaximumLength { percent: f32, seconds: f32 },
+    Lowpass {
+        hz: f32,
+    },
+    Highpass {
+        hz: f32,
+    },
+    Bandpass {
+        low: f32,
+        high: f32,
+    },
+    GraphicEq {
+        gains: [f32; 9],
+    },
+    Compressor {
+        threshold_db: f32,
+        ratio: f32,
+        attack_ms: f32,
+        release_ms: f32,
+    },
+    Karaoke {
+        keep_voice: bool,
+    },
+    Speed {
+        percent: f32,
+    },
+    WriteSilence {
+        start_ms: u32,
+        end_ms: u32,
+    },
+    Loop {
+        times: u32,
+    },
+    MinimumLength {
+        seconds: f32,
+    },
+    MaximumLength {
+        percent: f32,
+        seconds: f32,
+    },
     DeEmphasis,
     /// Decode HDCD to 24 bit (only 16 bit / 44.1 kHz / stereo PCM), optionally raised by 6 dB.
     Hdcd {
@@ -51,14 +109,28 @@ pub enum Effect {
     DeleteSource,
     PreserveAttributes,
     FolderJpgPreserve,
-    PlaylistWriter { kind: u8, same_folder: bool }, // 0 m3u8, 1 m3u, 2 pls
+    PlaylistWriter {
+        kind: u8,
+        same_folder: bool,
+    }, // 0 m3u8, 1 m3u, 2 pls
     PlaySound,
     WriteMetadataFile,
-    RunExternal { command: String },
-    ConditionalEncoding { skip_ext: String, copy_instead: bool },
+    RunExternal {
+        command: String,
+    },
+    ConditionalEncoding {
+        skip_ext: String,
+        copy_instead: bool,
+    },
     DeleteDestOnError,
-    MoveDestOnError { folder: String },
-    TagProcessing { field: String, value: String, mode: u8 }, // 0 set, 1 remove, 2 set if empty
+    MoveDestOnError {
+        folder: String,
+    },
+    TagProcessing {
+        field: String,
+        value: String,
+        mode: u8,
+    }, // 0 set, 1 remove, 2 set if empty
     CpuThrottle,
 }
 
@@ -151,17 +223,29 @@ pub fn catalogue() -> Vec<(&'static str, &'static str, Effect)> {
         ("Format", crate::i18n::t("Bittiefe"), Effect::BitDepth { bits: 16, dither: true }),
         ("Format", crate::i18n::t("Kanalanzahl"), Effect::ChannelCount { channels: 2 }),
         ("Format", crate::i18n::t("Kanäle zuordnen"), Effect::ChannelMapper { mode: 0 }),
-        (crate::i18n::t("Lautstärke"), crate::i18n::t("Lautstärke normalisieren"), Effect::VolumeNormalize { mode: 0, target_db: 0.0, max_amp: NORMALIZE_MAX_AMP, window_ms: NORMALIZE_WINDOW_MS, fixed_db: 0.0 }),
+        (
+            crate::i18n::t("Lautstärke"),
+            crate::i18n::t("Lautstärke normalisieren"),
+            Effect::VolumeNormalize { mode: 0, target_db: 0.0, max_amp: NORMALIZE_MAX_AMP, window_ms: NORMALIZE_WINDOW_MS, fixed_db: 0.0 },
+        ),
         (
             crate::i18n::t("Lautstärke"),
             crate::i18n::t("ReplayGain (Werte in Tags schreiben)"),
             Effect::ReplayGain { target_lufs: -18.0, max_gain: 25.0, album: true, clip_prevention: true, true_peak_ratio: 1 },
         ),
         (crate::i18n::t("Lautstärke"), crate::i18n::t("ReplayGain anwenden"), Effect::ReplayGainApply { album: false, limit_peaks: true, missing_db: 0.0 }),
-        (crate::i18n::t("Lautstärke"), crate::i18n::t("Dynamikkompression"), Effect::Compressor { threshold_db: -3.0, ratio: 1.0, attack_ms: 3.0, release_ms: 1000.0 }),
+        (
+            crate::i18n::t("Lautstärke"),
+            crate::i18n::t("Dynamikkompression"),
+            Effect::Compressor { threshold_db: -3.0, ratio: 1.0, attack_ms: 3.0, release_ms: 1000.0 },
+        ),
         (crate::i18n::t("Bearbeiten"), crate::i18n::t("Ein-/Ausblenden (Fade)"), Effect::Fade { in_ms: 0, out_ms: 3000 }),
         (crate::i18n::t("Bearbeiten"), crate::i18n::t("Kürzen (Trim)"), Effect::Trim { start_ms: 0, end_ms: 0 }),
-        (crate::i18n::t("Bearbeiten"), crate::i18n::t("Stille entfernen"), Effect::TrimSilence { begin: true, end: true, digital_only: false, threshold_db: -60.0 }),
+        (
+            crate::i18n::t("Bearbeiten"),
+            crate::i18n::t("Stille entfernen"),
+            Effect::TrimSilence { begin: true, end: true, digital_only: false, threshold_db: -60.0 },
+        ),
         (crate::i18n::t("Bearbeiten"), crate::i18n::t("Stille einfügen"), Effect::WriteSilence { start_ms: 0, end_ms: 2000 }),
         (crate::i18n::t("Bearbeiten"), crate::i18n::t("Rückwärts"), Effect::Reverse),
         (crate::i18n::t("Bearbeiten"), crate::i18n::t("Schleife (wiederholen)"), Effect::Loop { times: 2 }),
@@ -204,9 +288,14 @@ impl Effect {
     pub fn summary(&self) -> String {
         match self {
             Effect::Resample { rate } => format!("{rate} Hz"),
-            Effect::BitDepth { bits, dither } => crate::i18n::tf(crate::i18n::t("{bits} Bit{0}"), &[("bits", format!("{bits}")), ("0", format!("{}", if *dither { crate::i18n::t(", Dither") } else { "" }))]),
+            Effect::BitDepth { bits, dither } => crate::i18n::tf(
+                crate::i18n::t("{bits} Bit{0}"),
+                &[("bits", format!("{bits}")), ("0", (if *dither { crate::i18n::t(", Dither") } else { "" }).to_string())],
+            ),
             Effect::ChannelCount { channels } => crate::i18n::tf(crate::i18n::t("{channels} Kanal/Kanäle"), &[("channels", format!("{channels}"))]),
-            Effect::ChannelMapper { mode } => [crate::i18n::t("L/R tauschen"), crate::i18n::t("nur links"), crate::i18n::t("nur rechts")][*mode as usize % 3].into(),
+            Effect::ChannelMapper { mode } => {
+                [crate::i18n::t("L/R tauschen"), crate::i18n::t("nur links"), crate::i18n::t("nur rechts")][*mode as usize % 3].into()
+            }
             Effect::VolumeNormalize { mode, target_db, max_amp, fixed_db, .. } => match mode {
                 5 => format!("{fixed_db:+.1} dB"),
                 1..=3 => format!("{} · {:.0} LUFS · max. ×{max_amp:.0}", crate::i18n::t(NORMALIZE_MODES[*mode as usize]), target_db - NORMALIZE_EBU_OFFSET),
@@ -215,26 +304,58 @@ impl Effect {
             Effect::ReplayGain { target_lufs, max_gain, album, .. } => {
                 format!("{target_lufs:.0} LUFS, max. {max_gain:.0} dB{}", if *album { crate::i18n::t(", Album") } else { "" })
             }
-            Effect::ReplayGainApply { album, .. } => if *album { crate::i18n::t("Album-Gain").into() } else { crate::i18n::t("Titel-Gain").into() },
-            Effect::Fade { in_ms, out_ms } => crate::i18n::tf(crate::i18n::t("ein {in_ms} ms, aus {out_ms} ms"), &[("in_ms", format!("{in_ms}")), ("out_ms", format!("{out_ms}"))]),
-            Effect::Trim { start_ms, end_ms } => crate::i18n::tf(crate::i18n::t("Anfang {start_ms} ms, Ende {end_ms} ms"), &[("start_ms", format!("{start_ms}")), ("end_ms", format!("{end_ms}"))]),
-            Effect::TrimSilence { threshold_db, digital_only, .. } => {
-                if *digital_only { crate::i18n::t("nur digitale Stille").into() } else { crate::i18n::tf(crate::i18n::t("unter {threshold_db} dB"), &[("threshold_db", format!("{threshold_db:.0}"))]) }
+            Effect::ReplayGainApply { album, .. } => {
+                if *album {
+                    crate::i18n::t("Album-Gain").into()
+                } else {
+                    crate::i18n::t("Titel-Gain").into()
+                }
             }
-            Effect::WriteSilence { start_ms, end_ms } => crate::i18n::tf(crate::i18n::t("vorne {start_ms} ms, hinten {end_ms} ms"), &[("start_ms", format!("{start_ms}")), ("end_ms", format!("{end_ms}"))]),
+            Effect::Fade { in_ms, out_ms } => {
+                crate::i18n::tf(crate::i18n::t("ein {in_ms} ms, aus {out_ms} ms"), &[("in_ms", format!("{in_ms}")), ("out_ms", format!("{out_ms}"))])
+            }
+            Effect::Trim { start_ms, end_ms } => crate::i18n::tf(
+                crate::i18n::t("Anfang {start_ms} ms, Ende {end_ms} ms"),
+                &[("start_ms", format!("{start_ms}")), ("end_ms", format!("{end_ms}"))],
+            ),
+            Effect::TrimSilence { threshold_db, digital_only, .. } => {
+                if *digital_only {
+                    crate::i18n::t("nur digitale Stille").into()
+                } else {
+                    crate::i18n::tf(crate::i18n::t("unter {threshold_db} dB"), &[("threshold_db", format!("{threshold_db:.0}"))])
+                }
+            }
+            Effect::WriteSilence { start_ms, end_ms } => crate::i18n::tf(
+                crate::i18n::t("vorne {start_ms} ms, hinten {end_ms} ms"),
+                &[("start_ms", format!("{start_ms}")), ("end_ms", format!("{end_ms}"))],
+            ),
             Effect::Loop { times } => format!("{times}×"),
             Effect::Speed { percent } => format!("{percent:.0} %"),
             Effect::MinimumLength { seconds } => format!("{seconds:.0} s"),
             Effect::MaximumLength { percent, seconds } => {
-                if *seconds > 0.0 { format!("{seconds:.0} s") } else { crate::i18n::tf(crate::i18n::t("{percent} % des Originals"), &[("percent", format!("{percent:.0}"))]) }
+                if *seconds > 0.0 {
+                    format!("{seconds:.0} s")
+                } else {
+                    crate::i18n::tf(crate::i18n::t("{percent} % des Originals"), &[("percent", format!("{percent:.0}"))])
+                }
             }
             Effect::Lowpass { hz } | Effect::Highpass { hz } => format!("{hz:.0} Hz"),
             Effect::Bandpass { low, high } => format!("{low:.0}–{high:.0} Hz"),
             Effect::GraphicEq { gains } => {
-                if gains.iter().all(|g| *g == 0.0) { "flach".into() } else { "angepasst".into() }
+                if gains.iter().all(|g| *g == 0.0) {
+                    "flach".into()
+                } else {
+                    "angepasst".into()
+                }
             }
             Effect::Compressor { threshold_db, ratio, .. } => format!("{threshold_db:.0} dB, 1:{ratio:.1}"),
-            Effect::Karaoke { keep_voice } => if *keep_voice { crate::i18n::t("Stimme behalten").into() } else { crate::i18n::t("Stimme entfernen").into() },
+            Effect::Karaoke { keep_voice } => {
+                if *keep_voice {
+                    crate::i18n::t("Stimme behalten").into()
+                } else {
+                    crate::i18n::t("Stimme entfernen").into()
+                }
+            }
             Effect::PlaylistWriter { kind, .. } => ["M3U8", "M3U", "PLS"][*kind as usize % 3].into(),
             Effect::RunExternal { command } => command.clone(),
             Effect::ConditionalEncoding { skip_ext, copy_instead } => {
@@ -242,8 +363,8 @@ impl Effect {
             }
             Effect::MoveDestOnError { folder } => folder.clone(),
             Effect::TagProcessing { field, value, mode } => match mode {
-                1 => crate::i18n::tf(crate::i18n::t("{field} entfernen"), &[("field", format!("{field}"))]),
-                2 => crate::i18n::tf(crate::i18n::t("{field} = {value} (wenn leer)"), &[("field", format!("{field}")), ("value", format!("{value}"))]),
+                1 => crate::i18n::tf(crate::i18n::t("{field} entfernen"), &[("field", field.to_string())]),
+                2 => crate::i18n::tf(crate::i18n::t("{field} = {value} (wenn leer)"), &[("field", field.to_string()), ("value", value.to_string())]),
                 _ => format!("{field} = {value}"),
             },
             _ => String::new(),
@@ -367,13 +488,7 @@ impl Bq {
         let w = 2.0 * std::f64::consts::PI * f / rate;
         let alpha = w.sin() / (2.0 * q);
         let a0 = 1.0 + alpha / a;
-        Bq {
-            b0: (1.0 + alpha * a) / a0,
-            b1: -2.0 * w.cos() / a0,
-            b2: (1.0 - alpha * a) / a0,
-            a1: -2.0 * w.cos() / a0,
-            a2: (1.0 - alpha / a) / a0,
-        }
+        Bq { b0: (1.0 + alpha * a) / a0, b1: -2.0 * w.cos() / a0, b2: (1.0 - alpha * a) / a0, a1: -2.0 * w.cos() / a0, a2: (1.0 - alpha / a) / a0 }
     }
     fn shelf_high(rate: f64, f: f64, gain_db: f64) -> Bq {
         let a = 10f64.powf(gain_db / 40.0);
@@ -416,7 +531,11 @@ fn fir(a: &mut Audio, low: Option<f32>, high: Option<f32>) {
     let pi = std::f64::consts::PI;
     let lp = |fc: f64, n: isize| -> f64 {
         let x = n as f64;
-        if n == 0 { 2.0 * fc } else { (2.0 * pi * fc * x).sin() / (pi * x) }
+        if n == 0 {
+            2.0 * fc
+        } else {
+            (2.0 * pi * fc * x).sin() / (pi * x)
+        }
     };
     let mut h = vec![0f64; taps as usize];
     for i in 0..taps {
@@ -427,7 +546,13 @@ fn fir(a: &mut Audio, low: Option<f32>, high: Option<f32>) {
             (None, Some(fh)) => lp(fh, n),
             (Some(fl), None) => (if n == 0 { 1.0 } else { 0.0 }) - lp(fl, n),
             (Some(fl), Some(fh)) => lp(fh, n) - lp(fl, n),
-            (None, None) => if n == 0 { 1.0 } else { 0.0 },
+            (None, None) => {
+                if n == 0 {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
         };
         let w = 0.42 - 0.5 * (2.0 * pi * i as f64 / (taps - 1) as f64).cos() + 0.08 * (4.0 * pi * i as f64 / (taps - 1) as f64).cos();
         h[i as usize] = v * w;
@@ -626,7 +751,7 @@ pub fn apply(e: &Effect, a: &mut Audio, tags: &crate::tags::Tags, original_secon
         }
         Effect::Karaoke { keep_voice } => {
             if ch == 2 {
-                for f in a.data.chunks_exact_mut(2) {
+                for f in a.data.as_chunks_mut::<2>().0 {
                     if *keep_voice {
                         let m = (f[0] + f[1]) * 0.5;
                         f[0] = m;
@@ -655,7 +780,7 @@ pub fn apply(e: &Effect, a: &mut Audio, tags: &crate::tags::Tags, original_secon
             let e2 = ms_frames(a, *end_ms) * ch;
             let mut d = vec![0f32; s];
             d.extend_from_slice(&a.data);
-            d.extend(std::iter::repeat(0f32).take(e2));
+            d.extend(std::iter::repeat_n(0f32, e2));
             a.data = d;
         }
         Effect::Loop { times } => {
@@ -671,11 +796,7 @@ pub fn apply(e: &Effect, a: &mut Audio, tags: &crate::tags::Tags, original_secon
         }
         Effect::MaximumLength { percent, seconds } => {
             let frames = a.frames();
-            let keep = if *seconds > 0.0 {
-                (a.rate as f32 * seconds) as usize
-            } else {
-                (frames as f32 * percent / 100.0) as usize
-            };
+            let keep = if *seconds > 0.0 { (a.rate as f32 * seconds) as usize } else { (frames as f32 * percent / 100.0) as usize };
             a.data.truncate(keep.min(frames) * ch);
         }
         Effect::DeEmphasis => {
@@ -691,7 +812,7 @@ pub fn apply(e: &Effect, a: &mut Audio, tags: &crate::tags::Tags, original_secon
 fn segment_gain(a: &Audio, mode: u8, target_db: f32) -> f32 {
     let target_lin = 10f32.powf(target_db / 20.0);
     match mode {
-        1 | 2 | 3 => {
+        1..=3 => {
             let lufs = crate::loudness::integrated(&crate::loudness::block_energies(a)) as f32;
             if lufs <= -69.9 {
                 1.0
@@ -701,7 +822,11 @@ fn segment_gain(a: &Audio, mode: u8, target_db: f32) -> f32 {
         }
         _ => {
             let p = a.peak();
-            if p > 0.0 { target_lin / p } else { 1.0 }
+            if p > 0.0 {
+                target_lin / p
+            } else {
+                1.0
+            }
         }
     }
 }
@@ -817,10 +942,28 @@ pub fn hdcd_decode(a: &mut Audio, ffmpeg: Option<&std::path::Path>, amp_6db: boo
     }
     let Some(ff) = ffmpeg else { return Err(crate::i18n::t("FFmpeg wird benötigt").into()) };
     let mut cmd = Command::new(ff);
-    cmd.args(["-hide_banner", "-nostdin", "-f", "s16le", "-ar", "44100", "-ac", "2", "-i", "pipe:0", "-af", "hdcd", "-c:a", "pcm_s32le", "-f", "s32le", "pipe:1"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    cmd.args([
+        "-hide_banner",
+        "-nostdin",
+        "-f",
+        "s16le",
+        "-ar",
+        "44100",
+        "-ac",
+        "2",
+        "-i",
+        "pipe:0",
+        "-af",
+        "hdcd",
+        "-c:a",
+        "pcm_s32le",
+        "-f",
+        "s32le",
+        "pipe:1",
+    ])
+    .stdin(Stdio::piped())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -848,10 +991,7 @@ pub fn hdcd_decode(a: &mut Audio, ffmpeg: Option<&std::path::Path>, amp_6db: boo
         return Ok(false);
     }
     let gain = if amp_6db { 2.0 } else { 1.0 };
-    a.data = out
-        .chunks_exact(4)
-        .map(|b| (i32::from_le_bytes([b[0], b[1], b[2], b[3]]) as f32 / 2147483648.0 * gain).clamp(-1.0, 1.0))
-        .collect();
+    a.data = out.as_chunks::<4>().0.iter().map(|b| (i32::from_le_bytes([b[0], b[1], b[2], b[3]]) as f32 / 2147483648.0 * gain).clamp(-1.0, 1.0)).collect();
     a.bits = 24;
     Ok(true)
 }

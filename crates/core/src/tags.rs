@@ -28,8 +28,7 @@ pub const FIELDS: &[(&str, &str)] = &[
     ("lyrics", "Liedtext"),
 ];
 
-pub const RG_FIELDS: &[&str] =
-    &["replaygain_track_gain", "replaygain_track_peak", "replaygain_album_gain", "replaygain_album_peak"];
+pub const RG_FIELDS: &[&str] = &["replaygain_track_gain", "replaygain_track_peak", "replaygain_album_gain", "replaygain_album_peak"];
 
 fn key_of(name: &str) -> Option<ItemKey> {
     Some(match name {
@@ -70,10 +69,32 @@ pub const MULTI_SEP: &str = "; ";
 const MULTI_FIELDS: &[&str] = &["artist", "album artist", "genre", "composer", "conductor"];
 
 const ALL_KEYS: &[&str] = &[
-    "title", "artist", "album", "album artist", "track", "track_total", "disc", "disc_total", "year", "genre",
-    "composer", "conductor", "comment", "label", "isrc", "compilation", "lyrics", "replaygain_track_gain",
-    "replaygain_track_peak", "replaygain_album_gain", "replaygain_album_peak", "title sort", "artist sort",
-    "album sort", "album artist sort", "composersort",
+    "title",
+    "artist",
+    "album",
+    "album artist",
+    "track",
+    "track_total",
+    "disc",
+    "disc_total",
+    "year",
+    "genre",
+    "composer",
+    "conductor",
+    "comment",
+    "label",
+    "isrc",
+    "compilation",
+    "lyrics",
+    "replaygain_track_gain",
+    "replaygain_track_peak",
+    "replaygain_album_gain",
+    "replaygain_album_peak",
+    "title sort",
+    "artist sort",
+    "album sort",
+    "album artist sort",
+    "composersort",
 ];
 
 /// Picture types as ID3 numbers them (the ones the program handles by name).
@@ -144,9 +165,7 @@ impl Tags {
     }
     /// Same fields and pictures (to tell whether the editor holds unsaved changes).
     pub fn same_as(&self, other: &Tags) -> bool {
-        self.fields == other.fields
-            && self.art.len() == other.art.len()
-            && self.art.iter().zip(&other.art).all(|(a, b)| a.kind == b.kind && a.data == b.data)
+        self.fields == other.fields && self.art.len() == other.art.len() && self.art.iter().zip(&other.art).all(|(a, b)| a.kind == b.kind && a.data == b.data)
     }
     /// The front cover, or the first picture when none is marked as front.
     pub fn front_cover(&self) -> Option<&Art> {
@@ -185,8 +204,7 @@ pub fn read(path: &Path) -> (Tags, Info) {
         for name in ALL_KEYS {
             if let Some(k) = key_of(name) {
                 // several values (two artists, two genres) are shown joined with "; "
-                let vals: Vec<String> =
-                    tag.get_strings(k).map(|v| v.trim_matches(char::from(0)).trim().to_string()).filter(|v| !v.is_empty()).collect();
+                let vals: Vec<String> = tag.get_strings(k).map(|v| v.trim_matches(char::from(0)).trim().to_string()).filter(|v| !v.is_empty()).collect();
                 if !vals.is_empty() {
                     tags.fields.insert(name.to_string(), vals.join(MULTI_SEP));
                 }
@@ -217,6 +235,76 @@ pub fn read(path: &Path) -> (Tags, Info) {
         }
     }
     (tags, info)
+}
+
+/// Write `tags` into `path`, replacing the known fields. Returns an error text when the format has no tags.
+pub fn write(path: &Path, tags: &Tags, replace_art: bool) -> Result<(), String> {
+    let mut file = lofty::read_from_path(path).map_err(|e| format!("Tags: {e}"))?;
+    if file.primary_tag_mut().is_none() {
+        let tt = file.primary_tag_type();
+        file.insert_tag(Tag::new(tt));
+    }
+    let tag = file.primary_tag_mut().ok_or(crate::i18n::t("Format unterstützt keine Tags"))?;
+    for name in ALL_KEYS {
+        if let Some(k) = key_of(name) {
+            tag.remove_key(k);
+            if let Some(v) = tags.fields.get(*name) {
+                if MULTI_FIELDS.contains(name) && v.contains(MULTI_SEP) {
+                    for part in v.split(MULTI_SEP).map(str::trim).filter(|p| !p.is_empty()) {
+                        tag.push(lofty::tag::TagItem::new(k, lofty::tag::ItemValue::Text(part.to_string())));
+                    }
+                } else if !v.trim().is_empty() {
+                    tag.insert_text(k, v.clone());
+                }
+            }
+        }
+    }
+    if replace_art {
+        // the file gets exactly the pictures in `tags`, each with its own type
+        let old: Vec<PictureType> = tag.pictures().iter().map(|p| p.pic_type()).collect();
+        for t in old {
+            tag.remove_picture_type(t);
+        }
+        for a in &tags.art {
+            let mime = match image_mime(&a.data) {
+                "image/png" => MimeType::Png,
+                "image/gif" => MimeType::Gif,
+                "image/bmp" => MimeType::Bmp,
+                _ => MimeType::Jpeg,
+            };
+            tag.push_picture(Picture::unchecked(a.data.clone()).pic_type(PictureType::from_u8(a.kind)).mime_type(mime).build());
+        }
+    }
+    tag.save_to_path(path, WriteOptions::default()).map_err(|e| crate::i18n::tf(crate::i18n::t("Tags speichern: {e}"), &[("e", format!("{e}"))]))
+}
+
+/// FFmpeg -metadata arguments (for formats the tag library can't write, e.g. WMA).
+pub fn ffmpeg_metadata(tags: &Tags) -> Vec<String> {
+    let mut out = Vec::new();
+    let map = [
+        ("title", "title"),
+        ("artist", "artist"),
+        ("album", "album"),
+        ("album artist", "album_artist"),
+        ("year", "date"),
+        ("genre", "genre"),
+        ("composer", "composer"),
+        ("comment", "comment"),
+    ];
+    for (k, f) in map {
+        let v = tags.get(k);
+        if !v.is_empty() {
+            out.push("-metadata".into());
+            out.push(format!("{f}={v}"));
+        }
+    }
+    let t = tags.get("track");
+    if !t.is_empty() {
+        out.push("-metadata".into());
+        let tt = tags.get("track_total");
+        out.push(if tt.is_empty() { format!("track={t}") } else { format!("track={t}/{tt}") });
+    }
+    out
 }
 
 #[cfg(test)]
@@ -284,8 +372,7 @@ mod art_tests {
 
     #[test]
     fn album_fields_never_remove_covers() {
-        let mut target = Tags::default();
-        target.art = vec![Art::new(PNG.to_vec(), FRONT), Art::new(JPG.to_vec(), BACK)];
+        let mut target = Tags { art: vec![Art::new(PNG.to_vec(), FRONT), Art::new(JPG.to_vec(), BACK)], ..Tags::default() };
         let mut from = Tags::default();
         from.set("album", "Platte");
         take_album_fields(&mut target, &from);
@@ -296,74 +383,4 @@ mod art_tests {
         assert_eq!(kinds(&target), vec![FRONT, BACK]);
         assert_eq!(target.front_cover().unwrap().data, b"\x89PNGnew");
     }
-}
-
-/// Write `tags` into `path`, replacing the known fields. Returns an error text when the format has no tags.
-pub fn write(path: &Path, tags: &Tags, replace_art: bool) -> Result<(), String> {
-    let mut file = lofty::read_from_path(path).map_err(|e| format!("Tags: {e}"))?;
-    if file.primary_tag_mut().is_none() {
-        let tt = file.primary_tag_type();
-        file.insert_tag(Tag::new(tt));
-    }
-    let tag = file.primary_tag_mut().ok_or(crate::i18n::t("Format unterstützt keine Tags"))?;
-    for name in ALL_KEYS {
-        if let Some(k) = key_of(name) {
-            tag.remove_key(k.clone());
-            if let Some(v) = tags.fields.get(*name) {
-                if MULTI_FIELDS.contains(name) && v.contains(MULTI_SEP) {
-                    for part in v.split(MULTI_SEP).map(str::trim).filter(|p| !p.is_empty()) {
-                        tag.push(lofty::tag::TagItem::new(k.clone(), lofty::tag::ItemValue::Text(part.to_string())));
-                    }
-                } else if !v.trim().is_empty() {
-                    tag.insert_text(k, v.clone());
-                }
-            }
-        }
-    }
-    if replace_art {
-        // the file gets exactly the pictures in `tags`, each with its own type
-        let old: Vec<PictureType> = tag.pictures().iter().map(|p| p.pic_type()).collect();
-        for t in old {
-            tag.remove_picture_type(t);
-        }
-        for a in &tags.art {
-            let mime = match image_mime(&a.data) {
-                "image/png" => MimeType::Png,
-                "image/gif" => MimeType::Gif,
-                "image/bmp" => MimeType::Bmp,
-                _ => MimeType::Jpeg,
-            };
-            tag.push_picture(Picture::unchecked(a.data.clone()).pic_type(PictureType::from_u8(a.kind)).mime_type(mime).build());
-        }
-    }
-    tag.save_to_path(path, WriteOptions::default()).map_err(|e| crate::i18n::tf(crate::i18n::t("Tags speichern: {e}"), &[("e", format!("{e}"))]))
-}
-
-/// FFmpeg -metadata arguments (for formats the tag library can't write, e.g. WMA).
-pub fn ffmpeg_metadata(tags: &Tags) -> Vec<String> {
-    let mut out = Vec::new();
-    let map = [
-        ("title", "title"),
-        ("artist", "artist"),
-        ("album", "album"),
-        ("album artist", "album_artist"),
-        ("year", "date"),
-        ("genre", "genre"),
-        ("composer", "composer"),
-        ("comment", "comment"),
-    ];
-    for (k, f) in map {
-        let v = tags.get(k);
-        if !v.is_empty() {
-            out.push("-metadata".into());
-            out.push(format!("{f}={v}"));
-        }
-    }
-    let t = tags.get("track");
-    if !t.is_empty() {
-        out.push("-metadata".into());
-        let tt = tags.get("track_total");
-        out.push(if tt.is_empty() { format!("track={t}") } else { format!("track={t}/{tt}") });
-    }
-    out
 }

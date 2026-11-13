@@ -23,7 +23,7 @@ pub struct ReadParams {
 /// Read errors here do not matter (the sectors are only read to empty the cache); Cancel does.
 fn flush_cache(drive: &dyn SectorRead, lba: i64, block_end: i64, max_lba: i64, cache_kb: u32, cancel: &AtomicBool) -> Result<(), String> {
     let sectors = (cache_kb as i64 * 1024 + SECTOR as i64 - 1) / SECTOR as i64 + 1;
-    let start = if lba - sectors - 1 >= 0 { lba - sectors - 1 } else { (block_end + 1).min((max_lba - sectors).max(0)) };
+    let start = if lba - sectors > 0 { lba - sectors - 1 } else { (block_end + 1).min((max_lba - sectors).max(0)) };
     let mut l = start;
     while l < start + sectors {
         if cancel.load(Ordering::Relaxed) {
@@ -123,9 +123,7 @@ pub fn rip_track(
         let mut clean = 0;
         for u in 1..=max {
             flush_cache(drive, s_lo, s_hi, max_lba, rp.cache_kb, cancel)?;
-            let (pass, unreadable) = read_range(drive, s_lo, s_hi, max_lba, cancel, &|f| {
-                progress(0.8 + 0.1 * (u as f32 - 1.0 + f) / max as f32)
-            })?;
+            let (pass, unreadable) = read_range(drive, s_lo, s_hi, max_lba, cancel, &|f| progress(0.8 + 0.1 * (u as f32 - 1.0 + f) / max as f32))?;
             passes += 1;
             mark(&mut bad, &unreadable);
             if add_pass(&pass, block, &mut versions, &mut bad) == 0 && unreadable.is_empty() {
@@ -246,7 +244,17 @@ mod reader_tests {
         Toc { tracks: vec![TocTrack { number: 1, lba: 0, audio: true }, TocTrack { number: 2, lba: 100, audio: true }], leadout: 400 }
     }
     fn params(secure: bool) -> ReadParams {
-        ReadParams { secure, reread_limit: 3, extra_passes: false, extra_min: 3, extra_max: 6, extra_clean: 2, cache_kb: 64, abort_unrecoverable: 0, interpolate: false }
+        ReadParams {
+            secure,
+            reread_limit: 3,
+            extra_passes: false,
+            extra_min: 3,
+            extra_max: 6,
+            extra_clean: 2,
+            cache_kb: 64,
+            abort_unrecoverable: 0,
+            interpolate: false,
+        }
     }
     fn rip(d: &FakeDrive, secure: bool, cancel: &AtomicBool) -> Result<TrackRip, String> {
         rip_track(d, &toc(), 1, 0, params(secure), cancel, &|_| {}, &|_| false)
@@ -312,16 +320,10 @@ fn offset_crc(frames: &[u32]) -> u32 {
 /// Find the drive's read offset with the AccurateRip database: for each audio track read around sector 450, slide
 /// the 588-sample checksum by -1763..+1763 samples and look for the database's sector-450 CRC.
 /// All tracks that match must agree, and at least `min(6, tracks)` must match.
-pub fn find_offset(
-    drive: &dyn SectorRead,
-    toc: &Toc,
-    db: &[Vec<(u8, u32, u32)>],
-    cancel: &AtomicBool,
-    progress: &dyn Fn(f32),
-) -> Result<(i32, usize), String> {
+pub fn find_offset(drive: &dyn SectorRead, toc: &Toc, db: &[Vec<(u8, u32, u32)>], cancel: &AtomicBool, progress: &dyn Fn(f32)) -> Result<(i32, usize), String> {
     let audio = toc.audio_tracks();
     let margin = (OFFSET_SEARCH as usize).div_ceil(SAMPLES_PER_SECTOR) as i64 + 1; // sectors each side
-    // per track: (pressing, shift) for every pressing whose sector-450 CRC is found
+                                                                                   // per track: (pressing, shift) for every pressing whose sector-450 CRC is found
     let mut hits: Vec<Vec<(usize, i32)>> = Vec::new();
     let mut tried = 0;
     for (idx, t) in audio.iter().enumerate() {
@@ -333,15 +335,14 @@ pub fn find_offset(
         if end <= start + 450 + margin as u32 {
             continue; // track too short to have a sector 450 with margin
         }
-        let targets: Vec<(usize, u32)> =
-            db.iter().enumerate().filter_map(|(pi, p)| p.get(idx).map(|e| (pi, e.2))).filter(|(_, c)| *c != 0).collect();
+        let targets: Vec<(usize, u32)> = db.iter().enumerate().filter_map(|(pi, p)| p.get(idx).map(|e| (pi, e.2))).filter(|(_, c)| *c != 0).collect();
         if targets.is_empty() {
             continue;
         }
         tried += 1;
         let first = start as i64 + 450 - margin;
         let raw = read_block(drive, first, margin * 2 + 1, toc.readable_end() as i64)?;
-        let frames: Vec<u32> = raw.chunks_exact(4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+        let frames: Vec<u32> = raw.as_chunks::<4>().0.iter().map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
         let base = (margin as usize) * SAMPLES_PER_SECTOR;
         let mut track_hits: Vec<(usize, i32)> = Vec::new();
         'search: for s in 0..=OFFSET_SEARCH {

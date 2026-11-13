@@ -2,7 +2,8 @@
 //   node scripts/capture.mjs <konverter|stapel|cd|einstellungen> <file.png> [--light] [--click=<css>]…
 // --click clicks the first element matching the selector before the picture (e.g. a tile).
 // --eval=<js> runs an expression in the page; --wait=<css> waits up to 2 minutes for an element;
-// --file=<path> passes a file on the command line; --title prints the window title at the end.
+// --file=<path> passes a file on the command line; --title prints the window title at the end;
+// --close clicks the window's close button (WM_CLOSE); --expect-exit waits up to 25 s for the end.
 // The options run in the order given.
 // Needs the debug build (cargo build -p psyaudio) and the Vite dev server (npm run dev).
 // A window opens for a few seconds; the sample mode saves nothing.
@@ -92,6 +93,14 @@ try {
     } else if (opt.startsWith("--eval=")) {
       console.log("eval:", await evaluate(opt.slice(7)));
       await sleep(300);
+    } else if (opt === "--close") {
+      // the window's close button: WM_CLOSE to the main window
+      execFileSync("powershell", ["-NoProfile", "-Command", `[void](Get-Process -Id ${child.pid}).CloseMainWindow()`]);
+      await sleep(600);
+    } else if (opt === "--expect-exit") {
+      for (let i = 0; i < 100 && child.exitCode === null; i++) await sleep(250);
+      console.log("exited:", child.exitCode !== null ? `yes (code ${child.exitCode})` : "no");
+      process.exit(0);
     } else if (opt.startsWith("--wait=")) {
       const sel = JSON.stringify(opt.slice(7));
       for (let i = 0; i < 480 && !(await evaluate(`!!document.querySelector(${sel})`)); i++) await sleep(250);

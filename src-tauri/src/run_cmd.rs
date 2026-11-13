@@ -107,11 +107,7 @@ impl Overall {
 type Items = Vec<(String, Option<String>)>;
 
 fn jobs(items: Items) -> Vec<Job> {
-    items
-        .into_iter()
-        .enumerate()
-        .map(|(id, (src, root))| Job { id, src: PathBuf::from(src), root: root.map(PathBuf::from), tags: None, audio: None })
-        .collect()
+    items.into_iter().enumerate().map(|(id, (src, root))| Job { id, src: PathBuf::from(src), root: root.map(PathBuf::from), tags: None, audio: None }).collect()
 }
 
 /// The plan for a run, or why it cannot start (the texts the egui version showed).
@@ -167,11 +163,8 @@ fn run_info(plan: &Plan, files: usize) -> RunInfo {
     } else {
         tf(t("Umwandeln nach {0}"), &[("0", plan.codec.name().to_string())])
     };
-    let target = if plan.codec == Codec::Multi {
-        plan.enc.multi.iter().map(|c| c.name()).collect::<Vec<_>>().join(", ")
-    } else {
-        plan.codec.name().to_string()
-    };
+    let target =
+        if plan.codec == Codec::Multi { plan.enc.multi.iter().map(|c| c.name()).collect::<Vec<_>>().join(", ") } else { plan.codec.name().to_string() };
     RunInfo { title, target, threads: plan.threads.min(files).max(1) }
 }
 

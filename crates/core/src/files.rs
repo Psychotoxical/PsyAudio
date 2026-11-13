@@ -73,9 +73,8 @@ mod tests {
         for f in ["b.flac", "a.mp3", "x.txt", "c/d.wav"] {
             std::fs::write(dir.join(f), b"").unwrap();
         }
-        let got = expand_paths(&[dir.clone()], None);
-        let want: Vec<(PathBuf, Option<PathBuf>)> =
-            ["a.mp3", "b.flac", "c/d.wav"].iter().map(|f| (dir.join(f), Some(dir.clone()))).collect();
+        let got = expand_paths(std::slice::from_ref(&dir), None);
+        let want: Vec<(PathBuf, Option<PathBuf>)> = ["a.mp3", "b.flac", "c/d.wav"].iter().map(|f| (dir.join(f), Some(dir.clone()))).collect();
         assert_eq!(got, want);
         let _ = std::fs::remove_dir_all(&dir);
     }

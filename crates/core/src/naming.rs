@@ -4,8 +4,7 @@ use crate::tags::Tags;
 use std::path::Path;
 
 /// Replacements for characters Windows does not allow in file names (the same as in PsyTags).
-const CHAR_REPLACE: &[(char, &str)] =
-    &[('\\', "-"), ('/', ""), (':', "-"), ('*', ""), ('?', ""), ('"', "''"), ('<', ""), ('>', ""), ('|', "")];
+const CHAR_REPLACE: &[(char, &str)] = &[('\\', "-"), ('/', ""), (':', "-"), ('*', ""), ('?', ""), ('"', "''"), ('<', ""), ('>', ""), ('|', "")];
 
 /// Characters Windows doesn't allow in names are replaced by the table above;
 /// control characters are dropped.
@@ -32,8 +31,7 @@ pub const SEPARATORS: &[&str] = &[" - ", "-", "(", ")", "[", "]", " ", "_", "."]
 /// Converter default: keep the source file name.
 pub const CONVERT_SCHEME: &[&str] = &["filename"];
 /// CD ripper default, the same as in PsyTags.
-pub const CD_SCHEME: &[&str] =
-    &["albumartist", " - ", "(", "year", ")", " - ", "album", FOLDER, "track", "-", "disc", " - ", "artist", " - ", "title"];
+pub const CD_SCHEME: &[&str] = &["albumartist", " - ", "(", "year", ")", " - ", "album", FOLDER, "track", "-", "disc", " - ", "artist", " - ", "title"];
 /// Naming presets offered in a list (German name, chips); choosing one sets the chips, which
 /// stay free to change. The first is the CD ripper's default, the last the converter's.
 pub const PRESETS: &[(&str, &[&str])] = &[
@@ -83,11 +81,8 @@ pub fn tag_key(token: &str) -> Option<&'static str> {
 
 /// Keep known chips only; an empty result becomes `default`.
 pub fn sanitize(scheme: &[String], data: &[&str], folders: bool, default: &[&str]) -> Vec<String> {
-    let out: Vec<String> = scheme
-        .iter()
-        .filter(|t| data.contains(&t.as_str()) || SEPARATORS.contains(&t.as_str()) || (folders && t.as_str() == FOLDER))
-        .cloned()
-        .collect();
+    let out: Vec<String> =
+        scheme.iter().filter(|t| data.contains(&t.as_str()) || SEPARATORS.contains(&t.as_str()) || (folders && t.as_str() == FOLDER)).cloned().collect();
     if out.iter().any(|t| data.contains(&t.as_str())) {
         out
     } else {
@@ -313,4 +308,3 @@ mod scheme_tests {
         assert_eq!(tag_key("filename"), None);
     }
 }
-

@@ -1,8 +1,8 @@
 //! Ripping a CD: the worker thread, its messages and the per-track verdicts.
 
-use crate::naming;
 use crate::cdrip::{self, DiscMeta, Pressing, Toc};
 use crate::convert::{self, Job, Msg, Plan};
+use crate::naming;
 use crate::settings::{RipMode, RipSettings};
 use crate::tags::Tags;
 use serde::Serialize;
@@ -25,7 +25,9 @@ pub enum RipMsg {
 #[serde(tag = "kind")]
 pub enum RipPhase {
     /// `done`: share of the reading (0..1).
-    Reading { done: f32 },
+    Reading {
+        done: f32,
+    },
     Encoding,
 }
 
@@ -44,14 +46,26 @@ impl RipPhase {
 #[serde(tag = "kind")]
 pub enum TrackStatus {
     /// Passes agreed (or AccurateRip confirmed the first one); `rereads` blocks were read again.
-    Secure { passes: u32, rereads: u32, verified_first_pass: bool },
+    Secure {
+        passes: u32,
+        rereads: u32,
+        verified_first_pass: bool,
+    },
     /// Burst mode: read once without correction.
     Burst,
-    Insecure { sectors: u32 },
+    Insecure {
+        sectors: u32,
+    },
     /// "Titel als Fehler markieren": insecure, or (`unconfirmed`) not confirmed by AccurateRip.
-    Marked { unconfirmed: bool, was: Box<TrackStatus> },
+    Marked {
+        unconfirmed: bool,
+        was: Box<TrackStatus>,
+    },
     /// Reading (`encoding` false) or encoding failed.
-    Failed { reason: String, encoding: bool },
+    Failed {
+        reason: String,
+        encoding: bool,
+    },
     Cancelled,
 }
 
@@ -158,10 +172,17 @@ pub fn rip_status(mark_error: u8, status: TrackStatus, insecure: bool, confirmed
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "kind")]
 pub enum RipSummary {
-    Done { files: usize, accurate: usize, insecure: usize, folder: Option<String> },
+    Done {
+        files: usize,
+        accurate: usize,
+        insecure: usize,
+        folder: Option<String>,
+    },
     Cancelled,
     /// The drive could not be opened.
-    Failed { reason: String },
+    Failed {
+        reason: String,
+    },
 }
 
 impl RipSummary {
@@ -208,8 +229,15 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
     let batch = convert::Batch::new();
     let mut log = vec![
         crate::i18n::t("PsyAudio – Protokoll der Audio-Extraktion").to_string(),
-        crate::i18n::tf(crate::i18n::t("Album: {0} – {1}"), &[("0", format!("{}", meta.artist)), ("1", format!("{}", meta.album))]),
-        crate::i18n::tf(crate::i18n::t("Laufwerk {letter}  Versatz {0} Samples  Modus: {1}"), &[("letter", cdrip::drive_name(letter)), ("0", format!("{:+}", rs.drive_offset)), ("1", format!("{}", if rs.mode == RipMode::Secure { crate::i18n::t("Sicher") } else { "Burst" }))]),
+        crate::i18n::tf(crate::i18n::t("Album: {0} – {1}"), &[("0", meta.artist.to_string()), ("1", meta.album.to_string())]),
+        crate::i18n::tf(
+            crate::i18n::t("Laufwerk {letter}  Versatz {0} Samples  Modus: {1}"),
+            &[
+                ("letter", cdrip::drive_name(letter)),
+                ("0", format!("{:+}", rs.drive_offset)),
+                ("1", (if rs.mode == RipMode::Secure { crate::i18n::t("Sicher") } else { "Burst" }).to_string()),
+            ],
+        ),
         format!("MusicBrainz Disc-ID: {}   freedb: {:08x}", cdrip::musicbrainz_id(&toc), cdrip::freedb_id(&toc)),
         String::new(),
     ];
@@ -254,7 +282,7 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
                 // a stop in the middle of a track is no read error
                 let status = if cancel.load(Ordering::Relaxed) { TrackStatus::Cancelled } else { TrackStatus::Failed { reason: e.clone(), encoding: false } };
                 let _ = tx.send(RipMsg::TrackDone(row, status, None));
-                log.push(crate::i18n::tf(crate::i18n::t("Titel {number}: Fehler {e}"), &[("number", format!("{number:02}")), ("e", format!("{e}"))]));
+                log.push(crate::i18n::tf(crate::i18n::t("Titel {number}: Fehler {e}"), &[("number", format!("{number:02}")), ("e", e.to_string())]));
                 continue;
             }
         };
@@ -274,7 +302,18 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
             accurate += 1;
         }
         let status = rip_status(rs.mark_error, status, rip.insecure_sectors > 0, confirmed);
-        log.push(crate::i18n::tf(crate::i18n::t("Titel {number}  {0}  CRC32 {1}  AR v1 {v1} v2 {v2}  {status}  {ar}"), &[("number", format!("{number:02}")), ("0", format!("{}", tg.get("title"))), ("1", format!("{:08X}", rip.crc)), ("v1", format!("{v1:08X}")), ("v2", format!("{v2:08X}")), ("status", status.text()), ("ar", ar.as_ref().map(ArResult::text).unwrap_or_default())]));
+        log.push(crate::i18n::tf(
+            crate::i18n::t("Titel {number}  {0}  CRC32 {1}  AR v1 {v1} v2 {v2}  {status}  {ar}"),
+            &[
+                ("number", format!("{number:02}")),
+                ("0", tg.get("title").to_string()),
+                ("1", format!("{:08X}", rip.crc)),
+                ("v1", format!("{v1:08X}")),
+                ("v2", format!("{v2:08X}")),
+                ("status", status.text()),
+                ("ar", ar.as_ref().map(ArResult::text).unwrap_or_default()),
+            ],
+        ));
         let _ = tx.send(RipMsg::Progress(row, 0.85, RipPhase::Encoding));
         let audio = Arc::new(cdrip::raw_to_audio(&rip.raw));
         let job = Job { id: 0, src: PathBuf::from(format!("Track{number:02}.wav")), root: None, tags: Some(tg), audio: Some(audio) };
@@ -287,7 +326,7 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
             }
             Err(e) => {
                 let _ = tx.send(RipMsg::TrackDone(row, TrackStatus::Failed { reason: e.clone(), encoding: true }, ar));
-                log.push(crate::i18n::tf(crate::i18n::t("   Kodierfehler: {e}"), &[("e", format!("{e}"))]));
+                log.push(crate::i18n::tf(crate::i18n::t("   Kodierfehler: {e}"), &[("e", e.to_string())]));
             }
         }
         while crx.try_recv().is_ok() {}
@@ -307,7 +346,10 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
         let base = if meta.album.trim().is_empty() { "CD".to_string() } else { naming::clean_value(&meta.album) };
         if rs.write_log {
             log.push(String::new());
-            log.push(crate::i18n::tf(crate::i18n::t("{accurate} Titel von AccurateRip bestätigt, {insecure_tracks} unsicher"), &[("accurate", format!("{accurate}")), ("insecure_tracks", format!("{insecure_tracks}"))]));
+            log.push(crate::i18n::tf(
+                crate::i18n::t("{accurate} Titel von AccurateRip bestätigt, {insecure_tracks} unsicher"),
+                &[("accurate", format!("{accurate}")), ("insecure_tracks", format!("{insecure_tracks}"))],
+            ));
             let _ = std::fs::write(folder.join(format!("{base}.log")), log.join("\r\n"));
         }
         if rs.write_cue {
@@ -374,16 +416,10 @@ mod rip_status_tests {
     #[test]
     fn status_is_a_code() {
         let secure = TrackStatus::Secure { passes: 2, rereads: 0, verified_first_pass: false };
-        assert_eq!(
-            rip_status(2, secure.clone(), false, false),
-            TrackStatus::Marked { unconfirmed: true, was: Box::new(secure.clone()) }
-        );
+        assert_eq!(rip_status(2, secure.clone(), false, false), TrackStatus::Marked { unconfirmed: true, was: Box::new(secure.clone()) });
         assert_eq!(rip_status(2, secure.clone(), false, true), secure);
         let insecure = TrackStatus::Insecure { sectors: 3 };
-        assert_eq!(
-            rip_status(1, insecure.clone(), true, true),
-            TrackStatus::Marked { unconfirmed: false, was: Box::new(insecure.clone()) }
-        );
+        assert_eq!(rip_status(1, insecure.clone(), true, true), TrackStatus::Marked { unconfirmed: false, was: Box::new(insecure.clone()) });
         assert_eq!(rip_status(0, insecure.clone(), true, false), insecure);
         // the wording is only made for log and window
         assert_eq!(secure.text(), "Sicher (2 Durchgänge identisch)");

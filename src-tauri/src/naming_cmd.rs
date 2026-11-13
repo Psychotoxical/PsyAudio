@@ -87,11 +87,9 @@ fn preview(s: &Settings, src: &Path, root: Option<&Path>, ffmpeg: Option<PathBuf
 #[tauri::command]
 pub async fn preview_name(state: State<'_, AppState>, settings: Settings, path: String, root: Option<String>) -> Result<Option<String>, String> {
     let cache = crate::tools_cmd::ffmpeg(&state, &settings.tools.ffmpeg, false);
-    tauri::async_runtime::spawn_blocking(move || {
-        preview(&settings, Path::new(&path), root.as_deref().map(Path::new), cache.ffmpeg, cache.encoders)
-    })
-    .await
-    .map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || preview(&settings, Path::new(&path), root.as_deref().map(Path::new), cache.ffmpeg, cache.encoders))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// The tags "Tags aus Dateiname" would read from `path` with `scheme`.

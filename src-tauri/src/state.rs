@@ -15,10 +15,7 @@ mod tests {
 
     #[test]
     fn demo_args_are_read() {
-        assert_eq!(
-            Demo::from_args(&os(&["PsyAudio", "--demo=cd", "--light"])),
-            Some(Demo { page: "cd".into(), light: true })
-        );
+        assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=cd", "--light"])), Some(Demo { page: "cd".into(), light: true }));
         assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=konverter"])).map(|d| d.light), Some(false));
         assert_eq!(Demo::from_args(&os(&["PsyAudio", "a.flac"])), None);
     }
@@ -59,6 +56,8 @@ pub struct AppState {
     pub frontend_ready: AtomicBool,
     /// The conversion and the rip running in the background.
     pub jobs: crate::jobs::Jobs,
+    /// "Abbrechen und beenden" was chosen: the window closes once the work has stopped.
+    pub closing: AtomicBool,
     /// The disc read last and what the lookups found.
     pub cd: Mutex<crate::cd_cmd::CdState>,
 }

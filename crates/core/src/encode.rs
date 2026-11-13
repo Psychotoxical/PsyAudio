@@ -272,16 +272,9 @@ pub const MPC_PROFILES: &[(&str, &str, u32)] = &[
     ("Qualität 9", "--quality 9", 300),
     ("Qualität 10", "--quality 10", 350),
 ];
-pub const DSD_MODES: &[(&str, u32)] = &[
-    ("DSD64", 2822400),
-    ("DSD128", 5644800),
-    ("DSD256", 11289600),
-    ("DSD512", 22579200),
-    ("DSD1024", 45158400),
-    ("DSD2048", 90316800),
-];
-pub const APE_LEVELS: &[(&str, &str)] =
-    &[("Schnell", "-c1000"), ("Normal", "-c2000"), ("Hoch", "-c3000"), ("Extra hoch", "-c4000"), ("Wahnsinn", "-c5000")];
+pub const DSD_MODES: &[(&str, u32)] =
+    &[("DSD64", 2822400), ("DSD128", 5644800), ("DSD256", 11289600), ("DSD512", 22579200), ("DSD1024", 45158400), ("DSD2048", 90316800)];
+pub const APE_LEVELS: &[(&str, &str)] = &[("Schnell", "-c1000"), ("Normal", "-c2000"), ("Hoch", "-c3000"), ("Extra hoch", "-c4000"), ("Wahnsinn", "-c5000")];
 pub const WAVPACK_MODES: &[&str] = &["Schnell", "Normal", "Hohe Qualität", "Sehr hohe Qualität"];
 pub const STEREO_MODES: &[&str] = &["Stereo (automatisch)", "Joint Stereo", "Erzwungenes Joint Stereo", "Stereo", "Mono"];
 
@@ -315,7 +308,7 @@ pub fn missing_requirement(c: Codec, env: &Env) -> Option<String> {
         if env.ffmpeg.is_none() {
             Some(crate::i18n::t("FFmpeg wird benötigt (Einstellungen » Encoder-Programme)").into())
         } else if !env.ffmpeg_encoders.is_empty() && !env.has(enc) {
-            Some(crate::i18n::tf(crate::i18n::t("Das gefundene FFmpeg hat keinen Encoder „{enc}“"), &[("enc", format!("{enc}"))]))
+            Some(crate::i18n::tf(crate::i18n::t("Das gefundene FFmpeg hat keinen Encoder „{enc}“"), &[("enc", enc.to_string())]))
         } else {
             None
         }
@@ -332,13 +325,25 @@ pub fn missing_requirement(c: Codec, env: &Env) -> Option<String> {
         Codec::Wma => ff("wmav2"),
         Codec::Speex => ff("libspeex"),
         Codec::MonkeysAudio => {
-            if audio::find_tool(&env.tools.mac, "mac").is_none() { Some(crate::i18n::t("Programm mac.exe angeben (Einstellungen)").into()) } else { None }
+            if audio::find_tool(&env.tools.mac, "mac").is_none() {
+                Some(crate::i18n::t("Programm mac.exe angeben (Einstellungen)").into())
+            } else {
+                None
+            }
         }
         Codec::Musepack => {
-            if audio::find_tool(&env.tools.mpcenc, "mpcenc").is_none() { Some(crate::i18n::t("Programm mpcenc.exe angeben (Einstellungen)").into()) } else { None }
+            if audio::find_tool(&env.tools.mpcenc, "mpcenc").is_none() {
+                Some(crate::i18n::t("Programm mpcenc.exe angeben (Einstellungen)").into())
+            } else {
+                None
+            }
         }
         Codec::Dsd => {
-            if audio::find_tool(&env.tools.sox, "sox").is_none() { Some(crate::i18n::t("Programm sox.exe angeben (Einstellungen)").into()) } else { None }
+            if audio::find_tool(&env.tools.sox, "sox").is_none() {
+                Some(crate::i18n::t("Programm sox.exe angeben (Einstellungen)").into())
+            } else {
+                None
+            }
         }
         _ => None,
     }
@@ -353,7 +358,11 @@ pub fn estimate_bps(c: Codec, s: &EncSettings, rate: u32, ch: usize, bits: u16) 
             _ => s.mp3_kbps as f64 * 125.0,
         },
         Codec::AacM4a | Codec::AudioBook => {
-            if s.aac_vbr { AAC_VBR_KBPS[(s.aac_quality.clamp(1, 5) - 1) as usize] as f64 * 125.0 } else { s.aac_kbps as f64 * 125.0 }
+            if s.aac_vbr {
+                AAC_VBR_KBPS[(s.aac_quality.clamp(1, 5) - 1) as usize] as f64 * 125.0
+            } else {
+                s.aac_kbps as f64 * 125.0
+            }
         }
         Codec::Opus => s.opus_kbps as f64 * 125.0,
         Codec::Vorbis if s.vorbis_mode > 0 => s.vorbis_kbps as f64 * 125.0,
@@ -371,9 +380,7 @@ pub fn estimate_bps(c: Codec, s: &EncSettings, rate: u32, ch: usize, bits: u16) 
 }
 
 fn feed_format(audio: &Audio, lossless_target: bool) -> (PcmFormat, &'static str) {
-    if !lossless_target {
-        (PcmFormat::F32, "f32le")
-    } else if audio.float {
+    if !lossless_target || audio.float {
         (PcmFormat::F32, "f32le")
     } else if audio.bits <= 16 {
         (PcmFormat::S16, "s16le")
@@ -470,6 +477,8 @@ fn ffmpeg_args(c: Codec, s: &EncSettings, audio: &Audio, env: &Env) -> Vec<Strin
     a
 }
 
+// one call per file with everything FFmpeg needs; a struct would only rename the parameters
+#[allow(clippy::too_many_arguments)]
 fn run_ffmpeg(
     ff: &Path,
     audio: &Audio,
@@ -524,7 +533,7 @@ fn run_ffmpeg(
     let err = err_thread.join().unwrap_or_default();
     if !status.success() {
         let _ = std::fs::remove_file(out);
-        return Err(crate::i18n::tf(crate::i18n::t("Encoder-Fehler: {0}"), &[("0", format!("{}", err.lines().last().unwrap_or("unbekannt")))]));
+        return Err(crate::i18n::tf(crate::i18n::t("Encoder-Fehler: {0}"), &[("0", err.lines().last().unwrap_or("unbekannt").to_string())]));
     }
     Ok(())
 }
@@ -534,7 +543,9 @@ fn run_cli(exe: &Path, args: &[String], cancel: &AtomicBool) -> Result<(), Strin
     let mut cmd = Command::new(exe);
     cmd.args(args).stdout(Stdio::null()).stderr(Stdio::piped()).stdin(Stdio::null());
     hidden(&mut cmd);
-    let mut child = cmd.spawn().map_err(|e| crate::i18n::tf(crate::i18n::t("{0} kann nicht gestartet werden: {e}"), &[("0", format!("{}", exe.display())), ("e", format!("{e}"))]))?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| crate::i18n::tf(crate::i18n::t("{0} kann nicht gestartet werden: {e}"), &[("0", format!("{}", exe.display())), ("e", format!("{e}"))]))?;
     let mut stderr = child.stderr.take();
     let err_thread = std::thread::spawn(move || {
         let mut s = String::new();
@@ -557,7 +568,10 @@ fn run_cli(exe: &Path, args: &[String], cancel: &AtomicBool) -> Result<(), Strin
     };
     let err = err_thread.join().unwrap_or_default();
     if !status.success() {
-        return Err(crate::i18n::tf(crate::i18n::t("{0} meldet: {1}"), &[("0", format!("{}", exe.display())), ("1", err.lines().last().unwrap_or(crate::i18n::t("Fehler")).to_string())]));
+        return Err(crate::i18n::tf(
+            crate::i18n::t("{0} meldet: {1}"),
+            &[("0", format!("{}", exe.display())), ("1", err.lines().last().unwrap_or(crate::i18n::t("Fehler")).to_string())],
+        ));
     }
     Ok(())
 }
@@ -590,6 +604,7 @@ fn temp_wav(env: &Env, audio: &Audio, bits: u16) -> Result<PathBuf, String> {
 }
 
 /// Write `audio` to `out` in codec `c`.
+#[allow(clippy::too_many_arguments)]
 pub fn encode(
     c: Codec,
     s: &EncSettings,
@@ -619,11 +634,7 @@ pub fn encode(
         Codec::MonkeysAudio => {
             let exe = audio::find_tool(&env.tools.mac, "mac").unwrap();
             let wav = temp_wav(env, audio, audio.bits.min(24))?;
-            let r = run_cli(
-                &exe,
-                &[wav.display().to_string(), out.display().to_string(), APE_LEVELS[s.ape_level as usize % 5].1.to_string()],
-                cancel,
-            );
+            let r = run_cli(&exe, &[wav.display().to_string(), out.display().to_string(), APE_LEVELS[s.ape_level as usize % 5].1.to_string()], cancel);
             let _ = std::fs::remove_file(&wav);
             progress(1.0);
             r
@@ -631,8 +642,7 @@ pub fn encode(
         Codec::Musepack => {
             let exe = audio::find_tool(&env.tools.mpcenc, "mpcenc").unwrap();
             let wav = temp_wav(env, audio, 16)?;
-            let mut args: Vec<String> =
-                MPC_PROFILES[s.mpc_profile as usize % MPC_PROFILES.len()].1.split_whitespace().map(|x| x.to_string()).collect();
+            let mut args: Vec<String> = MPC_PROFILES[s.mpc_profile as usize % MPC_PROFILES.len()].1.split_whitespace().map(|x| x.to_string()).collect();
             args.push("--overwrite".into());
             args.push(wav.display().to_string());
             args.push(out.display().to_string());
@@ -687,7 +697,10 @@ pub fn encode(
 pub fn verify_lossless(out: &Path, original: &Audio, env: &Env, cancel: &AtomicBool) -> Result<(), String> {
     let back = audio::decode(out, env.ffmpeg, cancel, &|_| {})?;
     if back.frames() != original.frames() || back.channels != original.channels {
-        return Err(crate::i18n::tf(crate::i18n::t("Prüfung fehlgeschlagen: Länge {0} statt {1} Frames"), &[("0", format!("{}", back.frames())), ("1", format!("{}", original.frames()))]));
+        return Err(crate::i18n::tf(
+            crate::i18n::t("Prüfung fehlgeschlagen: Länge {0} statt {1} Frames"),
+            &[("0", format!("{}", back.frames())), ("1", format!("{}", original.frames()))],
+        ));
     }
     let bits = if original.float { 24 } else { original.bits.clamp(8, 24) };
     let tol = 1.5 / (1u64 << (bits - 1)) as f32;

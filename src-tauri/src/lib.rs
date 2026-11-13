@@ -2,6 +2,7 @@
 
 mod batch_cmd;
 mod cd_cmd;
+mod close;
 mod commands;
 mod effects_cmd;
 mod files_cmd;
@@ -124,6 +125,7 @@ pub fn run() {
             cd_cmd::start_rip,
             cd_cmd::cancel_rip,
             cd_cmd::preview_rip_name,
+            close::confirm_close,
         ])
         .setup(|app| {
             // show the window even if the frontend never reports ready
@@ -139,6 +141,9 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                close::on_close_requested(window, api);
+            }
             if let WindowEvent::DragDrop(drag) = event {
                 let app = window.app_handle();
                 match drag {

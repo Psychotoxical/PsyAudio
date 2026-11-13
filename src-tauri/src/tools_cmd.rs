@@ -60,17 +60,7 @@ pub struct EncodeOptions {
 }
 
 const LOSSLESS: [Codec; 6] = [Codec::Flac, Codec::Alac, Codec::Wave, Codec::Aiff, Codec::WavPack, Codec::MonkeysAudio];
-const COMPRESSED: [Codec; 9] = [
-    Codec::Mp3,
-    Codec::AacM4a,
-    Codec::Opus,
-    Codec::Vorbis,
-    Codec::Wma,
-    Codec::AudioBook,
-    Codec::Musepack,
-    Codec::Speex,
-    Codec::Dsd,
-];
+const COMPRESSED: [Codec; 9] = [Codec::Mp3, Codec::AacM4a, Codec::Opus, Codec::Vorbis, Codec::Wma, Codec::AudioBook, Codec::Musepack, Codec::Speex, Codec::Dsd];
 const TOOLS: [Codec; 9] = [
     Codec::Multi,
     Codec::ReplayGainOnly,
@@ -88,14 +78,7 @@ pub fn encode_options() -> EncodeOptions {
     let all = LOSSLESS.iter().chain(COMPRESSED.iter()).chain(TOOLS.iter());
     EncodeOptions {
         codecs: all
-            .map(|c| CodecInfo {
-                codec: *c,
-                name: c.name(),
-                short: c.short(),
-                lossless: c.lossless(),
-                tool: c.is_tool(),
-                description: c.description(),
-            })
+            .map(|c| CodecInfo { codec: *c, name: c.name(), short: c.short(), lossless: c.lossless(), tool: c.is_tool(), description: c.description() })
             .collect(),
         lossless: LOSSLESS.to_vec(),
         compressed: COMPRESSED.to_vec(),

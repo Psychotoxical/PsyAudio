@@ -56,7 +56,7 @@ pub fn block_energies(a: &Audio) -> Vec<f64> {
         }
         let (mut x1, mut x2, mut y1, mut y2) = (0f64, 0f64, 0f64, 0f64);
         let (mut u1, mut u2, mut z1, mut z2) = (0f64, 0f64, 0f64, 0f64);
-        for i in 0..frames {
+        for (i, out) in weighted.iter_mut().enumerate().take(frames) {
             let x = a.data[i * ch + c] as f64;
             let y = pre.b[0] * x + pre.b[1] * x1 + pre.b[2] * x2 - pre.a[1] * y1 - pre.a[2] * y2;
             x2 = x1;
@@ -68,7 +68,7 @@ pub fn block_energies(a: &Audio) -> Vec<f64> {
             u1 = y;
             z2 = z1;
             z1 = z;
-            weighted[i] += w * z * z;
+            *out += w * z * z;
         }
     }
     let block = (a.rate as f64 * 0.4) as usize;

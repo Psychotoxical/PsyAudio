@@ -45,10 +45,7 @@ mod tests {
 
     #[test]
     fn disc_info_has_track_lengths() {
-        let toc = Toc {
-            tracks: vec![TocTrack { number: 1, lba: 0, audio: true }, TocTrack { number: 2, lba: 7500, audio: true }],
-            leadout: 15000,
-        };
+        let toc = Toc { tracks: vec![TocTrack { number: 1, lba: 0, audio: true }, TocTrack { number: 2, lba: 7500, audio: true }], leadout: 15000 };
         let info = disc_info(&toc);
         let secs: Vec<f64> = info.tracks.iter().map(|t| t.seconds).collect();
         assert_eq!(secs, vec![100.0, 100.0]);

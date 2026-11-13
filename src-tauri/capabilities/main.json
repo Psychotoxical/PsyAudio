@@ -46,6 +46,7 @@
     "allow-find-offset",
     "allow-start-rip",
     "allow-cancel-rip",
-    "allow-preview-rip-name"
+    "allow-preview-rip-name",
+    "allow-confirm-close"
   ]
 }

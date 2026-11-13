@@ -7,9 +7,7 @@ pub fn long_duration(total: u64, verbose: bool) -> String {
     let hours_all = total / 3600;
     let rest = total % 3600;
     let (d, h, m, s) = (hours_all / 24, hours_all % 24, rest / 60, rest % 60);
-    let unit = |n: u64, one: &str, many: &str| {
-        crate::i18n::tf(crate::i18n::t(if n == 1 { one } else { many }), &[("0", n.to_string())])
-    };
+    let unit = |n: u64, one: &str, many: &str| crate::i18n::tf(crate::i18n::t(if n == 1 { one } else { many }), &[("0", n.to_string())]);
     let parts = [
         (d, unit(d, "{0} Tag", "{0} Tage")),
         (h, unit(h, "{0} Stunde", "{0} Stunden")),

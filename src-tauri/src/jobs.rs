@@ -90,11 +90,7 @@ impl Jobs {
     }
 
     /// Some work is running (closing the window would stop it).
-    // asked by the close guard (task 18)
-    #[allow(dead_code)]
     pub fn busy(&self) -> bool {
-        [Kind::Conversion, Kind::Rip]
-            .iter()
-            .any(|k| self.slot(*k).lock().unwrap_or_else(|e| e.into_inner()).as_ref().is_some_and(RunHandle::running))
+        [Kind::Conversion, Kind::Rip].iter().any(|k| self.slot(*k).lock().unwrap_or_else(|e| e.into_inner()).as_ref().is_some_and(RunHandle::running))
     }
 }

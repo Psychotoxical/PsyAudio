@@ -129,8 +129,6 @@ pub struct Settings {
     pub temp_folder: String,
     pub low_priority: bool,
     pub dark: bool,
-    /// The settings column on the right of "Konvertieren" and "CD-Ripper" is shown.
-    pub side_open: bool,
     /// Interface language: "en" (default) or "de".
     pub lang: String,
     pub profiles: Vec<Profile>,
@@ -182,13 +180,23 @@ impl Default for Settings {
             temp_folder: String::new(),
             low_priority: false,
             dark: true,
-            side_open: true,
             lang: "en".into(),
             profiles: Vec::new(),
             rip: RipSettings::default(),
             rip_codec: Codec::Flac,
             rip_folder: music.display().to_string(),
-            batch_extensions: vec!["flac".into(), "wav".into(), "mp3".into(), "m4a".into(), "ogg".into(), "opus".into(), "aiff".into(), "wma".into(), "ape".into(), "wv".into()],
+            batch_extensions: vec![
+                "flac".into(),
+                "wav".into(),
+                "mp3".into(),
+                "m4a".into(),
+                "ogg".into(),
+                "opus".into(),
+                "aiff".into(),
+                "wma".into(),
+                "ape".into(),
+                "wv".into(),
+            ],
             batch_subfolders: true,
             tag_scheme: scheme(crate::naming::TAG_SCHEME),
             ui: UiState::default(),
@@ -312,11 +320,11 @@ mod tests {
 
     #[test]
     fn egui_settings_load_with_default_ui() {
+        // "side_open" of the egui version is no setting any more; serde skips it
         let json = r#"{"codec":"Opus","side_open":false,"lang":"de","dark":false,"threads":5}"#;
         let (st, complete) = Settings::parse(json);
         assert!(complete);
         assert_eq!(st.ui, UiState::default());
-        assert!(!st.side_open);
         assert_eq!((st.codec, st.lang.as_str(), st.dark, st.threads), (Codec::Opus, "de", false, 5));
     }
 
@@ -370,8 +378,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("psyaudio-settings-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let path = dir.join("settings.json");
-        let mut st = Settings::default();
-        st.threads = 7;
+        let mut st = Settings { threads: 7, ..Settings::default() };
         st.save_to(&path).unwrap();
         st.threads = 8;
         st.save_to(&path).unwrap();
@@ -400,58 +407,5 @@ mod tests {
         assert_eq!(st.name_scheme, s(&["artist", "/", "title"]));
         assert_eq!(st.tag_scheme, s(&["artist", "title"]));
         assert_eq!(st.rip.name_scheme, s(&["title"]));
-    }
-}
-
-/// Hand-over between instances: a second PsyAudio started with files (e.g. from the Explorer
-/// menu, which starts one per file) leaves them here for the running window and quits.
-pub fn handoff_dir() -> PathBuf {
-    path().with_file_name("inbox")
-}
-
-/// Leave `files` for the running window.
-pub fn write_handoff(dir: &std::path::Path, files: &[PathBuf]) -> Result<(), String> {
-    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-    static COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
-    let n = COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let name = format!("{stamp:020}-{}-{n}", std::process::id());
-    let text: String = files.iter().map(|f| f.to_string_lossy().to_string() + "\n").collect();
-    // written under a temporary name and renamed, so the window never reads half a list
-    let tmp = dir.join(format!("{name}.part"));
-    std::fs::write(&tmp, text).map_err(|e| e.to_string())?;
-    std::fs::rename(&tmp, dir.join(format!("{name}.txt"))).map_err(|e| e.to_string())
-}
-
-/// Files other instances left, oldest first; their notes are removed.
-pub fn take_handoffs(dir: &std::path::Path) -> Vec<PathBuf> {
-    let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
-    let mut notes: Vec<PathBuf> = rd.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "txt")).collect();
-    notes.sort();
-    let mut files = Vec::new();
-    for n in notes {
-        if let Ok(text) = std::fs::read_to_string(&n) {
-            if std::fs::remove_file(&n).is_ok() {
-                files.extend(text.lines().filter(|l| !l.trim().is_empty()).map(PathBuf::from));
-            }
-        }
-    }
-    files
-}
-
-#[cfg(test)]
-mod handoff_tests {
-    use super::*;
-    #[test]
-    fn files_handed_over_arrive_once() {
-        let dir = std::env::temp_dir().join(format!("psyaudio-inbox-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        write_handoff(&dir, &[PathBuf::from("C:\\Musik\\ä b.flac")]).unwrap();
-        write_handoff(&dir, &[PathBuf::from("D:\\x.mp3"), PathBuf::from("D:\\y.mp3")]).unwrap();
-        let got = take_handoffs(&dir);
-        assert_eq!(got.len(), 3);
-        assert!(got.contains(&PathBuf::from("C:\\Musik\\ä b.flac")));
-        assert!(take_handoffs(&dir).is_empty(), "taken twice");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -15,10 +15,6 @@ export type Settings = { codec: Codec, enc: EncSettings, effects: Array<Effect>,
  */
 name_scheme: Array<string>, overwrite: Overwrite, threads: number, copy_tags: boolean, copy_art: boolean, tools: Tools, temp_folder: string, low_priority: boolean, dark: boolean, 
 /**
- * The settings column on the right of "Konvertieren" and "CD-Ripper" is shown.
- */
-side_open: boolean, 
-/**
  * Interface language: "en" (default) or "de".
  */
 lang: string, profiles: Array<Profile>, rip: RipSettings, rip_codec: Codec, rip_folder: string, batch_extensions: Array<string>, batch_subfolders: boolean, 

@@ -12,6 +12,7 @@ import { addFiles } from "./pages/convert/addFiles";
 import { ConvertPage } from "./pages/convert/ConvertPage";
 import { OverwriteQuestion } from "./pages/convert/OverwriteQuestion";
 import { SettingsPage } from "./pages/settings/SettingsPage";
+import { CloseDialog } from "./shell/CloseDialog";
 import { Sidebar } from "./shell/Sidebar";
 import { Toast } from "./shell/Toast";
 import { firstFolder, useBatch } from "./store/batch";
@@ -133,6 +134,7 @@ export function App() {
       />
       <main>{pages[page]}</main>
       <OverwriteQuestion />
+      <CloseDialog />
       <Toast />
     </div>
   );

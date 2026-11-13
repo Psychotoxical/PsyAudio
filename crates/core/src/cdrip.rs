@@ -169,8 +169,11 @@ pub fn accuraterip_lookup(toc: &Toc) -> Result<Vec<Pressing>, String> {
     Ok(accuraterip_lookup_full(toc)?.into_iter().map(|p| p.into_iter().map(|(c, crc, _)| (c, crc)).collect()).collect())
 }
 
-/// Every pressing with (confidence, track CRC, offset-finding CRC of the 588 samples at sector 450).
-pub fn accuraterip_lookup_full(toc: &Toc) -> Result<Vec<Vec<(u8, u32, u32)>>, String> {
+/// One pressing per track: (confidence, track CRC, offset-finding CRC of the 588 samples at sector 450).
+pub type FullPressing = Vec<(u8, u32, u32)>;
+
+/// Every pressing of the disc with the CRCs the offset search needs.
+pub fn accuraterip_lookup_full(toc: &Toc) -> Result<Vec<FullPressing>, String> {
     let url = accuraterip_url(toc);
     let mut resp = ureq::get(&url).header("User-Agent", "PsyAudio/1.0").call().map_err(|e| match e {
         ureq::Error::StatusCode(404) => crate::i18n::t("CD ist nicht in der AccurateRip-Datenbank").to_string(),
@@ -213,11 +216,7 @@ pub struct DiscMeta {
 
 fn credit(v: &serde_json::Value) -> String {
     v.as_array()
-        .map(|a| {
-            a.iter()
-                .map(|c| format!("{}{}", c["name"].as_str().unwrap_or(""), c["joinphrase"].as_str().unwrap_or("")))
-                .collect::<String>()
-        })
+        .map(|a| a.iter().map(|c| format!("{}{}", c["name"].as_str().unwrap_or(""), c["joinphrase"].as_str().unwrap_or(""))).collect::<String>())
         .unwrap_or_default()
 }
 
@@ -290,16 +289,13 @@ pub fn cover_art(release_id: &str) -> Option<Vec<u8>> {
     if release_id.is_empty() {
         return None;
     }
-    let mut resp = ureq::get(&format!("https://coverartarchive.org/release/{release_id}/front-500"))
-        .header("User-Agent", "PsyAudio/1.0")
-        .call()
-        .ok()?;
+    let mut resp = ureq::get(&format!("https://coverartarchive.org/release/{release_id}/front-500")).header("User-Agent", "PsyAudio/1.0").call().ok()?;
     resp.body_mut().read_to_vec().ok()
 }
 
 /// Turn raw CD audio (16-bit stereo little endian) into an audio buffer.
 pub fn raw_to_audio(raw: &[u8]) -> Audio {
-    let data = raw.chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]]) as f32 / 32768.0).collect();
+    let data = raw.as_chunks::<2>().0.iter().map(|b| i16::from_le_bytes([b[0], b[1]]) as f32 / 32768.0).collect();
     Audio { rate: 44100, channels: 2, bits: 16, float: false, lossless: true, data }
 }
 
@@ -332,9 +328,7 @@ pub fn tags_for_track(meta: &DiscMeta, number: u8, total: usize, title: &str, ar
 mod win {
     use super::*;
     use windows_sys::Win32::Foundation::{CloseHandle, GENERIC_READ, HANDLE, INVALID_HANDLE_VALUE};
-    use windows_sys::Win32::Storage::FileSystem::{
-        CreateFileW, GetDriveTypeW, GetLogicalDrives, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
-    };
+    use windows_sys::Win32::Storage::FileSystem::{CreateFileW, GetDriveTypeW, GetLogicalDrives, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING};
     use windows_sys::Win32::System::IO::DeviceIoControl;
 
     const IOCTL_CDROM_READ_TOC: u32 = 0x0002_4000;
@@ -373,15 +367,7 @@ mod win {
         pub fn open(letter: char) -> Result<Drive, String> {
             let name = wide(&format!("\\\\.\\{letter}:"));
             let h = unsafe {
-                CreateFileW(
-                    name.as_ptr(),
-                    GENERIC_READ,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE,
-                    std::ptr::null(),
-                    OPEN_EXISTING,
-                    0,
-                    std::ptr::null_mut(),
-                )
+                CreateFileW(name.as_ptr(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, std::ptr::null(), OPEN_EXISTING, 0, std::ptr::null_mut())
             };
             if h == INVALID_HANDLE_VALUE || h.is_null() {
                 return Err(crate::i18n::tf(crate::i18n::t("Laufwerk {0} kann nicht geöffnet werden"), &[("0", drive_name(letter))]));
