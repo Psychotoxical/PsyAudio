@@ -1,5 +1,6 @@
 //! The PsyAudio window: starts Tauri, hands files over between instances and from drops.
 
+mod batch_cmd;
 mod commands;
 mod effects_cmd;
 mod files_cmd;
@@ -109,6 +110,11 @@ pub fn run() {
             run_cmd::start_conversion,
             run_cmd::cancel_conversion,
             run_cmd::clear_run_title,
+            batch_cmd::scan_folder,
+            batch_cmd::first_folder,
+            tools_cmd::programs,
+            settings_cmd::reset_settings,
+            settings_cmd::system_info,
         ])
         .setup(|app| {
             // show the window even if the frontend never reports ready

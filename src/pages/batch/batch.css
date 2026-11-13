@@ -1,0 +1,61 @@
+/* batch page: source folder above the found files */
+.batch-source {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.batch-source .row {
+  max-width: 860px;
+}
+.batch-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.batch-opts .lbl {
+  margin: 6px 0 0;
+}
+.found {
+  height: 100%;
+  overflow: auto;
+}
+.found-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-sidebar);
+  color: var(--text-primary);
+}
+.found-group svg {
+  color: var(--accent);
+}
+.found-group strong {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.found-group small {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.found-file {
+  padding: 0 24px 0 47px;
+  line-height: 30px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.type-chips {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}

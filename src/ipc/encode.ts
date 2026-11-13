@@ -39,5 +39,5 @@ export async function refreshEncode(settings: Settings, refresh = false): Promis
     toolStatus(settings, refresh),
     codecProblems(settings),
   ]);
-  useEncode.setState({ options, problems, ffmpeg: status.ffmpeg });
+  useEncode.setState({ options, problems, ffmpeg: status.ffmpeg, encoders: status.encoders });
 }

@@ -1,6 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderPlus, Play, Plus, X } from "lucide-react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fmtLen } from "../../format";
 import { inputExtensions } from "../../ipc/files";
@@ -21,9 +20,8 @@ import { EffectsPanel } from "./EffectsPanel";
 import { FileList } from "./FileList";
 import { FormatPanel } from "./FormatPanel";
 import { NamingPanel } from "./NamingPanel";
-import { OverwriteDialog } from "./OverwriteDialog";
 import { RunView } from "./RunView";
-import { convert, launch, type OverwriteAsk } from "./runFlow";
+import { convert } from "./runFlow";
 import { SavePanel } from "./SavePanel";
 import { codecSummary, effectsSummary, namingSummary, saveSummary } from "./summary";
 
@@ -49,7 +47,6 @@ export function ConvertPage() {
   const clear = useFiles((s) => s.clear);
   const settings = useSettings((s) => s.settings);
   const run = useRun((s) => s.run);
-  const [ask, setAsk] = useState<OverwriteAsk | null>(null);
   const options = useEncode((s) => s.options);
   const naming = useNaming((s) => s.options);
   const effectEntries = useEffects((s) => s.catalogue?.entries ?? NO_ENTRIES);
@@ -117,7 +114,7 @@ export function ConvertPage() {
             disabled={files.length === 0}
             onClick={() => {
               const items = files.map((f) => [f.path, f.root] as [string, string | null]);
-              void convert(items, settings.codec).then(setAsk);
+              void convert(items, settings.codec);
             }}
           >
             <Play size={16} />
@@ -134,16 +131,6 @@ export function ConvertPage() {
           return <p className="empty">{titles[tile]}</p>;
         }}
       </SidePanel>
-      {ask && (
-        <OverwriteDialog
-          paths={ask.paths}
-          onCancel={() => setAsk(null)}
-          onStart={(overwrite) => {
-            setAsk(null);
-            void launch(ask.items, ask.codec, ask.keepStructure, overwrite);
-          }}
-        />
-      )}
     </div>
   );
 }

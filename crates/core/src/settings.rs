@@ -230,6 +230,14 @@ fn salvage(text: &str) -> Settings {
 }
 
 impl Settings {
+    /// "Alle Einstellungen auf Standard": everything back to the defaults except the profiles
+    /// (as in the egui version) and the window layout, which is no setting.
+    pub fn reset_keep_profiles(&mut self) {
+        let profiles = std::mem::take(&mut self.profiles);
+        let ui = std::mem::take(&mut self.ui);
+        *self = Settings { profiles, ui, ..Settings::default() };
+    }
+
     /// Settings from disk, and a note when parts of the file could not be read (the file is then
     /// kept as settings.json.bak, so nothing is lost by the next save).
     pub fn load() -> (Settings, Option<String>) {
@@ -370,6 +378,18 @@ mod tests {
         assert_eq!(Settings::parse(&std::fs::read_to_string(&path).unwrap()).0.threads, 8);
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1, "no temporary file left");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reset_keeps_profiles() {
+        let mut s = Settings { threads: 3, low_priority: true, dark: false, ..Settings::default() };
+        s.profiles.push(Profile { name: "Unterwegs".into(), ..Profile::default() });
+        s.ui.sidebar_collapsed = true;
+        s.reset_keep_profiles();
+        assert_eq!(s.profiles.len(), 1);
+        assert_eq!(s.threads, Settings::default().threads);
+        assert!(!s.low_priority && s.dark);
+        assert!(s.ui.sidebar_collapsed, "the window layout is not a setting and stays");
     }
 
     #[test]

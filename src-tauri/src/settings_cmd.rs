@@ -66,3 +66,29 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+/// "Alle Einstellungen auf Standard": the defaults, with the profiles kept (the window saves them).
+#[tauri::command]
+pub fn reset_settings(mut settings: Settings) -> Settings {
+    settings.reset_keep_profiles();
+    settings
+}
+
+/// What the settings page shows about this computer.
+#[derive(serde::Serialize)]
+pub struct SystemInfo {
+    cores: usize,
+    /// The temporary folder used when none is set.
+    temp_default: String,
+    /// "windows", "linux" or "macos": which file manager the menu goes into.
+    os: &'static str,
+}
+
+#[tauri::command]
+pub fn system_info() -> SystemInfo {
+    SystemInfo {
+        cores: std::thread::available_parallelism().map(|n| n.get()).unwrap_or(8),
+        temp_default: std::env::temp_dir().to_string_lossy().into_owned(),
+        os: std::env::consts::OS,
+    }
+}

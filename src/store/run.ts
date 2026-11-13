@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { Codec } from "../ipc/bindings/Codec";
 
 /** What Rust reports about a run (run_cmd::RunEvent). */
 export type RunEvent =
@@ -121,4 +122,15 @@ export function failedItems(run: Run): [string, string | null][] {
   return run.jobs.filter((j) => j.state === "failed").map((j) => [j.path, j.root]);
 }
 
-export const useRun = create<{ run: Run | null }>(() => ({ run: null }));
+/** An open "Dateien sind schon vorhanden" question (converter or batch page). */
+export interface OverwriteAsk {
+  items: [string, string | null][];
+  codec: Codec;
+  keepStructure: boolean;
+  paths: string[];
+}
+
+export const useRun = create<{ run: Run | null; ask: OverwriteAsk | null }>(() => ({
+  run: null,
+  ask: null,
+}));

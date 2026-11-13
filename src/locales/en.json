@@ -745,5 +745,19 @@
  "Fortschritt": "Progress",
  " · {0} Kern": " · {0} core",
  " · {0} Kerne": " · {0} cores",
- "Es läuft schon ein Rip – erst abwarten oder abbrechen": "A rip is already running – wait or cancel it first"
+ "Es läuft schon ein Rip – erst abwarten oder abbrechen": "A rip is already running – wait or cancel it first",
+ "Keine passenden Dateien in diesem Ordner.": "No matching files in this folder.",
+ "Im Zielordner entstehen die Unterordner des Quellordners neu, mit denselben Dateinamen.": "The source folder's subfolders are rebuilt in the target folder, with the same file names.",
+ "Programm auswählen": "Choose program",
+ "{0} von {1} gefunden": "{0} of {1} found",
+ "{0} gleichzeitig": "{0} at a time",
+ "Gleichzeitige Umwandlungen": "Simultaneous conversions",
+ "Dieser Rechner hat {0}; mehr gleichzeitige Umwandlungen bringen selten etwas.": "This computer has {0}; more simultaneous conversions rarely help.",
+ "Standard": "Default",
+ "Hier entstehen Zwischendateien, etwa für Monkey's Audio, Musepack und DSD.": "Intermediate files go here, e.g. for Monkey's Audio, Musepack and DSD.",
+ "Kontextmenü": "Context menu",
+ "Alle Einstellungen außer den Profilen gehen auf Standard zurück, auch Sprache und Thema.": "All settings except the profiles go back to their defaults, language and theme too.",
+ "Jetzt zurücksetzen": "Reset now",
+ "{0} Kern": "{0} core",
+ "{0} Kerne": "{0} cores"
 }

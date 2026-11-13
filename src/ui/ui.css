@@ -72,6 +72,9 @@
   background: var(--bg-field);
 }
 .seg label {
+  /* the hidden radio sits in its label; positioned against the page it would stick out of
+     the scroll area and make the whole window scroll */
+  position: relative;
   padding: 5px 12px;
   border-radius: 6px;
   color: var(--text-secondary);

@@ -33,6 +33,11 @@
     "allow-check-existing",
     "allow-start-conversion",
     "allow-cancel-conversion",
-    "allow-clear-run-title"
+    "allow-clear-run-title",
+    "allow-scan-folder",
+    "allow-first-folder",
+    "allow-programs",
+    "allow-reset-settings",
+    "allow-system-info"
   ]
 }

@@ -9,8 +9,11 @@ import { useSettings } from "../../store/settings";
 import { useUi } from "../../store/ui";
 import { Check, Hint, Segmented } from "../../ui/controls";
 
-/** Where converted files go and what happens when one exists already. */
-export function SavePanel() {
+/**
+ * Where converted files go and what happens when one exists already. On the batch page
+ * (`batch`) the folder structure below the source folder decides, so only the folder is asked.
+ */
+export function SavePanel({ batch = false }: { batch?: boolean }) {
   const { t } = useTranslation();
   const folderId = useId();
   const s = useSettings((x) => x.settings);
@@ -47,24 +50,32 @@ export function SavePanel() {
 
   return (
     <>
-      <div className="field">
-        <Segmented<OutputMode>
-          label={t("Ziel")}
-          value={s.output_mode}
-          options={[
-            ["SingleFolder", t("Ein Ordner")],
-            ["SourceFolder", t("Quellordner")],
-            ["PreservePath", t("Pfad beibehalten")],
-          ]}
-          onChange={(v) =>
-            update((x) => {
-              x.output_mode = v;
-            })
-          }
-        />
-        <Hint>{modeHint[s.output_mode]}</Hint>
-      </div>
-      {s.output_mode !== "SourceFolder" && (
+      {batch ? (
+        <Hint>
+          {t(
+            "Im Zielordner entstehen die Unterordner des Quellordners neu, mit denselben Dateinamen.",
+          )}
+        </Hint>
+      ) : (
+        <div className="field">
+          <Segmented<OutputMode>
+            label={t("Ziel")}
+            value={s.output_mode}
+            options={[
+              ["SingleFolder", t("Ein Ordner")],
+              ["SourceFolder", t("Quellordner")],
+              ["PreservePath", t("Pfad beibehalten")],
+            ]}
+            onChange={(v) =>
+              update((x) => {
+                x.output_mode = v;
+              })
+            }
+          />
+          <Hint>{modeHint[s.output_mode]}</Hint>
+        </div>
+      )}
+      {(batch || s.output_mode !== "SourceFolder") && (
         <div className="field">
           <label className="lbl" htmlFor={folderId}>
             {t("Zielordner")}

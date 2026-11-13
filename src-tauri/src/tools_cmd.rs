@@ -175,3 +175,45 @@ pub fn estimate_kbps(codec: Codec, enc: EncSettings) -> f64 {
 pub fn set_language(lang: String) {
     psyaudio_core::i18n::set_lang(&lang);
 }
+
+/// One external program: where it was found, if at all.
+#[derive(Serialize)]
+pub struct Program {
+    key: &'static str,
+    found: Option<String>,
+}
+
+fn program_list(tools: &encode::Tools, ffmpeg: Option<PathBuf>) -> Vec<Program> {
+    let show = |p: Option<PathBuf>| p.map(|p| p.to_string_lossy().into_owned());
+    vec![
+        Program { key: "ffmpeg", found: show(ffmpeg) },
+        Program { key: "mac", found: show(audio::find_tool(&tools.mac, "mac")) },
+        Program { key: "mpcenc", found: show(audio::find_tool(&tools.mpcenc, "mpcenc")) },
+        Program { key: "sox", found: show(audio::find_tool(&tools.sox, "sox")) },
+    ]
+}
+
+/// The four programs of the settings page, each with where it was found; `refresh` asks again.
+#[tauri::command]
+pub async fn programs(state: State<'_, AppState>, settings: Settings, refresh: bool) -> Result<Vec<Program>, String> {
+    let cache = ffmpeg(&state, &settings.tools.ffmpeg, refresh);
+    Ok(program_list(&settings.tools, cache.ffmpeg))
+}
+
+#[cfg(test)]
+mod program_tests {
+    use super::*;
+    use psyaudio_core::encode::Tools;
+
+    #[test]
+    fn programs_report_each_tool() {
+        let exe = std::env::temp_dir().join(format!("psyaudio-mac-{}.exe", std::process::id()));
+        std::fs::write(&exe, b"").unwrap();
+        let tools = Tools { mac: exe.to_string_lossy().into_owned(), ..Tools::default() };
+        let list = program_list(&tools, None);
+        let _ = std::fs::remove_file(&exe);
+        let keys: Vec<&str> = list.iter().map(|p| p.key).collect();
+        assert_eq!(keys, ["ffmpeg", "mac", "mpcenc", "sox"]);
+        assert_eq!(list[1].found.as_deref(), Some(exe.to_string_lossy().as_ref()));
+    }
+}

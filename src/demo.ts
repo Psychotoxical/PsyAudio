@@ -61,3 +61,24 @@ export function demoFiles(): FileRow[] {
     ),
   ];
 }
+
+/** Sample result of a batch search (made-up folders and names, nothing on disk). */
+export function demoBatch(): { folder: string; root: string; found: string[]; searched: boolean } {
+  const root = "D:\\Musik\\Sammlung";
+  const album = (dir: string, n: number, ext: string) =>
+    Array.from(
+      { length: n },
+      (_, i) => `${root}\\${dir}\\${String(i + 1).padStart(2, "0")} Lied ${i + 1}.${ext}`,
+    );
+  return {
+    folder: root,
+    root,
+    searched: true,
+    found: [
+      `${root}\\Einzelstück.flac`,
+      ...album("Beispiel-Band\\Erstes Album", 9, "flac"),
+      ...album("Beispiel-Band\\Live-Aufnahme", 6, "wav"),
+      ...album("Testensemble\\Ruhige Räume", 5, "flac"),
+    ],
+  };
+}

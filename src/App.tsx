@@ -1,16 +1,20 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { demoFiles } from "./demo";
+import { demoBatch, demoFiles } from "./demo";
 import { setLanguage } from "./i18n";
 import { demoState, loadSettings } from "./ipc/commands";
 import { refreshEncode } from "./ipc/encode";
 import { frontendReady, onDragState, onFilesAdded } from "./ipc/events";
 import { loadNamingOptions } from "./ipc/naming";
+import { BatchPage } from "./pages/batch/BatchPage";
 import { addFiles } from "./pages/convert/addFiles";
 import { ConvertPage } from "./pages/convert/ConvertPage";
+import { OverwriteQuestion } from "./pages/convert/OverwriteQuestion";
 import { Placeholder } from "./pages/Placeholder";
+import { SettingsPage } from "./pages/settings/SettingsPage";
 import { Sidebar } from "./shell/Sidebar";
 import { Toast } from "./shell/Toast";
+import { firstFolder, useBatch } from "./store/batch";
 import { loadEffectCatalogue } from "./store/effects";
 import { useEncode } from "./store/encode";
 import { useFiles } from "./store/files";
@@ -47,9 +51,18 @@ export function App() {
     // listen first, then load the settings, then show the window with its theme and language
     const listeners = [
       onFilesAdded((e) => {
-        // the batch page takes a dropped folder in task 14; everything else goes to the converter
-        useUi.getState().setPage("convert");
-        void addFiles(e.paths);
+        // a folder dropped on the batch page becomes its source; everything else goes to the converter
+        void (async () => {
+          if (e.source === "drop" && useUi.getState().page === "batch") {
+            const folder = await firstFolder(e.paths);
+            if (folder) {
+              useBatch.setState({ folder });
+              return;
+            }
+          }
+          useUi.getState().setPage("convert");
+          await addFiles(e.paths);
+        })();
       }),
       onDragState((e) => useUi.getState().setDragging(e.active)),
     ];
@@ -59,6 +72,7 @@ export function App() {
         const target = demo ? DEMO_PAGES[demo.page] : undefined;
         if (target) useUi.getState().setPage(target);
         if (target === "convert") useFiles.setState({ files: demoFiles(), selected: new Set([2]) });
+        if (target === "batch") useBatch.setState(demoBatch());
       })
       .then(loadSettings)
       .then(({ settings, warning }) => {
@@ -96,17 +110,7 @@ export function App() {
 
   const pages = {
     convert: <ConvertPage />,
-    batch: (
-      <Placeholder
-        page="batch"
-        title={t("Stapel-Konverter")}
-        tiles={[
-          { id: "format", title: t("Format"), summary: settings.codec },
-          { id: "target", title: t("Zielordner"), summary: settings.output_folder },
-          { id: "effects", title: t("Effekte"), summary: String(settings.effects.length) },
-        ]}
-      />
-    ),
+    batch: <BatchPage />,
     cd: (
       <Placeholder
         page="cd"
@@ -119,7 +123,7 @@ export function App() {
         ]}
       />
     ),
-    settings: <Placeholder page="settings" title={t("Einstellungen")} tiles={[]} />,
+    settings: <SettingsPage />,
   };
 
   return (
@@ -130,6 +134,7 @@ export function App() {
         ffmpeg={ffmpeg === undefined ? undefined : ffmpeg !== null}
       />
       <main>{pages[page]}</main>
+      <OverwriteQuestion />
       <Toast />
     </div>
   );

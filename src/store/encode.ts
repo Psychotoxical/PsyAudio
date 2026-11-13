@@ -36,12 +36,15 @@ interface EncodeState {
   problems: Partial<Record<Codec, string>>;
   /** FFmpeg's path when found, null when missing, undefined while unknown. */
   ffmpeg: string | null | undefined;
+  /** How many encoders that FFmpeg offers. */
+  encoders: number;
 }
 
 export const useEncode = create<EncodeState>(() => ({
   options: null,
   problems: {},
   ffmpeg: undefined,
+  encoders: 0,
 }));
 
 export function codecInfo(options: EncodeOptions | null, codec: Codec): CodecInfo | undefined {

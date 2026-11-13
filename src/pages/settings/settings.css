@@ -1,0 +1,106 @@
+/* settings page: folding boxes in one column (accordion draft) */
+.settings {
+  padding: 20px 24px 32px;
+}
+.settings-col {
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.box {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-sidebar);
+}
+.box-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.box-head svg {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+.box.open .box-head svg {
+  color: var(--accent);
+  transform: rotate(90deg);
+}
+.box-head h2 {
+  margin: 0;
+  font: 600 15px var(--font-display);
+}
+.box-head small {
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.box-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 2px 18px 18px 44px;
+}
+.box-body > .hint:first-child {
+  margin-top: 0;
+}
+.box-body > .btn,
+.box-body .row > .btn {
+  align-self: flex-start;
+}
+.prog-state {
+  width: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.prog-state.ok {
+  color: var(--positive);
+}
+.prog-state.bad {
+  color: var(--danger);
+}
+.small {
+  margin: 0;
+  font-size: 12px;
+  /* paths have no spaces to break at */
+  overflow-wrap: anywhere;
+}
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--bad-bg);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bad-bg) 35%, transparent);
+}
+.confirm p {
+  margin: 0;
+}
+.btn.danger {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: var(--text-on-accent);
+  font-weight: 600;
+}
+.btn.danger:hover {
+  filter: brightness(1.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .box-head svg {
+    transition: none;
+  }
+}

@@ -8,14 +8,6 @@ import { useSettings } from "../../store/settings";
 import { useUi } from "../../store/ui";
 import { addFiles } from "./addFiles";
 
-/** An open "Dateien sind schon vorhanden" question. */
-export interface OverwriteAsk {
-  items: Items;
-  codec: Codec;
-  keepStructure: boolean;
-  paths: string[];
-}
-
 let queued: RunEvent[] = [];
 let scheduled = false;
 
@@ -66,8 +58,9 @@ export async function launch(
     (sum, [p]) => sum + (files.find((f) => f.path === p)?.info?.seconds ?? 0),
     0,
   );
-  // the run view shows at once; title and threads follow when Rust has the plan
+  // the run view (on the converter page) shows at once; title and threads follow from Rust
   useRun.setState({ run: newRun({ title: "", target: "", threads: 1 }, items, audioSecs) });
+  useUi.getState().setPage("convert");
   try {
     const info = await startConversion(settings, items, codec, keepStructure, overwrite, enqueue);
     const run = useRun.getState().run;
@@ -78,23 +71,21 @@ export async function launch(
   }
 }
 
-/** "Konvertieren": checks first, asks about existing targets, then starts. */
-export async function convert(
-  items: Items,
-  codec: Codec,
-  keepStructure = false,
-): Promise<OverwriteAsk | null> {
+/** "Konvertieren": checks first, asks about existing targets (useRun.ask), then starts. */
+export async function convert(items: Items, codec: Codec, keepStructure = false): Promise<void> {
   const settings = useSettings.getState().settings;
-  if (!settings) return null;
+  if (!settings) return;
   try {
     const paths = await checkExisting(settings, items, codec, keepStructure);
-    if (paths.length > 0) return { items, codec, keepStructure, paths };
+    if (paths.length > 0) {
+      useRun.setState({ ask: { items, codec, keepStructure, paths } });
+      return;
+    }
   } catch (e) {
     useUi.getState().notify(String(e));
-    return null;
+    return;
   }
   await launch(items, codec, keepStructure, []);
-  return null;
 }
 
 /** "Fertig": back to the list. */
