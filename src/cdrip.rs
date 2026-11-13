@@ -384,7 +384,7 @@ mod win {
                 )
             };
             if h == INVALID_HANDLE_VALUE || h.is_null() {
-                return Err(crate::i18n::tf(crate::i18n::t("Laufwerk {letter}: kann nicht geöffnet werden"), &[("letter", format!("{letter}"))]));
+                return Err(crate::i18n::tf(crate::i18n::t("Laufwerk {0} kann nicht geöffnet werden"), &[("0", drive_name(letter))]));
             }
             Ok(Drive { h })
         }
@@ -455,14 +455,161 @@ mod win {
 #[cfg(windows)]
 pub use win::{drives, Drive};
 
-#[cfg(not(windows))]
+/// Linux: drives are `/dev/sr0` … `/dev/sr9`, named by their digit; access through the kernel's CD-ROM ioctls.
+#[cfg(target_os = "linux")]
+mod lin {
+    use super::*;
+    use std::os::fd::{AsRawFd, OwnedFd};
+    use std::os::unix::fs::OpenOptionsExt;
+
+    const CDROMREADTOCHDR: libc::c_ulong = 0x5305;
+    const CDROMREADTOCENTRY: libc::c_ulong = 0x5306;
+    const CDROMEJECT: libc::c_ulong = 0x5309;
+    const CDROMREADAUDIO: libc::c_ulong = 0x530e;
+    const CDROM_LBA: u8 = 0x01;
+    const CDROM_LEADOUT: u8 = 0xAA;
+    const CDROM_DATA_TRACK: u8 = 0x04;
+
+    #[repr(C)]
+    #[derive(Default)]
+    struct TocHeader {
+        first: u8,
+        last: u8,
+    }
+
+    /// `struct cdrom_tocentry`: `adr` and `ctrl` share one byte (adr in the low nibble).
+    #[repr(C)]
+    #[derive(Default)]
+    struct TocEntry {
+        track: u8,
+        adr_ctrl: u8,
+        format: u8,
+        lba: i32,
+        datamode: u8,
+    }
+
+    /// `struct cdrom_read_audio`.
+    #[repr(C)]
+    struct ReadAudio {
+        lba: i32,
+        addr_format: u8,
+        nframes: libc::c_int,
+        buf: *mut u8,
+    }
+
+    pub fn path(d: char) -> String {
+        format!("/dev/sr{d}")
+    }
+
+    pub fn drives() -> Vec<char> {
+        ('0'..='9').filter(|d| std::path::Path::new(&path(*d)).exists()).collect()
+    }
+
+    pub struct Drive {
+        fd: OwnedFd,
+    }
+
+    impl Drive {
+        pub fn open(d: char) -> Result<Drive, String> {
+            std::fs::OpenOptions::new()
+                .read(true)
+                .custom_flags(libc::O_NONBLOCK)
+                .open(path(d))
+                .map(|f| Drive { fd: f.into() })
+                .map_err(|_| crate::i18n::tf(crate::i18n::t("Laufwerk {0} kann nicht geöffnet werden"), &[("0", path(d))]))
+        }
+
+        fn ioctl<T>(&self, code: libc::c_ulong, arg: *mut T) -> Result<(), String> {
+            if unsafe { libc::ioctl(self.fd.as_raw_fd(), code as _, arg) } < 0 {
+                Err(crate::i18n::tf(crate::i18n::t("Laufwerksbefehl fehlgeschlagen (Fehler {0})"), &[("0", format!("{}", std::io::Error::last_os_error()))]))
+            } else {
+                Ok(())
+            }
+        }
+
+        fn entry(&self, track: u8) -> Result<TocEntry, String> {
+            let mut e = TocEntry { track, format: CDROM_LBA, ..Default::default() };
+            self.ioctl(CDROMREADTOCENTRY, &mut e)?;
+            Ok(e)
+        }
+
+        pub fn toc(&self) -> Result<Toc, String> {
+            let mut h = TocHeader::default();
+            self.ioctl(CDROMREADTOCHDR, &mut h).map_err(|_| crate::i18n::t("Keine Audio-CD im Laufwerk").to_string())?;
+            let mut toc = Toc::default();
+            for n in h.first..=h.last {
+                let e = self.entry(n)?;
+                let ctrl = e.adr_ctrl >> 4;
+                toc.tracks.push(TocTrack { number: n, lba: e.lba.max(0) as u32, audio: ctrl & CDROM_DATA_TRACK == 0 });
+            }
+            toc.leadout = self.entry(CDROM_LEADOUT)?.lba.max(0) as u32;
+            if toc.tracks.is_empty() {
+                return Err(crate::i18n::t("Keine Titel auf der CD").into());
+            }
+            Ok(toc)
+        }
+
+        /// Read `count` raw audio sectors starting at `lba`.
+        pub fn read(&self, lba: u32, count: u32) -> Result<Vec<u8>, String> {
+            let mut out = vec![0u8; count as usize * SECTOR];
+            let mut ra = ReadAudio { lba: lba as i32, addr_format: CDROM_LBA, nframes: count as libc::c_int, buf: out.as_mut_ptr() };
+            self.ioctl(CDROMREADAUDIO, &mut ra)?;
+            Ok(out)
+        }
+
+        pub fn eject(&self) -> Result<(), String> {
+            self.ioctl::<u8>(CDROMEJECT, std::ptr::null_mut())
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use std::mem::{offset_of, size_of};
+
+        /// The structs must match `<linux/cdrom.h>` byte for byte.
+        #[test]
+        fn layouts_match_the_kernel() {
+            assert_eq!(size_of::<TocHeader>(), 2);
+            assert_eq!(size_of::<TocEntry>(), 12);
+            assert_eq!(offset_of!(TocEntry, lba), 4);
+            assert_eq!(offset_of!(TocEntry, datamode), 8);
+            assert_eq!(offset_of!(ReadAudio, addr_format), 4);
+            assert_eq!(offset_of!(ReadAudio, nframes), 8);
+            assert_eq!(offset_of!(ReadAudio, buf), 16);
+            assert_eq!(size_of::<ReadAudio>(), 24);
+        }
+
+        #[test]
+        fn drives_are_named_by_device() {
+            assert_eq!(path('0'), "/dev/sr0");
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub use lin::{drives, Drive};
+
+/// How a drive is shown: `D:` on Windows, `/dev/sr0` on Linux.
+pub fn drive_name(d: char) -> String {
+    #[cfg(target_os = "linux")]
+    {
+        lin::path(d)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        format!("{d}:")
+    }
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 pub fn drives() -> Vec<char> {
     Vec::new()
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "linux")))]
 pub struct Drive;
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "linux")))]
 impl Drive {
     pub fn open(_l: char) -> Result<Drive, String> {
         Err(crate::i18n::t("CD-Lesen gibt es nur unter Windows").into())

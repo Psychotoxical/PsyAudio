@@ -240,10 +240,10 @@ impl PsyApp {
         self.header_with_side(ui, "CD-Ripper", crate::i18n::t("Audio-CDs sicher auslesen, mit AccurateRip prüfen und Titel-Infos von MusicBrainz holen."));
         ui.horizontal(|ui| {
             egui::ComboBox::from_id_salt("drive").height(dropdown_height(ui))
-                .selected_text(self.cd.drive.map(|d| crate::i18n::tf(crate::i18n::t("Laufwerk {d}:"), &[("d", format!("{d}"))])).unwrap_or_else(|| crate::i18n::t("Kein Laufwerk").into()))
+                .selected_text(self.cd.drive.map(|d| crate::i18n::tf(crate::i18n::t("Laufwerk {d}"), &[("d", cdrip::drive_name(d))])).unwrap_or_else(|| crate::i18n::t("Kein Laufwerk").into()))
                 .show_ui(ui, |ui| {
                     for d in self.cd.drives.clone() {
-                        ui.selectable_value(&mut self.cd.drive, Some(d), crate::i18n::tf(crate::i18n::t("Laufwerk {d}:"), &[("d", format!("{d}"))]));
+                        ui.selectable_value(&mut self.cd.drive, Some(d), crate::i18n::tf(crate::i18n::t("Laufwerk {d}"), &[("d", cdrip::drive_name(d))]));
                     }
                 });
             // while a rip or the offset search reads the drive, it is not read again or ejected
@@ -1018,8 +1018,16 @@ impl PsyApp {
             ui.add_space(10.0);
             theme::card(&p).show(ui, |ui| {
                 ui.set_width(ui.available_width());
-                section(ui, &p, crate::i18n::t("Windows-Integration"));
-                ui.label(muted(&p, crate::i18n::t("Fügt im Explorer-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).")));
+                #[cfg(not(target_os = "linux"))]
+                {
+                    section(ui, &p, crate::i18n::t("Windows-Integration"));
+                    ui.label(muted(&p, crate::i18n::t("Fügt im Explorer-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).")));
+                }
+                #[cfg(target_os = "linux")]
+                {
+                    section(ui, &p, crate::i18n::t("Dolphin-Integration"));
+                    ui.label(muted(&p, crate::i18n::t("Fügt im Dolphin-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).")));
+                }
                 ui.horizontal(|ui| {
                     if ui.button(crate::i18n::t("Kontextmenü einrichten")).clicked() {
                         let r = context_menu(true);
@@ -1115,7 +1123,7 @@ fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<AtomicB
     let mut log = vec![
         crate::i18n::t("PsyAudio – Protokoll der Audio-Extraktion").to_string(),
         crate::i18n::tf(crate::i18n::t("Album: {0} – {1}"), &[("0", format!("{}", meta.artist)), ("1", format!("{}", meta.album))]),
-        crate::i18n::tf(crate::i18n::t("Laufwerk {letter}:  Versatz {0} Samples  Modus: {1}"), &[("letter", format!("{letter}")), ("0", format!("{:+}", rs.drive_offset)), ("1", format!("{}", if rs.mode == RipMode::Secure { crate::i18n::t("Sicher") } else { "Burst" }))]),
+        crate::i18n::tf(crate::i18n::t("Laufwerk {letter}  Versatz {0} Samples  Modus: {1}"), &[("letter", cdrip::drive_name(letter)), ("0", format!("{:+}", rs.drive_offset)), ("1", format!("{}", if rs.mode == RipMode::Secure { crate::i18n::t("Sicher") } else { "Burst" }))]),
         format!("MusicBrainz Disc-ID: {}   freedb: {:08x}", cdrip::musicbrainz_id(&toc), cdrip::freedb_id(&toc)),
         String::new(),
     ];

@@ -257,7 +257,7 @@ mod scheme_tests {
     #[test]
     fn filename_chip_uses_source_stem() {
         let t = Tags::default();
-        let p = std::path::PathBuf::from("C:\\Musik\\Band - 03 - Lied.flac");
+        let p = std::path::Path::new("Musik").join("Band - 03 - Lied.flac");
         assert_eq!(segments(&s(CONVERT_SCHEME), &t, &p), s(&["Band - 03 - Lied"]));
     }
 
@@ -270,7 +270,7 @@ mod scheme_tests {
     #[test]
     fn filename_chip_is_not_cut() {
         let long = "x".repeat(100);
-        let p = std::path::PathBuf::from(format!("C:\\Musik\\{long}.flac"));
+        let p = std::path::Path::new("Musik").join(format!("{long}.flac"));
         assert_eq!(names(&s(CONVERT_SCHEME), &Tags::default(), &p).1, long);
     }
 

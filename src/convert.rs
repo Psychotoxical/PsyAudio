@@ -549,12 +549,14 @@ mod safety_tests {
     }
 
     #[test]
+    #[cfg_attr(not(windows), ignore = "Windows paths: drive letters, backslashes, case-insensitive names")]
     fn paths_differing_in_case_are_the_same_file() {
         assert!(same_path(Path::new("C:\\Musik\\Song.MP3"), Path::new("c:/musik/song.mp3")));
         assert!(!same_path(Path::new("C:\\Musik\\a.mp3"), Path::new("C:\\Musik\\b.mp3")));
     }
 
     #[test]
+    #[cfg_attr(not(windows), ignore = "Windows paths: drive letters, backslashes, case-insensitive names")]
     fn source_with_upper_case_extension_is_never_overwritten() {
         let d = dir("case");
         let src = d.join("Lied.WAV");
@@ -598,6 +600,7 @@ mod safety_tests {
     }
 
     #[test]
+    #[cfg_attr(not(windows), ignore = "Windows paths: drive letters, backslashes, case-insensitive names")]
     fn preview_and_worker_apply_tag_processing_alike() {
         let mut plan = wav_plan(Path::new("D:\\x"), OutputMode::SingleFolder, &["artist", " - ", "title"], false);
         plan.effects = vec![Effect::TagProcessing { field: "artist".into(), value: "Neu".into(), mode: 0 }];
@@ -751,6 +754,7 @@ mod destination_tests {
         }
     }
     #[test]
+    #[cfg_attr(not(windows), ignore = "Windows paths: drive letters, backslashes, case-insensitive names")]
     fn destination_by_mode() {
         let mut t = Tags::default();
         t.set("artist", "Band");
@@ -1365,7 +1369,8 @@ mod tests {
         assert_eq!(outs.len(), 10, "{outs:?}");
         for o in &outs {
             assert!(o.exists(), "{}", o.display());
-            assert!(o.to_string_lossy().contains("Testband\\Testalbum\\01 Sinus"), "{}", o.display());
+            assert!(o.parent().is_some_and(|d| d.ends_with(Path::new("Testband").join("Testalbum"))), "{}", o.display());
+            assert!(o.file_name().and_then(|s| s.to_str()).is_some_and(|n| n.starts_with("01 Sinus")), "{}", o.display());
             let back = audio::decode(o, Some(&ff), &cancel, &|_| {}).expect("decode back");
             println!("{} -> {} Hz, {:.2} s", o.display(), back.rate, back.seconds());
             assert!((back.seconds() - 3.0).abs() < 0.2);
