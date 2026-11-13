@@ -71,10 +71,11 @@ pub fn output_location_problem(folder: &Path) -> Option<String> {
     if b.len() < 3 || b[1] != b':' || !b[0].is_ascii_alphabetic() {
         return None;
     }
-    let letter = b[0].to_ascii_uppercase();
-    let root = format!("{}:\\", letter as char);
+    // drive letter, CD drive and free space can only be asked on Windows
     #[cfg(windows)]
     {
+        let letter = b[0].to_ascii_uppercase();
+        let root = format!("{}:\\", letter as char);
         use windows_sys::Win32::Storage::FileSystem::{GetDiskFreeSpaceExW, GetDriveTypeW, GetLogicalDrives};
         let wide: Vec<u16> = root.encode_utf16().chain(std::iter::once(0)).collect();
         let mask = unsafe { GetLogicalDrives() };
