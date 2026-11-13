@@ -1,8 +1,15 @@
 /* The window: Psysonic sidebar, PsyTags step tiles, a folding right column (draft tiles.html). */
 .app {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
+  /* one row the window's height: long side columns scroll inside, the window never does */
+  grid-template-rows: minmax(0, 1fr);
   height: 100%;
+  overflow: hidden;
+}
+.app > main {
+  min-width: 0;
+  min-height: 0;
 }
 
 /* sidebar */
@@ -233,6 +240,11 @@
 .btn.primary:hover {
   background: var(--accent-hover);
 }
+.btn.primary:disabled {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  opacity: 0.45;
+}
 .icon-btn {
   width: 32px;
   height: 32px;
@@ -299,6 +311,7 @@
   color: var(--accent);
 }
 .step-text {
+  flex: 1;
   min-width: 0;
 }
 .step-text strong {
@@ -306,10 +319,11 @@
   font-weight: 600;
 }
 .step-text small {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  /* one line: a longer summary would make every tile taller and push the list down */
+  display: block;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   line-height: 1.35;
   color: var(--text-muted);
@@ -355,6 +369,8 @@
   font: 600 16px var(--font-display);
 }
 .panel-body {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;

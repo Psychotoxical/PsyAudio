@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-check-existing"
+description = "Enables the check_existing command without any pre-configured scope."
+commands.allow = ["check_existing"]
+
+[[permission]]
+identifier = "deny-check-existing"
+description = "Denies the check_existing command without any pre-configured scope."
+commands.deny = ["check_existing"]

@@ -613,3 +613,148 @@ Seitenleiste ausklappen	Expand sidebar
 Folgt in der nächsten Stufe	Coming in the next stage
 Benennung	Naming
 Zielordner	Target folder
+Format	Format
+{0} Titel	{0} tracks
+Gestrichelt: Das Programm dafür fehlt noch (Einstellungen).	Dashed: the program for it is still missing (Settings).
+Prüfen, Aufteilen, Tags, ReplayGain	Check, split, tags, ReplayGain
+Mehr kbit/s heißt bessere Qualität und größere Dateien.	More kbit/s means better quality and larger files.
+VBR passt die Bitrate jedem Stück an und klingt bei gleicher Dateigröße am besten.	VBR adapts the bit rate to each track and sounds best at the same file size.
+CBR hält die Bitrate fest; das brauchen nur alte Geräte und manche Streams.	CBR keeps the bit rate fixed; only old devices and some streams need that.
+Erweitert	Advanced
+Liest die fertige Datei noch einmal und vergleicht sie Sample für Sample mit dem Original.	Reads the finished file again and compares it sample by sample with the original.
+Modus	Mode
+ABR schwankt um die gewählte Bitrate, so bleibt die Dateigröße planbar.	ABR varies around the chosen bit rate, so the file size stays predictable.
+Kanäle, Encoder-Sorgfalt	Channels, encoder effort
+Joint Stereo spart Platz, wenn beide Kanäle ähnlich klingen; „automatisch“ lässt LAME wählen.	Joint stereo saves space when both channels sound alike; “automatic” lets LAME choose.
+Encoder-Sorgfalt	Encoder effort
+Mehr Sorgfalt rechnet länger; hörbar ist der Unterschied selten.	More effort takes longer; the difference is rarely audible.
+Höhere Stufen machen kleinere Dateien und rechnen länger, der Klang bleibt gleich (üblich: 5).	Higher levels make smaller files and take longer; the sound stays the same (usual: 5).
+Eingeschränktes VBR bleibt nahe an der Bitrate, gut für Streams.	Constrained VBR stays close to the bit rate, good for streams.
+Die Bitrate schwankt um den gewählten Wert, so bleibt die Dateigröße planbar.	The bit rate varies around the chosen value, so the file size stays predictable.
+Behält 16, 24 oder 32 Bit der Quelle bei, statt umzurechnen.	Keeps the source's 16, 24 or 32 bits instead of converting.
+Höhere Qualität packt kleiner und rechnet länger; verlustfrei bleibt es immer.	Higher quality packs smaller and takes longer; it always stays lossless.
+Kompression	Compression
+Höhere Stufen packen kleiner, schwache Geräte spielen sie aber schwerer ab.	Higher levels pack smaller, but weak devices have a harder time playing them.
+Speex ist für Sprache gemacht; für Musik ist Opus die bessere Wahl.	Speex is made for speech; for music, Opus is the better choice.
+Formate	Formats
+Jede Datei wird in alle gewählten Formate umgewandelt, jeweils mit deren Einstellungen.	Each file is converted to all chosen formats, each with its own settings.
+Teilt lange Aufnahmen in gleich lange Stücke.	Splits long recordings into pieces of equal length.
+Die Teile bekommen die Einstellungen dieses Formats.	The pieces get this format's settings.
+Profil laden …	Load profile …
+Profil speichern	Save profile
+Ein Profil merkt sich Format, Einstellungen und Effekte.	A profile keeps the format, its settings and the effects.
+Stufe {0}	Level {0}
+Qualität {0}	Quality {0}
+wie die Quelle	as the source
+Abtastrate	Sample rate
+Die Vorschau erscheint, sobald Dateien in der Liste sind.	The preview appears once files are in the list.
+So wird gespeichert	Saved as
+Bausteine	Building blocks
+Alle Dateien landen im Zielordner, Unterordner entstehen aus der Benennung.	All files go to the target folder; subfolders come from the naming.
+Jede neue Datei landet neben ihrer Quelle.	Each new file goes next to its source.
+Im Zielordner entsteht der Ordnerpfad der Quelle noch einmal (ohne Laufwerk).	The source's folder path is rebuilt inside the target folder (without the drive).
+Vor dem Start erscheint eine Liste der Dateien, die es schon gibt.	Before the start, a list shows the files that already exist.
+Vorhandene Dateien werden ohne Rückfrage ersetzt.	Existing files are replaced without asking.
+Vorhandene Dateien bleiben; die Quelle wird übersprungen.	Existing files stay; the source is skipped.
+Ziel	Destination
+Wenn vorhanden	If it exists
+Schreibt die Tags der Quelle in die neue Datei.	Writes the source's tags into the new file.
+Bettet das Cover der Quelle ein, wenn das Format Cover kann.	Embeds the source's cover when the format supports covers.
+Kein Ordner gewählt	No folder chosen
+Neben der Quelle	Next to the source
+Wie die Quelle	As the source
+{0} Bausteine	{0} building blocks
+Liest Tags aus dem Dateinamen und schreibt sie in die Quelldateien.	Reads tags from the file name and writes them into the source files.
+Muster	Pattern
+Gelesen aus „{0}“	Read from “{0}”
+Der Dateiname passt nicht zum Muster.	The file name does not match the pattern.
+Vorlage	Preset
+Eigene Bausteine	Custom building blocks
+{0} entfernen	Remove {0}
+Baustein	Building block
+Daten	Data
+Trenner	Separators
+Ziehen sortiert, Klick entfernt. „Neuer Ordner“ trennt den Ordnernamen vom Dateinamen.	Drag to sort, click to remove. “New folder” separates the folder name from the file name.
+Ziehen sortiert, Klick entfernt.	Drag to sort, click to remove.
+Album	Album
+Albuminterpret – (Jahr) – Album / Track-Disc – Interpret – Titel	Album artist – (Year) – Album / Track-Disc – Artist – Title
+Albuminterpret – (Jahr) – Album / Track – Titel	Album artist – (Year) – Album / Track – Title
+Interpret / Album / Track Titel	Artist / Album / Track Title
+Track – Titel	Track – Title
+Interpret – Titel	Artist – Title
+Zuordnung	Mapping
+Verstärkung	Gain
+Zielpegel	Target level
+Zielpegel (Spitze)	Target level (peak)
+Max. Verstärkung	Max. gain
+True-Peak-Überabtastung	True peak oversampling
+Wenn ReplayGain fehlt	If ReplayGain is missing
+Schwelle	Threshold
+Mindestlänge	Minimum length
+Höchstlänge	Maximum length
+Anteil des Originals	Share of the original
+Bei 0 s gilt der Anteil in Prozent.	At 0 s, the share in percent applies.
+Grenzfrequenz	Cutoff frequency
+Untere Grenze	Lower limit
+Obere Grenze	Upper limit
+Werte in dB; ein Klick auf eine Vorlage setzt alle Bänder.	Values in dB; a click on a preset sets all bands.
+Verhältnis	Ratio
+Ansprechzeit	Attack
+Abklingzeit	Release
+Befehl	Command
+Effekt hinzufügen	Add effect
+Schließen	Close
+Effekt suchen	Search effects
+Kein Effekt passt zur Suche.	No effect matches the search.
+Nach oben	Move up
+Nach unten	Move down
+Effekt entfernen	Remove effect
+Fensterlänge	Window length
+Einblenden	Fade in
+Ausblenden (vom Ende)	Fade out (from the end)
+Vom Anfang	From the start
+Vom Ende	From the end
+Vorne	Before
+Hinten	After
+Rechnet auf eine andere Abtastrate um, etwa von 96 kHz auf 44,1 kHz.	Converts to another sample rate, e.g. from 96 kHz to 44.1 kHz.
+Ändert die Bittiefe; beim Verringern glättet Dither die Rundungsfehler.	Changes the bit depth; when reducing, dither smooths the rounding errors.
+Mischt auf Mono, Stereo oder 5.1 um.	Mixes to mono, stereo or 5.1.
+Tauscht links und rechts oder behält nur einen Kanal.	Swaps left and right or keeps only one channel.
+Bringt jede Datei auf einen einheitlichen Pegel (Spitze, ReplayGain oder EBU R128).	Brings every file to one level (peak, ReplayGain or EBU R128).
+Misst die Lautheit und schreibt ReplayGain-Werte in die Tags; der Ton bleibt unverändert.	Measures loudness and writes ReplayGain values into the tags; the sound stays unchanged.
+Ändert die Lautstärke fest um die ReplayGain-Werte aus den Tags.	Changes the volume permanently by the ReplayGain values from the tags.
+Verringert den Abstand zwischen leisen und lauten Stellen.	Reduces the gap between quiet and loud passages.
+Blendet am Anfang ein und am Ende aus.	Fades in at the start and out at the end.
+Schneidet am Anfang und am Ende eine feste Zeit ab.	Cuts a fixed time off the start and the end.
+Entfernt Stille am Anfang und am Ende.	Removes silence at the start and the end.
+Fügt vorne und hinten Stille an.	Adds silence before and after.
+Dreht die Aufnahme um, sodass sie rückwärts läuft.	Reverses the recording so it plays backwards.
+Hängt die Aufnahme mehrmals hintereinander.	Repeats the recording several times in a row.
+Spielt schneller oder langsamer ab; die Tonhöhe ändert sich mit.	Plays faster or slower; the pitch changes along.
+Überspringt Dateien, die kürzer sind als die angegebene Zeit.	Skips files shorter than the given time.
+Kürzt auf eine Höchstlänge in Sekunden oder Prozent.	Cuts to a maximum length in seconds or percent.
+Lässt nur Frequenzen unterhalb der Grenze durch.	Lets only frequencies below the limit through.
+Lässt nur Frequenzen oberhalb der Grenze durch, etwa gegen Rumpeln.	Lets only frequencies above the limit through, e.g. against rumble.
+Lässt nur den Bereich zwischen zwei Frequenzen durch, etwa für Telefonklang.	Lets only the range between two frequencies through, e.g. for a telephone sound.
+Hebt oder senkt neun Frequenzbänder.	Raises or lowers nine frequency bands.
+Entfernt die Stimme aus der Mitte oder behält nur sie; nur bei Stereo.	Removes the voice from the centre or keeps only it; stereo only.
+Gleicht die Höhenanhebung alter CDs mit Pre-Emphasis aus.	Undoes the treble boost of old CDs with pre-emphasis.
+Erkennt HDCDs und macht aus ihnen 24-Bit-Audio.	Detects HDCDs and turns them into 24-bit audio.
+Löscht die Quelldatei, wenn ihre Umwandlung geklappt hat.	Deletes the source file when its conversion succeeded.
+Gibt der neuen Datei das Änderungsdatum der Quelle.	Gives the new file the source's modification date.
+Kopiert folder.jpg oder cover.jpg aus dem Quellordner in den Zielordner.	Copies folder.jpg or cover.jpg from the source folder to the target folder.
+Schreibt eine Wiedergabeliste (M3U8, M3U oder PLS) mit den neuen Dateien.	Writes a playlist (M3U8, M3U or PLS) with the new files.
+Legt neben jede neue Datei eine .txt mit ihren Tags.	Puts a .txt with its tags next to every new file.
+Startet nach jeder Datei ein Programm, etwa zum Nachbearbeiten.	Starts a program after each file, e.g. for post-processing.
+Überspringt oder kopiert Quellen mit einer bestimmten Endung, statt sie umzuwandeln.	Skips or copies sources with a given extension instead of converting them.
+Löscht eine halbfertige Zieldatei, wenn ein Fehler auftritt.	Deletes a half-written target file when an error occurs.
+Verschiebt die Zieldatei bei einem Fehler in einen eigenen Ordner.	Moves the target file to its own folder when an error occurs.
+Setzt, ergänzt oder entfernt ein Tag-Feld in allen Dateien.	Sets, fills in or removes a tag field in all files.
+Spielt einen Ton, wenn alle Dateien fertig sind.	Plays a sound when all files are done.
+Wandelt mit niedriger Priorität um, damit der Rechner bedienbar bleibt.	Converts at low priority so the computer stays usable.
+{0} Effekte	{0} effects
+Umwandeln …	Converting …
+Fortschritt	Progress
+ · {0} Kern	 · {0} core
+ · {0} Kerne	 · {0} cores
+Es läuft schon ein Rip – erst abwarten oder abbrechen	A rip is already running – wait or cancel it first

@@ -1,8 +1,12 @@
 // Screenshot of one page in the sample mode, through the WebView2 DevTools protocol (Windows).
-//   node scripts/capture.mjs <konverter|stapel|cd|einstellungen> <file.png> [--light]
+//   node scripts/capture.mjs <konverter|stapel|cd|einstellungen> <file.png> [--light] [--click=<css>]…
+// --click clicks the first element matching the selector before the picture (e.g. a tile).
+// --eval=<js> runs an expression in the page; --wait=<css> waits up to 2 minutes for an element;
+// --file=<path> passes a file on the command line; --title prints the window title at the end.
+// The options run in the order given.
 // Needs the debug build (cargo build -p psyaudio) and the Vite dev server (npm run dev).
 // A window opens for a few seconds; the sample mode saves nothing.
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -14,7 +18,8 @@ if (!page || !file) {
 }
 const port = 9333;
 const exe = resolve(import.meta.dirname, "..", "target", "debug", "PsyAudio.exe");
-const args = [`--demo=${page}`, ...(rest.includes("--light") ? ["--light"] : [])];
+const files = rest.filter((a) => a.startsWith("--file=")).map((a) => a.slice(7));
+const args = [`--demo=${page}`, ...(rest.includes("--light") ? ["--light"] : []), ...files];
 const child = spawn(exe, args, {
   env: {
     ...process.env,
@@ -73,10 +78,33 @@ try {
     if (r.result?.result?.value) break;
     await sleep(250);
   }
+  const evaluate = async (expression) =>
+    (await send("Runtime.evaluate", { expression, returnByValue: true })).result?.result?.value;
+  for (const opt of rest) {
+    if (opt.startsWith("--click=")) {
+      const sel = JSON.stringify(opt.slice(8));
+      // data from Rust (format lists, chips) may arrive after the shell: wait for the element
+      for (let i = 0; i < 20; i++) {
+        if (await evaluate(`(() => { const e = document.querySelector(${sel}); e?.click(); return !!e; })()`)) break;
+        await sleep(250);
+      }
+      await sleep(300);
+    } else if (opt.startsWith("--eval=")) {
+      console.log("eval:", await evaluate(opt.slice(7)));
+      await sleep(300);
+    } else if (opt.startsWith("--wait=")) {
+      const sel = JSON.stringify(opt.slice(7));
+      for (let i = 0; i < 480 && !(await evaluate(`!!document.querySelector(${sel})`)); i++) await sleep(250);
+    }
+  }
   await sleep(400);
   const shot = await send("Page.captureScreenshot", { format: "png" });
   writeFileSync(file, Buffer.from(shot.result.data, "base64"));
   console.log("wrote", file);
+  if (rest.includes("--title")) {
+    const title = execFileSync("powershell", ["-NoProfile", "-Command", `(Get-Process -Id ${child.pid}).MainWindowTitle`], { encoding: "utf8" });
+    console.log("title:", title.trim());
+  }
   ws.close();
 } finally {
   child.kill();

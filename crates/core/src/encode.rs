@@ -696,3 +696,17 @@ pub fn verify_lossless(out: &Path, original: &Audio, env: &Env, cancel: &AtomicB
     }
     Ok(())
 }
+
+/// Why a run with `codec` cannot start (a program or encoder is missing), or nothing.
+pub fn plan_requirement(codec: Codec, enc: &EncSettings, env: &Env) -> Option<String> {
+    let codecs = match codec {
+        Codec::Multi => enc.multi.clone(),
+        Codec::ChannelSplit | Codec::LengthSplit => vec![enc.split_codec],
+        c if c.is_tool() => vec![],
+        c => vec![c],
+    };
+    if codec == Codec::Multi && codecs.is_empty() {
+        return Some(crate::i18n::t("Im Mehrfach-Encoder ist kein Format gewählt").into());
+    }
+    codecs.into_iter().find_map(|c| missing_requirement(c, env).map(|m| format!("{}: {m}", c.name())))
+}

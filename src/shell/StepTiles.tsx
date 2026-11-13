@@ -4,7 +4,7 @@ import type { Page } from "../store/ui";
 export interface Tile {
   id: string;
   title: string;
-  /** The current state in at most two lines, e.g. "Opus · 192 kbit/s · VBR". */
+  /** The current state in one line, e.g. "Opus · 192 kbit/s · VBR" (cut with an ellipsis). */
   summary: string;
 }
 
@@ -26,7 +26,7 @@ export function StepTiles({ page, tiles }: { page: Page; tiles: Tile[] }) {
             <span className="step-n">{i + 1}</span>
             <span className="step-text">
               <strong>{t.title}</strong>
-              <small>{t.summary}</small>
+              <small title={t.summary}>{t.summary}</small>
             </span>
           </button>
         );

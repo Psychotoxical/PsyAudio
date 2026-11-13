@@ -34,6 +34,16 @@ pub const CONVERT_SCHEME: &[&str] = &["filename"];
 /// CD ripper default, the same as in PsyTags.
 pub const CD_SCHEME: &[&str] =
     &["albumartist", " - ", "(", "year", ")", " - ", "album", FOLDER, "track", "-", "disc", " - ", "artist", " - ", "title"];
+/// Naming presets offered in a list (German name, chips); choosing one sets the chips, which
+/// stay free to change. The first is the CD ripper's default, the last the converter's.
+pub const PRESETS: &[(&str, &[&str])] = &[
+    ("Albuminterpret – (Jahr) – Album / Track-Disc – Interpret – Titel", CD_SCHEME),
+    ("Albuminterpret – (Jahr) – Album / Track – Titel", &["albumartist", " - ", "(", "year", ")", " - ", "album", FOLDER, "track", " - ", "title"]),
+    ("Interpret / Album / Track Titel", &["artist", FOLDER, "album", FOLDER, "track", " ", "title"]),
+    ("Track – Titel", &["track", " - ", "title"]),
+    ("Interpret – Titel", &["artist", " - ", "title"]),
+    ("Dateiname", CONVERT_SCHEME),
+];
 /// Default for reading tags from file names.
 pub const TAG_SCHEME: &[&str] = &["track", " ", "artist", " - ", "title"];
 /// Longest folder or file name part.
@@ -272,6 +282,19 @@ mod scheme_tests {
         let long = "x".repeat(100);
         let p = std::path::Path::new("Musik").join(format!("{long}.flac"));
         assert_eq!(names(&s(CONVERT_SCHEME), &Tags::default(), &p).1, long);
+    }
+
+    #[test]
+    fn presets_survive_sanitize() {
+        for (name, scheme) in PRESETS {
+            assert_eq!(sanitize(&s(scheme), DATA, true, CONVERT_SCHEME), s(scheme), "{name}");
+        }
+    }
+
+    #[test]
+    fn first_preset_is_rip_default() {
+        assert_eq!(PRESETS[0].1, CD_SCHEME);
+        assert_eq!(PRESETS.last().map(|p| p.1), Some(CONVERT_SCHEME));
     }
 
     #[test]

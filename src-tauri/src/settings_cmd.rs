@@ -18,9 +18,7 @@ pub struct LoadedSettings {
 pub fn load_settings(state: State<'_, AppState>) -> LoadedSettings {
     let (settings, warning) = match &state.demo {
         Some(demo) => {
-            let mut s = Settings::default();
-            s.lang = "de".into();
-            s.dark = !demo.light;
+            let s = Settings { lang: "de".into(), dark: !demo.light, ..Settings::default() };
             (s, None)
         }
         None => Settings::load(),

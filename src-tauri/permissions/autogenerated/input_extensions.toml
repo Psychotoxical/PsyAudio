@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-input-extensions"
+description = "Enables the input_extensions command without any pre-configured scope."
+commands.allow = ["input_extensions"]
+
+[[permission]]
+identifier = "deny-input-extensions"
+description = "Denies the input_extensions command without any pre-configured scope."
+commands.deny = ["input_extensions"]

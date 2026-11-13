@@ -51,8 +51,12 @@ impl Demo {
 #[derive(Default)]
 pub struct AppState {
     pub demo: Option<Demo>,
+    /// FFmpeg as last found (see tools_cmd).
+    pub tools: Mutex<Option<crate::tools_cmd::ToolCache>>,
     /// Files from the command line and from second starts or drops before the frontend listens.
     pub startup_files: Mutex<Vec<PathBuf>>,
     /// The frontend has called `frontend_ready`; from then on files go out as events.
     pub frontend_ready: AtomicBool,
+    /// The conversion and the rip running in the background.
+    pub jobs: crate::jobs::Jobs,
 }

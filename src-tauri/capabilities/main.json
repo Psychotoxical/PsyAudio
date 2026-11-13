@@ -13,6 +13,26 @@
     "allow-file-manager-menu",
     "allow-load-settings",
     "allow-save-settings",
-    "allow-demo-state"
+    "allow-demo-state",
+    "allow-add-paths",
+    "allow-read-file-info",
+    "allow-reveal-folder",
+    "allow-input-extensions",
+    "allow-encode-options",
+    "allow-tool-status",
+    "allow-codec-problems",
+    "allow-plan-requirement",
+    "allow-estimate-kbps",
+    "allow-set-language",
+    "allow-naming-options",
+    "allow-preview-name",
+    "allow-tags-from-name",
+    "allow-open-folder",
+    "allow-effect-catalogue",
+    "allow-effect-lines",
+    "allow-check-existing",
+    "allow-start-conversion",
+    "allow-cancel-conversion",
+    "allow-clear-run-title"
   ]
 }

@@ -2,24 +2,13 @@
 
 use crate::audio;
 use crate::dsp::Effect;
-use crate::encode::{self, Codec, EncSettings, Env, RateMode};
+use crate::encode::{self, Codec, EncSettings, RateMode};
 use crate::tags;
 use crate::theme::{self, Palette};
 use eframe::egui::{self, Color32, RichText};
 use std::path::Path;
 
-pub fn plan_requirement(codec: Codec, enc: &EncSettings, env: &Env) -> Option<String> {
-    let codecs = match codec {
-        Codec::Multi => enc.multi.clone(),
-        Codec::ChannelSplit | Codec::LengthSplit => vec![enc.split_codec],
-        c if c.is_tool() => vec![],
-        c => vec![c],
-    };
-    if codec == Codec::Multi && codecs.is_empty() {
-        return Some(crate::i18n::t("Im Mehrfach-Encoder ist kein Format gewählt").into());
-    }
-    codecs.into_iter().find_map(|c| encode::missing_requirement(c, env).map(|m| format!("{}: {m}", c.name())))
-}
+pub use crate::encode::plan_requirement;
 
 pub fn section(ui: &mut egui::Ui, p: &Palette, title: &str) {
     ui.add_space(2.0);

@@ -85,6 +85,65 @@ pub const NORMALIZE_MODES: [&str; 7] = [
 
 pub const EQ_BANDS: [f32; 9] = [60.0, 130.0, 260.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0];
 
+/// One effect as the effect picker shows it (texts in the current language).
+#[derive(Clone, Debug, Serialize)]
+pub struct EffectEntry {
+    pub category: &'static str,
+    pub label: &'static str,
+    pub description: &'static str,
+    pub effect: Effect,
+}
+
+/// The catalogue with one line of explanation per effect, for the searchable picker.
+pub fn catalogue_entries() -> Vec<EffectEntry> {
+    catalogue()
+        .into_iter()
+        .map(|(category, label, effect)| EffectEntry { category, label, description: crate::i18n::t(description(&effect)), effect })
+        .collect()
+}
+
+/// What an effect does, in one German sentence (translated by the caller).
+fn description(e: &Effect) -> &'static str {
+    match e {
+        Effect::Resample { .. } => "Rechnet auf eine andere Abtastrate um, etwa von 96 kHz auf 44,1 kHz.",
+        Effect::BitDepth { .. } => "Ändert die Bittiefe; beim Verringern glättet Dither die Rundungsfehler.",
+        Effect::ChannelCount { .. } => "Mischt auf Mono, Stereo oder 5.1 um.",
+        Effect::ChannelMapper { .. } => "Tauscht links und rechts oder behält nur einen Kanal.",
+        Effect::VolumeNormalize { .. } => "Bringt jede Datei auf einen einheitlichen Pegel (Spitze, ReplayGain oder EBU R128).",
+        Effect::ReplayGain { .. } => "Misst die Lautheit und schreibt ReplayGain-Werte in die Tags; der Ton bleibt unverändert.",
+        Effect::ReplayGainApply { .. } => "Ändert die Lautstärke fest um die ReplayGain-Werte aus den Tags.",
+        Effect::Compressor { .. } => "Verringert den Abstand zwischen leisen und lauten Stellen.",
+        Effect::Fade { .. } => "Blendet am Anfang ein und am Ende aus.",
+        Effect::Trim { .. } => "Schneidet am Anfang und am Ende eine feste Zeit ab.",
+        Effect::TrimSilence { .. } => "Entfernt Stille am Anfang und am Ende.",
+        Effect::WriteSilence { .. } => "Fügt vorne und hinten Stille an.",
+        Effect::Reverse => "Dreht die Aufnahme um, sodass sie rückwärts läuft.",
+        Effect::Loop { .. } => "Hängt die Aufnahme mehrmals hintereinander.",
+        Effect::Speed { .. } => "Spielt schneller oder langsamer ab; die Tonhöhe ändert sich mit.",
+        Effect::MinimumLength { .. } => "Überspringt Dateien, die kürzer sind als die angegebene Zeit.",
+        Effect::MaximumLength { .. } => "Kürzt auf eine Höchstlänge in Sekunden oder Prozent.",
+        Effect::Lowpass { .. } => "Lässt nur Frequenzen unterhalb der Grenze durch.",
+        Effect::Highpass { .. } => "Lässt nur Frequenzen oberhalb der Grenze durch, etwa gegen Rumpeln.",
+        Effect::Bandpass { .. } => "Lässt nur den Bereich zwischen zwei Frequenzen durch, etwa für Telefonklang.",
+        Effect::GraphicEq { .. } => "Hebt oder senkt neun Frequenzbänder.",
+        Effect::Karaoke { .. } => "Entfernt die Stimme aus der Mitte oder behält nur sie; nur bei Stereo.",
+        Effect::DeEmphasis => "Gleicht die Höhenanhebung alter CDs mit Pre-Emphasis aus.",
+        Effect::Hdcd { .. } => "Erkennt HDCDs und macht aus ihnen 24-Bit-Audio.",
+        Effect::DeleteSource => "Löscht die Quelldatei, wenn ihre Umwandlung geklappt hat.",
+        Effect::PreserveAttributes => "Gibt der neuen Datei das Änderungsdatum der Quelle.",
+        Effect::FolderJpgPreserve => "Kopiert folder.jpg oder cover.jpg aus dem Quellordner in den Zielordner.",
+        Effect::PlaylistWriter { .. } => "Schreibt eine Wiedergabeliste (M3U8, M3U oder PLS) mit den neuen Dateien.",
+        Effect::WriteMetadataFile => "Legt neben jede neue Datei eine .txt mit ihren Tags.",
+        Effect::RunExternal { .. } => "Startet nach jeder Datei ein Programm, etwa zum Nachbearbeiten.",
+        Effect::ConditionalEncoding { .. } => "Überspringt oder kopiert Quellen mit einer bestimmten Endung, statt sie umzuwandeln.",
+        Effect::DeleteDestOnError => "Löscht eine halbfertige Zieldatei, wenn ein Fehler auftritt.",
+        Effect::MoveDestOnError { .. } => "Verschiebt die Zieldatei bei einem Fehler in einen eigenen Ordner.",
+        Effect::TagProcessing { .. } => "Setzt, ergänzt oder entfernt ein Tag-Feld in allen Dateien.",
+        Effect::PlaySound => "Spielt einen Ton, wenn alle Dateien fertig sind.",
+        Effect::CpuThrottle => "Wandelt mit niedriger Priorität um, damit der Rechner bedienbar bleibt.",
+    }
+}
+
 /// Every effect the "add effect" menu offers: (group, name, default).
 pub fn catalogue() -> Vec<(&'static str, &'static str, Effect)> {
     vec![
@@ -810,5 +869,24 @@ mod hdcd_tests {
         assert_eq!(hdcd_decode(&mut b, Some(&ff), true), Ok(false));
         assert_eq!(b.bits, 16);
         assert_eq!(b.data, sine);
+    }
+}
+
+#[cfg(test)]
+mod catalogue_tests {
+    use super::*;
+
+    #[test]
+    fn every_effect_has_category_and_description() {
+        let entries = catalogue_entries();
+        assert_eq!(entries.len(), catalogue().len());
+        let mut categories: Vec<&str> = entries.iter().map(|e| e.category).collect();
+        categories.dedup();
+        assert_eq!(categories.len(), 6, "{categories:?}");
+        let mut seen = std::collections::HashSet::new();
+        for e in &entries {
+            assert!(!e.label.is_empty() && !e.description.is_empty(), "{}", e.label);
+            assert!(seen.insert(e.description), "same description twice: {}", e.description);
+        }
     }
 }

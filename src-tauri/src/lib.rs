@@ -1,8 +1,14 @@
 //! The PsyAudio window: starts Tauri, hands files over between instances and from drops.
 
 mod commands;
+mod effects_cmd;
+mod files_cmd;
+mod jobs;
+mod naming_cmd;
+mod run_cmd;
 mod settings_cmd;
 mod state;
+mod tools_cmd;
 
 use serde::Serialize;
 use state::AppState;
@@ -83,6 +89,26 @@ pub fn run() {
             settings_cmd::load_settings,
             settings_cmd::save_settings,
             settings_cmd::demo_state,
+            files_cmd::add_paths,
+            files_cmd::read_file_info,
+            files_cmd::reveal_folder,
+            files_cmd::open_folder,
+            files_cmd::input_extensions,
+            tools_cmd::encode_options,
+            tools_cmd::tool_status,
+            tools_cmd::codec_problems,
+            tools_cmd::plan_requirement,
+            tools_cmd::estimate_kbps,
+            tools_cmd::set_language,
+            naming_cmd::naming_options,
+            naming_cmd::preview_name,
+            naming_cmd::tags_from_name,
+            effects_cmd::effect_catalogue,
+            effects_cmd::effect_lines,
+            run_cmd::check_existing,
+            run_cmd::start_conversion,
+            run_cmd::cancel_conversion,
+            run_cmd::clear_run_title,
         ])
         .setup(|app| {
             // show the window even if the frontend never reports ready
@@ -123,7 +149,7 @@ pub fn run() {
 mod tests {
     use super::*;
     use std::ffi::OsString;
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     fn os(list: &[&str]) -> Vec<OsString> {
         list.iter().map(OsString::from).collect()
@@ -141,7 +167,7 @@ mod tests {
         let name = "Ä [live] b.mp3";
         let abs = cwd.join(name);
         let got = file_args(vec![OsString::from("PsyAudio"), abs.clone().into_os_string(), OsString::from(name)], &cwd);
-        assert_eq!(got, vec![abs.clone(), PathBuf::from(abs)]);
+        assert_eq!(got, vec![abs.clone(), abs]);
     }
 
     #[cfg(target_os = "linux")]
