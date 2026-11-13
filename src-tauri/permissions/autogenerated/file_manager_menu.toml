@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-file-manager-menu"
+description = "Enables the file_manager_menu command without any pre-configured scope."
+commands.allow = ["file_manager_menu"]
+
+[[permission]]
+identifier = "deny-file-manager-menu"
+description = "Denies the file_manager_menu command without any pre-configured scope."
+commands.deny = ["file_manager_menu"]

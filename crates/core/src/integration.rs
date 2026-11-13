@@ -1,35 +1,152 @@
 //! The parts of the desktop PsyAudio plugs into: the file manager's context menu and standby.
 
-#[cfg(windows)]
 use crate::audio;
+
+/// The Explorer menu entry: one key per extension PsyAudio reads, below HKEY_CURRENT_USER.
+/// Explorer skips the "audio" perceived-type group for some types (.opus on Windows 11), so
+/// every extension gets its own entry.
+pub fn explorer_menu_keys() -> Vec<String> {
+    audio::INPUT_EXTENSIONS.iter().map(|e| format!(r"Software\Classes\SystemFileAssociations\.{e}\shell\PsyAudio")).collect()
+}
+
+/// The single entry for the "audio" group that earlier versions wrote; it goes with every change.
+pub const OLD_EXPLORER_MENU_KEY: &str = r"Software\Classes\SystemFileAssociations\audio\shell\PsyAudio";
+
+/// Writing and deleting keys below HKEY_CURRENT_USER.
+#[cfg(windows)]
+mod reg {
+    use windows_sys::Win32::System::Registry::{
+        RegCloseKey, RegCreateKeyExW, RegDeleteTreeW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, KEY_WRITE,
+        REG_OPTION_NON_VOLATILE, REG_SZ,
+    };
+
+    fn wide(s: &str) -> Vec<u16> {
+        s.encode_utf16().chain(std::iter::once(0)).collect()
+    }
+
+    /// Creates `path` and sets its string values (`None` is the default value).
+    pub fn set(path: &str, values: &[(Option<&str>, &str)]) -> bool {
+        let p = wide(path);
+        let mut key: HKEY = std::ptr::null_mut();
+        let created = unsafe {
+            RegCreateKeyExW(
+                HKEY_CURRENT_USER,
+                p.as_ptr(),
+                0,
+                std::ptr::null(),
+                REG_OPTION_NON_VOLATILE,
+                KEY_WRITE,
+                std::ptr::null(),
+                &mut key,
+                std::ptr::null_mut(),
+            )
+        };
+        if created != 0 {
+            return false;
+        }
+        let mut ok = true;
+        for (name, data) in values {
+            let n = name.map(wide);
+            let d = wide(data);
+            let name_ptr = n.as_ref().map_or(std::ptr::null(), |n| n.as_ptr());
+            let r = unsafe { RegSetValueExW(key, name_ptr, 0, REG_SZ, d.as_ptr().cast(), (d.len() * 2) as u32) };
+            ok &= r == 0;
+        }
+        unsafe { RegCloseKey(key) };
+        ok
+    }
+
+    /// Deletes `path` with everything below it; true when it was there.
+    pub fn delete(path: &str) -> bool {
+        let p = wide(path);
+        let r = unsafe { RegDeleteTreeW(HKEY_CURRENT_USER, p.as_ptr()) };
+        if r == 0 {
+            // RegDeleteTreeW empties the key; the key itself goes with RegDeleteKeyW
+            unsafe { windows_sys::Win32::System::Registry::RegDeleteKeyW(HKEY_CURRENT_USER, p.as_ptr()) };
+        }
+        r == 0
+    }
+
+    #[cfg(test)]
+    pub fn exists(path: &str) -> bool {
+        use windows_sys::Win32::System::Registry::{RegOpenKeyExW, KEY_READ};
+        let p = wide(path);
+        let mut key: HKEY = std::ptr::null_mut();
+        let r = unsafe { RegOpenKeyExW(HKEY_CURRENT_USER, p.as_ptr(), 0, KEY_READ, &mut key) };
+        if r == 0 {
+            unsafe { RegCloseKey(key) };
+        }
+        r == 0
+    }
+
+    #[cfg(test)]
+    mod tests {
+        #[test]
+        fn a_key_is_written_and_deleted_with_its_subkeys() {
+            let base = format!(r"Software\PsyAudioTest-{}", std::process::id());
+            let sub = format!(r"{base}\shell\PsyAudio");
+            assert!(super::set(&sub, &[(None, "Mit PsyAudio konvertieren"), (Some("Icon"), r"C:\x\PsyAudio.exe")]));
+            assert!(super::set(&format!(r"{sub}\command"), &[(None, r#""C:\x\PsyAudio.exe" "%1""#)]));
+            assert!(super::exists(&format!(r"{sub}\command")));
+            assert!(super::delete(&sub));
+            assert!(!super::exists(&sub), "the key itself is gone");
+            assert!(!super::delete(&sub), "a second delete finds nothing");
+            super::delete(&base);
+        }
+    }
+}
+
+#[cfg(test)]
+mod explorer_menu_tests {
+    use super::*;
+
+    #[test]
+    fn every_readable_extension_gets_its_own_entry() {
+        let keys = explorer_menu_keys();
+        for e in ["opus", "mp3", "flac", "ape", "wv", "dsf", "mpc"] {
+            let want = format!(r"Software\Classes\SystemFileAssociations\.{e}\shell\PsyAudio");
+            assert!(keys.contains(&want), "{e}");
+        }
+        assert_eq!(keys.len(), audio::INPUT_EXTENSIONS.len());
+        let unique: std::collections::HashSet<&String> = keys.iter().collect();
+        assert_eq!(unique.len(), keys.len(), "no extension twice");
+    }
+
+    #[test]
+    fn the_old_group_entry_is_known_for_cleanup() {
+        assert_eq!(OLD_EXPLORER_MENU_KEY, r"Software\Classes\SystemFileAssociations\audio\shell\PsyAudio");
+    }
+}
 
 /// Add or remove the Explorer right-click entry for audio files (current user only).
 pub fn file_manager_menu(add: bool) -> String {
     #[cfg(windows)]
     {
         let Ok(exe) = std::env::current_exe() else { return crate::i18n::t("Programmpfad unbekannt").into() };
-        let key = r"HKCU\Software\Classes\SystemFileAssociations\audio\shell\PsyAudio";
-        let run = |args: &[&str]| {
-            let mut c = std::process::Command::new("reg");
-            c.args(args);
-            audio::hidden(&mut c);
-            c.status().map(|s| s.success()).unwrap_or(false)
-        };
+        // the old single entry would show the item twice where Explorer does use the group
+        let had_old = reg::delete(OLD_EXPLORER_MENU_KEY);
         if add {
             let cmd = format!("\"{}\" \"%1\"", exe.display());
             let icon = exe.display().to_string();
-            let ok = run(&["add", key, "/ve", "/d", crate::i18n::t("Mit PsyAudio konvertieren"), "/f"])
-                && run(&["add", key, "/v", "Icon", "/d", &icon, "/f"])
-                && run(&["add", &format!(r"{key}\command"), "/ve", "/d", &cmd, "/f"]);
+            let label = crate::i18n::t("Mit PsyAudio konvertieren");
+            let ok = explorer_menu_keys().iter().all(|k| {
+                reg::set(k, &[(None, label), (Some("Icon"), &icon)]) && reg::set(&format!(r"{k}\command"), &[(None, &cmd)])
+            });
             if ok {
                 crate::i18n::t("Kontextmenü eingerichtet").into()
             } else {
                 crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden").into()
             }
-        } else if run(&["delete", key, "/f"]) {
-            crate::i18n::t("Kontextmenü entfernt").into()
         } else {
-            crate::i18n::t("Kein Kontextmenü vorhanden").into()
+            let mut removed = had_old;
+            for k in explorer_menu_keys() {
+                removed |= reg::delete(&k);
+            }
+            if removed {
+                crate::i18n::t("Kontextmenü entfernt").into()
+            } else {
+                crate::i18n::t("Kein Kontextmenü vorhanden").into()
+            }
         }
     }
     #[cfg(target_os = "linux")]
