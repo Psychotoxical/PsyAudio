@@ -772,3 +772,50 @@ Alle Einstellungen außer den Profilen gehen auf Standard zurück, auch Sprache 
 Jetzt zurücksetzen	Reset now
 {0} Kern	{0} core
 {0} Kerne	{0} cores
+Zuerst eine CD lesen	Read a CD first
+Keine Titel ausgewählt	No tracks selected
+CD rippen	Ripping CD
+{0} Titel rippen	Rip {0} tracks
+Titel {0} von {1}	Track {0} of {1}
+etwa {0} min übrig	about {0} min left
+Protokoll anzeigen	Show log
+Protokoll	Log
+{0} Titel · {1}	{0} tracks · {1}
+Sicher · bis {0} Neu-Lesungen	Secure · up to {0} re-reads
+CD wird gelesen …	Reading the CD …
+Laufwerk	Drive
+Cover	Cover
+Disc-Nummer	Disc number
+Anzahl Discs	Number of discs
+MusicBrainz nicht erreichbar	MusicBrainz not reachable
+MusicBrainz: kein Treffer	MusicBrainz: no match
+MusicBrainz: 1 Treffer	MusicBrainz: 1 match
+MusicBrainz-Treffer	MusicBrainz matches
+MusicBrainz: {0} Treffer	MusicBrainz: {0} matches
+Neu-Lesungen bei Fehlern	Re-reads on errors
+{0} Versuche	{0} tries
+So oft liest PsyAudio eine fehlerhafte Stelle neu, bevor sie als unsicher gilt.	How often PsyAudio re-reads a faulty spot before it counts as insecure.
+Suche … {0} %	Searching … {0} %
+Ermitteln	Detect
+Jedes Laufwerk liest leicht versetzt. Einmal pro Laufwerk ermitteln, dann stimmen die AccurateRip-Prüfsummen.	Every drive reads slightly shifted. Detect it once per drive, then the AccurateRip checksums match.
+Kontroll-Durchgänge, Cache, Abbruch	Check passes, cache, abort
+Liest sichere Titel weitere Male, bis genug Durchgänge gleich ausfallen.	Reads secure tracks more times until enough passes agree.
+So viel liest PsyAudio vor einer Neu-Lesung weg, damit das Laufwerk nicht aus seinem Zwischenspeicher antwortet.	PsyAudio reads this much away before a re-read, so the drive does not answer from its cache.
+Abbrechen nach unlesbaren Sektoren	Abort after unreadable sectors
+nie	never
+0 heißt nie; sonst endet ein Titel nach so vielen Sektoren, die sich nicht lesen ließen.	0 means never; otherwise a track ends after this many sectors that could not be read.
+Füllt Stellen, die sich nie lesen ließen, aus ihren Nachbarn, statt sie stumm zu lassen.	Fills spots that could never be read from their neighbours instead of leaving them silent.
+Ein markierter Titel zählt in der Liste und im Protokoll als Fehler.	A marked track counts as an error in the list and the log.
+Hört nach dem ersten unsicheren Titel mit der ganzen CD auf.	Stops the whole CD after the first insecure track.
+Vergleicht jeden Titel mit den Prüfsummen anderer Rips derselben CD.	Compares each track with the checksums of other rips of the same CD.
+Bitrate usw. gelten auch im Konverter.	Bit rate etc. apply to the converter too.
+Effekte vom Konverter laufen mit ({0} aktiv).	The converter's effects run along ({0} active).
+Legt ein Protokoll mit Prüfsummen und AccurateRip-Ergebnis in den Album-Ordner.	Puts a log with checksums and the AccurateRip result into the album folder.
+Legt eine CUE-Datei mit der Titelfolge in den Album-Ordner.	Puts a CUE file with the track order into the album folder.
+Bettet das Cover von MusicBrainz in jede Datei ein.	Embeds the cover from MusicBrainz in every file.
+Speichert das Cover zusätzlich als folder.jpg im Album-Ordner.	Also saves the cover as folder.jpg in the album folder.
+AR ungenau	AR inaccurate
+Alle Titel	All tracks
+Titel {0} rippen	Rip track {0}
+Interpret von Titel {0}	Artist of track {0}
+Mehrere Formate	Several formats

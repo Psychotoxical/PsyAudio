@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-preview-rip-name"
+description = "Enables the preview_rip_name command without any pre-configured scope."
+commands.allow = ["preview_rip_name"]
+
+[[permission]]
+identifier = "deny-preview-rip-name"
+description = "Denies the preview_rip_name command without any pre-configured scope."
+commands.deny = ["preview_rip_name"]

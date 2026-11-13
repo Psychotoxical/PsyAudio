@@ -1,3 +1,4 @@
+import type { CdState } from "./store/cd";
 import type { FileRow } from "./store/files";
 
 // Sample content for `--demo=konverter` screenshots (made-up names, as in draft tiles.html).
@@ -80,5 +81,79 @@ export function demoBatch(): { folder: string; root: string; found: string[]; se
       ...album("Beispiel-Band\\Live-Aufnahme", 6, "wav"),
       ...album("Testensemble\\Ruhige Räume", 5, "flac"),
     ],
+  };
+}
+
+/** A sample disc halfway through a rip (made-up titles, no drive involved). */
+export function demoCd(): Partial<CdState> {
+  const lengths = [186, 252, 243, 242, 226, 220, 269, 233, 203, 196, 215, 258];
+  const names = [
+    "Erstes Lied",
+    "Zweites Lied",
+    "Drittes Lied",
+    "Viertes Lied (Live)",
+    "Fünftes Lied",
+    "Sechstes Lied",
+    "Siebtes Lied",
+    "Achtes Lied",
+    "Neuntes Lied",
+    "Zehntes Lied",
+    "Elftes Lied",
+    "Zwölftes Lied",
+  ];
+  const meta = {
+    album: "Erstes Album",
+    artist: "Beispiel-Band",
+    year: "2021",
+    genre: "Rock",
+    disc: 1,
+    disc_total: 1,
+    label: "",
+    release_id: "release-1",
+    tracks: names.map((title, i) => ({
+      title,
+      artist: i === 6 ? "Beispiel-Band feat. Gast" : "",
+      isrc: "",
+    })),
+  };
+  const secure = (ar: number) => ({
+    fraction: 1,
+    phase: null,
+    status: { kind: "Secure" as const, passes: 1, rereads: 0, verified_first_pass: true },
+    ar: { confirmed: true, confidence: ar, version: 2, in_db: true, unavailable: null },
+  });
+  return {
+    drives: [{ id: "G", name: "G:" }],
+    drive: "G",
+    scanned: true,
+    disc: {
+      tracks: lengths.map((seconds, i) => ({ number: i + 1, seconds })),
+      total_seconds: lengths.reduce((a, b) => a + b, 0),
+      musicbrainz_id: "Beispiel.ID_0123456789abcdefgh-",
+      freedb_id: "a10b4e0c",
+    },
+    meta,
+    candidates: [
+      meta,
+      { ...meta, album: "Erstes Album (Neuauflage)", year: "2023", release_id: "release-2" },
+    ],
+    lookup: "done",
+    ar: { state: "done", pressings: 7, reason: null },
+    selected: lengths.map(() => true),
+    rows: lengths.map((_, i) =>
+      i === 0
+        ? secure(200)
+        : i === 1
+          ? secure(198)
+          : i === 2
+            ? {
+                fraction: 0.5,
+                phase: { kind: "Reading" as const, done: 0.63 },
+                status: null,
+                ar: null,
+              }
+            : { fraction: 0, phase: null, status: null, ar: null },
+    ),
+    rip: { running: true, startedAt: Date.now() - 95_000, summary: null, log: [] },
   };
 }

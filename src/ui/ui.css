@@ -570,3 +570,31 @@
     transition: none;
   }
 }
+
+/* status chips (file list groups, CD tracks) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 9px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.chip.ok {
+  background: var(--ok-bg);
+  color: var(--ok-text);
+}
+.chip.warn {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+.chip.bad {
+  background: var(--bad-bg);
+  color: var(--bad-text);
+}
+.chip.muted {
+  background: var(--bg-card);
+  color: var(--text-muted);
+}

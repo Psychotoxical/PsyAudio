@@ -1,20 +1,21 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { demoBatch, demoFiles } from "./demo";
+import { demoBatch, demoCd, demoFiles } from "./demo";
 import { setLanguage } from "./i18n";
 import { demoState, loadSettings } from "./ipc/commands";
 import { refreshEncode } from "./ipc/encode";
 import { frontendReady, onDragState, onFilesAdded } from "./ipc/events";
 import { loadNamingOptions } from "./ipc/naming";
 import { BatchPage } from "./pages/batch/BatchPage";
+import { CdPage } from "./pages/cd/CdPage";
 import { addFiles } from "./pages/convert/addFiles";
 import { ConvertPage } from "./pages/convert/ConvertPage";
 import { OverwriteQuestion } from "./pages/convert/OverwriteQuestion";
-import { Placeholder } from "./pages/Placeholder";
 import { SettingsPage } from "./pages/settings/SettingsPage";
 import { Sidebar } from "./shell/Sidebar";
 import { Toast } from "./shell/Toast";
 import { firstFolder, useBatch } from "./store/batch";
+import { ripProgress, useCd } from "./store/cd";
 import { loadEffectCatalogue } from "./store/effects";
 import { useEncode } from "./store/encode";
 import { useFiles } from "./store/files";
@@ -44,6 +45,13 @@ export function App() {
   );
   const runProgress = useRun((s) => s.run?.maxOverall ?? 0);
   const runJob = runTitle ? { label: runTitle, progress: runProgress } : null;
+  // the rip in the sidebar too (it may run during a conversion)
+  const ripRunning = useCd((s) => s.rip?.running ?? false);
+  const ripDone = useCd((s) => (s.rip?.running ? ripProgress(s) : 0));
+  const jobs = [
+    ...(runJob ? [runJob] : []),
+    ...(ripRunning ? [{ label: t("CD rippen"), progress: ripDone }] : []),
+  ];
   const lang = settings?.lang;
   const tools = settings ? JSON.stringify(settings.tools) : undefined;
 
@@ -73,6 +81,7 @@ export function App() {
         if (target) useUi.getState().setPage(target);
         if (target === "convert") useFiles.setState({ files: demoFiles(), selected: new Set([2]) });
         if (target === "batch") useBatch.setState(demoBatch());
+        if (target === "cd") useCd.setState(demoCd());
       })
       .then(loadSettings)
       .then(({ settings, warning }) => {
@@ -111,18 +120,7 @@ export function App() {
   const pages = {
     convert: <ConvertPage />,
     batch: <BatchPage />,
-    cd: (
-      <Placeholder
-        page="cd"
-        title="CD-Ripper"
-        tiles={[
-          { id: "format", title: t("Format"), summary: settings.rip_codec },
-          { id: "save", title: t("Speichern in"), summary: settings.rip_folder },
-          { id: "naming", title: t("Benennung"), summary: settings.rip.name_scheme.join(" ") },
-          { id: "readmode", title: t("Lesemodus"), summary: settings.rip.mode },
-        ]}
-      />
-    ),
+    cd: <CdPage />,
     settings: <SettingsPage />,
   };
 
@@ -130,7 +128,7 @@ export function App() {
     <div className="app">
       <Sidebar
         counts={{ convert: fileCount }}
-        jobs={runJob ? [runJob] : []}
+        jobs={jobs}
         ffmpeg={ffmpeg === undefined ? undefined : ffmpeg !== null}
       />
       <main>{pages[page]}</main>

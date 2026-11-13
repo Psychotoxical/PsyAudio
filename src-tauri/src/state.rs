@@ -59,4 +59,6 @@ pub struct AppState {
     pub frontend_ready: AtomicBool,
     /// The conversion and the rip running in the background.
     pub jobs: crate::jobs::Jobs,
+    /// The disc read last and what the lookups found.
+    pub cd: Mutex<crate::cd_cmd::CdState>,
 }

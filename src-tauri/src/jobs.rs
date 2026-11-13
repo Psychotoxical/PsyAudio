@@ -29,8 +29,6 @@ mod tests {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Kind {
     Conversion,
-    // started by the CD ripper (task 16)
-    #[allow(dead_code)]
     Rip,
 }
 
@@ -77,6 +75,11 @@ impl Jobs {
         let handle = RunHandle::default();
         *slot = Some(handle.clone());
         Ok(handle)
+    }
+
+    /// Work of this kind is running.
+    pub fn busy_with(&self, kind: Kind) -> bool {
+        self.slot(kind).lock().unwrap_or_else(|e| e.into_inner()).as_ref().is_some_and(RunHandle::running)
     }
 
     /// Asks the running work of this kind to stop.

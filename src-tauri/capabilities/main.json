@@ -38,6 +38,14 @@
     "allow-first-folder",
     "allow-programs",
     "allow-reset-settings",
-    "allow-system-info"
+    "allow-system-info",
+    "allow-list-drives",
+    "allow-read-disc",
+    "allow-lookup-disc",
+    "allow-eject",
+    "allow-find-offset",
+    "allow-start-rip",
+    "allow-cancel-rip",
+    "allow-preview-rip-name"
   ]
 }

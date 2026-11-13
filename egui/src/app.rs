@@ -540,21 +540,21 @@ impl PsyApp {
         if let Some(rip) = &mut self.cd.rip {
             while let Ok(m) = rip.rx.try_recv() {
                 match m {
-                    RipMsg::Progress(i, f, s) => {
+                    RipMsg::Progress(i, f, phase) => {
                         if let Some(r) = rip.rows.get_mut(i) {
                             r.0 = f;
-                            r.1 = s;
+                            r.1 = phase.text();
                         }
                     }
-                    RipMsg::TrackDone(i, s, ar) => {
+                    RipMsg::TrackDone(i, status, ar) => {
                         if let Some(r) = rip.rows.get_mut(i) {
                             r.0 = 1.0;
-                            r.1 = s;
-                            r.2 = ar;
+                            r.1 = status.text();
+                            r.2 = ar.map(|a| a.text()).unwrap_or_default();
                         }
                     }
                     RipMsg::Log(l) => rip.log.push(l),
-                    RipMsg::Finished(s) => rip.finished = Some(s),
+                    RipMsg::Finished(s) => rip.finished = Some(s.text()),
                 }
             }
             if rip.finished.is_none() {

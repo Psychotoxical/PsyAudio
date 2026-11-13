@@ -7,7 +7,16 @@ import { Disclosure, Hint } from "../../ui/controls";
 /** The settings field a chip row chooses: the converter's format or the CD ripper's. */
 export type CodecField = "codec" | "rip_codec";
 
-function ChipRow({ list, field }: { list: Codec[]; field: CodecField }) {
+function ChipRow({
+  list,
+  field,
+  label,
+}: {
+  list: Codec[];
+  field: CodecField;
+  /** A text instead of the format's short name. */
+  label?: string;
+}) {
   const options = useEncode((s) => s.options);
   const problems = useEncode((s) => s.problems);
   const current = useSettings((s) => s.settings?.[field]);
@@ -31,7 +40,7 @@ function ChipRow({ list, field }: { list: Codec[]; field: CodecField }) {
               })
             }
           >
-            {info?.short ?? c}
+            {label ?? info?.short ?? c}
           </button>
         );
       })}
@@ -61,6 +70,9 @@ export function CodecChips({ field }: { field: CodecField }) {
           <Hint>{t("Gestrichelt: Das Programm dafür fehlt noch (Einstellungen).")}</Hint>
         )}
       </div>
+      {field === "rip_codec" && (
+        <ChipRow list={["Multi"]} field={field} label={t("Mehrere Formate")} />
+      )}
       {field === "codec" && options.tools.length > 0 && (
         <Disclosure
           title={t("Werkzeuge")}

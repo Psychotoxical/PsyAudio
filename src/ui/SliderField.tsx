@@ -16,6 +16,8 @@ interface Props {
   format?: (value: number) => string;
   /** Logarithmic slider between min and max (frequencies). */
   log?: boolean;
+  /** Only the value field (ranges a slider can't serve well, like ±3000 samples). */
+  bare?: boolean;
   /** The value field only shows the value. */
   readOnly?: boolean;
   disabled?: boolean;
@@ -74,22 +76,26 @@ export function SliderField(p: Props) {
         {p.label}
       </label>
       <div className="slider">
-        <input
-          type="range"
-          aria-label={p.label}
-          min={min}
-          max={max}
-          step={list || p.log ? 1 : step}
-          value={pos}
-          disabled={p.disabled}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            p.onChange(list ? (list[v] ?? p.value) : p.log ? fromPos(v) : round(v));
-          }}
-          style={
-            { "--fill": `${((pos - min) / Math.max(1, max - min)) * 100}%` } as React.CSSProperties
-          }
-        />
+        {!p.bare && (
+          <input
+            type="range"
+            aria-label={p.label}
+            min={min}
+            max={max}
+            step={list || p.log ? 1 : step}
+            value={pos}
+            disabled={p.disabled}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              p.onChange(list ? (list[v] ?? p.value) : p.log ? fromPos(v) : round(v));
+            }}
+            style={
+              {
+                "--fill": `${((pos - min) / Math.max(1, max - min)) * 100}%`,
+              } as React.CSSProperties
+            }
+          />
+        )}
         <input
           id={id}
           className="val"

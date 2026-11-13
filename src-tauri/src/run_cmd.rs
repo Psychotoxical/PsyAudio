@@ -64,15 +64,15 @@ pub enum RunEvent {
 /// Progress of one file goes out at most this often; the stage and the end always go out.
 const PROGRESS_EVERY: Duration = Duration::from_millis(100);
 
-struct ProgressGate {
+pub(crate) struct ProgressGate {
     last: Vec<Option<Instant>>,
 }
 
 impl ProgressGate {
-    fn new(n: usize) -> Self {
+    pub(crate) fn new(n: usize) -> Self {
         ProgressGate { last: vec![None; n] }
     }
-    fn due(&mut self, id: usize, now: Instant) -> bool {
+    pub(crate) fn due(&mut self, id: usize, now: Instant) -> bool {
         let Some(slot) = self.last.get_mut(id) else { return false };
         if slot.is_some_and(|t| now.duration_since(t) < PROGRESS_EVERY) {
             return false;
