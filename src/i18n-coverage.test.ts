@@ -26,4 +26,22 @@ describe("translation coverage", () => {
     }
     expect([...missing]).toEqual([]);
   });
+
+  it("every_plural_has_an_english_singular", () => {
+    const dict = en as Record<string, string>;
+    const problems: string[] = [];
+    let found = 0;
+    const lit = '"((?:[^"\\\\]|\\\\.)+)"';
+    const call = new RegExp(`\\bplural\\(\\s*[^,]+,\\s*${lit},\\s*${lit}`, "g");
+    for (const file of sources(resolve(process.cwd(), "src"))) {
+      for (const m of readFileSync(file, "utf8").matchAll(call)) {
+        found++;
+        const [one, many] = [m[1]!, m[2]!].map((s) => s.replace(/\\"/g, '"'));
+        if (!(one in dict) || !(many in dict)) problems.push(`no English: ${one} / ${many}`);
+        else if (dict[one] === dict[many]) problems.push(`English singular equals plural: ${one}`);
+      }
+    }
+    expect(found).toBeGreaterThan(0);
+    expect(problems).toEqual([]);
+  });
 });

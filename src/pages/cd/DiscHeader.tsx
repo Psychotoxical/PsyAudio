@@ -1,6 +1,7 @@
 import { Check, Disc3, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { fmtLen } from "../../format";
+import { plural } from "../../i18n";
 import { useCd } from "../../store/cd";
 import { InlineText } from "../../ui/InlineText";
 import { chooseCandidate, setMeta } from "./cdFlow";
@@ -27,7 +28,14 @@ export function DiscHeader() {
     busy: { tone: "muted", text: t("AccurateRip: wird abgefragt…") },
     done: {
       tone: "ok",
-      text: t("AccurateRip: CD in der Datenbank ({0} Pressungen)", { 0: String(ar.pressings) }),
+      text: t(
+        plural(
+          ar.pressings,
+          "AccurateRip: CD in der Datenbank ({0} Pressung)",
+          "AccurateRip: CD in der Datenbank ({0} Pressungen)",
+        ),
+        { 0: String(ar.pressings) },
+      ),
     },
     failed: { tone: "warn", text: `AccurateRip: ${ar.reason ?? ""}` },
   }[ar.state];
@@ -155,7 +163,12 @@ export function DiscHeader() {
             >
               {current < 0 && (
                 <option value="">
-                  {t("MusicBrainz: {0} Treffer", { 0: String(candidates.length) })}
+                  {t(
+                    plural(candidates.length, "MusicBrainz: 1 Treffer", "MusicBrainz: {0} Treffer"),
+                    {
+                      0: String(candidates.length),
+                    },
+                  )}
                 </option>
               )}
               {candidates.map((c, i) => (
@@ -167,12 +180,19 @@ export function DiscHeader() {
           )}
         </div>
         <p className="mono">
-          {t("{0} Titel · {1} · MusicBrainz {2} · freedb {3}", {
-            0: String(disc.tracks.length),
-            1: fmtLen(disc.total_seconds),
-            2: disc.musicbrainz_id,
-            3: disc.freedb_id,
-          })}
+          {t(
+            plural(
+              disc.tracks.length,
+              "1 Titel · {1} · MusicBrainz {2} · freedb {3}",
+              "{0} Titel · {1} · MusicBrainz {2} · freedb {3}",
+            ),
+            {
+              0: String(disc.tracks.length),
+              1: fmtLen(disc.total_seconds),
+              2: disc.musicbrainz_id,
+              3: disc.freedb_id,
+            },
+          )}
         </p>
       </div>
     </section>

@@ -72,15 +72,22 @@ pub enum TrackStatus {
 impl TrackStatus {
     /// The wording of the egui version (log file, egui window).
     pub fn text(&self) -> String {
-        use crate::i18n::{t, tf};
+        use crate::i18n::{plural, t, tf};
         match self {
             TrackStatus::Secure { verified_first_pass: true, .. } => t("Sicher (1 Durchgang, von AccurateRip bestätigt)").to_string(),
             TrackStatus::Secure { passes, rereads, .. } if *rereads > 0 => {
-                tf(t("Sicher (Warnung: {0} Durchgänge, {1} Blöcke neu gelesen)"), &[("0", passes.to_string()), ("1", rereads.to_string())])
+                let text = plural(
+                    *rereads as u64,
+                    "Sicher (Warnung: {0} Durchgänge, {1} Block neu gelesen)",
+                    "Sicher (Warnung: {0} Durchgänge, {1} Blöcke neu gelesen)",
+                );
+                tf(t(text), &[("0", passes.to_string()), ("1", rereads.to_string())])
             }
             TrackStatus::Secure { passes, .. } => tf(t("Sicher ({0} Durchgänge identisch)"), &[("0", passes.to_string())]),
             TrackStatus::Burst => t("Gerippt (Burst)").to_string(),
-            TrackStatus::Insecure { sectors } => tf(t("Unsicher ({0} Sektoren)"), &[("0", sectors.to_string())]),
+            TrackStatus::Insecure { sectors } => {
+                tf(t(plural(*sectors as u64, "Unsicher ({0} Sektor)", "Unsicher ({0} Sektoren)")), &[("0", sectors.to_string())])
+            }
             TrackStatus::Marked { unconfirmed: false, was } => tf(t("Fehler – {status}"), &[("status", was.text())]),
             TrackStatus::Marked { unconfirmed: true, was } => tf(t("Fehler – nicht von AccurateRip bestätigt ({status})"), &[("status", was.text())]),
             TrackStatus::Failed { reason, encoding: false } => tf(t("Fehler: {e}"), &[("e", reason.clone())]),
@@ -187,10 +194,15 @@ pub enum RipSummary {
 
 impl RipSummary {
     pub fn text(&self) -> String {
-        use crate::i18n::{t, tf};
+        use crate::i18n::{plural, t, tf};
         match self {
             RipSummary::Done { files, accurate, .. } => {
-                tf(t("Fertig: {0} Dateien, {accurate} von AccurateRip bestätigt"), &[("0", files.to_string()), ("accurate", accurate.to_string())])
+                let text = plural(
+                    *files as u64,
+                    "Fertig: {0} Datei, {accurate} von AccurateRip bestätigt",
+                    "Fertig: {0} Dateien, {accurate} von AccurateRip bestätigt",
+                );
+                tf(t(text), &[("0", files.to_string()), ("accurate", accurate.to_string())])
             }
             RipSummary::Cancelled => t("Abgebrochen").to_string(),
             RipSummary::Failed { reason } => reason.clone(),
@@ -347,7 +359,11 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
         if rs.write_log {
             log.push(String::new());
             log.push(crate::i18n::tf(
-                crate::i18n::t("{accurate} Titel von AccurateRip bestätigt, {insecure_tracks} unsicher"),
+                crate::i18n::t(crate::i18n::plural(
+                    accurate as u64,
+                    "1 Titel von AccurateRip bestätigt, {insecure_tracks} unsicher",
+                    "{accurate} Titel von AccurateRip bestätigt, {insecure_tracks} unsicher",
+                )),
                 &[("accurate", format!("{accurate}")), ("insecure_tracks", format!("{insecure_tracks}"))],
             ));
             let _ = std::fs::write(folder.join(format!("{base}.log")), log.join("\r\n"));
@@ -411,6 +427,16 @@ mod rip_status_tests {
         assert!(rip_status(1, TrackStatus::Insecure { sectors: 3 }, true, true).text().starts_with("Fehler"));
         assert!(stop_after_track(true, 3));
         assert!(!stop_after_track(true, 0));
+    }
+
+    #[test]
+    fn one_sector_block_or_file_is_named_in_the_singular() {
+        assert_eq!(TrackStatus::Insecure { sectors: 1 }.text(), "Unsicher (1 Sektor)");
+        assert_eq!(TrackStatus::Insecure { sectors: 3 }.text(), "Unsicher (3 Sektoren)");
+        let warned = TrackStatus::Secure { passes: 2, rereads: 1, verified_first_pass: false };
+        assert_eq!(warned.text(), "Sicher (Warnung: 2 Durchgänge, 1 Block neu gelesen)");
+        let done = RipSummary::Done { files: 1, accurate: 1, insecure: 0, folder: None };
+        assert_eq!(done.text(), "Fertig: 1 Datei, 1 von AccurateRip bestätigt");
     }
 
     #[test]

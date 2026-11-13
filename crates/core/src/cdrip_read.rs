@@ -404,7 +404,11 @@ pub(crate) fn pick_offset(hits: &[Vec<(usize, i32)>], confidence: &[u32], need: 
     };
     if n < need {
         return Err(crate::i18n::tf(
-            crate::i18n::t("Nur {0} Titel passen (nötig: {need}) – bitte eine andere bekannte CD versuchen. Gefunden: {1}"),
+            crate::i18n::t(crate::i18n::plural(
+                n as u64,
+                "Nur {0} Titel passt (nötig: {need}) – bitte eine andere bekannte CD versuchen. Gefunden: {1}",
+                "Nur {0} Titel passen (nötig: {need}) – bitte eine andere bekannte CD versuchen. Gefunden: {1}",
+            )),
             &[("0", n.to_string()), ("need", need.to_string()), ("1", format!("{offset:+}"))],
         ));
     }
@@ -442,5 +446,12 @@ mod offset_tests {
     fn too_few_matching_tracks_are_not_enough() {
         let h = hits(&[&[(0, 30)], &[(0, 30)], &[], &[], &[], &[]]);
         assert!(pick_offset(&h, &[20], 6).is_err());
+    }
+
+    #[test]
+    fn one_matching_track_is_named_in_the_singular() {
+        let h = hits(&[&[(0, 30)], &[], &[], &[], &[], &[]]);
+        let e = pick_offset(&h, &[20], 6).unwrap_err();
+        assert!(e.starts_with("Nur 1 Titel passt (nötig: 6)"), "{e}");
     }
 }

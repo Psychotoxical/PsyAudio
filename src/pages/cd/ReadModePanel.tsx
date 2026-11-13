@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { plural } from "../../i18n";
 import type { RipMode } from "../../ipc/bindings/RipMode";
 import type { RipSettings } from "../../ipc/bindings/RipSettings";
 import { useCd } from "../../store/cd";
@@ -53,7 +54,7 @@ export function ReadModePanel() {
           min={1}
           max={100}
           value={r.reread_limit}
-          format={(v) => t("{0} Versuche", { 0: String(v) })}
+          format={(v) => t(plural(v, "{0} Versuch", "{0} Versuche"), { 0: String(v) })}
           disabled={!secure}
           onChange={(v) => set({ reread_limit: v })}
         />

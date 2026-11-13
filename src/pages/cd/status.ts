@@ -1,4 +1,5 @@
-import type { ArResult, RipPhase, TrackStatus } from "../../ipc/cd";
+import { plural } from "../../i18n";
+import type { ArResult, RipPhase, RipSummary, TrackStatus } from "../../ipc/cd";
 
 type T = (key: string, values?: Record<string, string>) => string;
 
@@ -8,15 +9,24 @@ export function statusText(s: TrackStatus, t: T): string {
     case "Secure":
       if (s.verified_first_pass) return t("Sicher (1 Durchgang, von AccurateRip bestätigt)");
       if (s.rereads > 0)
-        return t("Sicher (Warnung: {0} Durchgänge, {1} Blöcke neu gelesen)", {
-          0: String(s.passes),
-          1: String(s.rereads),
-        });
+        return t(
+          plural(
+            s.rereads,
+            "Sicher (Warnung: {0} Durchgänge, {1} Block neu gelesen)",
+            "Sicher (Warnung: {0} Durchgänge, {1} Blöcke neu gelesen)",
+          ),
+          {
+            0: String(s.passes),
+            1: String(s.rereads),
+          },
+        );
       return t("Sicher ({0} Durchgänge identisch)", { 0: String(s.passes) });
     case "Burst":
       return t("Gerippt (Burst)");
     case "Insecure":
-      return t("Unsicher ({0} Sektoren)", { 0: String(s.sectors) });
+      return t(plural(s.sectors, "Unsicher ({0} Sektor)", "Unsicher ({0} Sektoren)"), {
+        0: String(s.sectors),
+      });
     case "Marked":
       return s.unconfirmed
         ? t("Fehler – nicht von AccurateRip bestätigt ({status})", { status: statusText(s.was, t) })
@@ -27,6 +37,25 @@ export function statusText(s: TrackStatus, t: T): string {
         : t("Fehler: {e}", { e: s.reason });
     case "Cancelled":
       return t("Abgebrochen");
+  }
+}
+
+/** The end of a rip in words, as rip::RipSummary::text (same dictionary keys). */
+export function summaryText(s: RipSummary, t: T): string {
+  switch (s.kind) {
+    case "Done":
+      return t(
+        plural(
+          s.files,
+          "Fertig: {0} Datei, {accurate} von AccurateRip bestätigt",
+          "Fertig: {0} Dateien, {accurate} von AccurateRip bestätigt",
+        ),
+        { 0: String(s.files), accurate: String(s.accurate) },
+      );
+    case "Cancelled":
+      return t("Abgebrochen");
+    case "Failed":
+      return s.reason;
   }
 }
 

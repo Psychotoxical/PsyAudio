@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { Folder, ListPlus, Play, Search } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { plural } from "../../i18n";
 import { FooterBar } from "../../shell/FooterBar";
 import { PageHeader } from "../../shell/PageHeader";
 import { SidePanel } from "../../shell/SidePanel";
@@ -64,7 +65,9 @@ function FoundList({ root, found }: { root: string; found: string[] }) {
             <div key={v.key} className="found-group" style={style}>
               <Folder size={15} />
               <strong>{row.dir || t("Quellordner")}</strong>
-              <small>{t("{0} Titel", { 0: String(row.count) })}</small>
+              <small>
+                {t(plural(row.count, "1 Titel", "{0} Titel"), { 0: String(row.count) })}
+              </small>
             </div>
           ) : (
             <div key={v.key} className="found-file" style={style}>
@@ -113,7 +116,11 @@ export function BatchPage() {
   };
   const search = () =>
     searchBatch(settings.batch_subfolders, exts)
-      .then((n) => useUi.getState().notify(t("{n} Dateien gefunden", { n: String(n) })))
+      .then((n) =>
+        useUi
+          .getState()
+          .notify(t(plural(n, "{n} Datei gefunden", "{n} Dateien gefunden"), { n: String(n) })),
+      )
       .catch((e: unknown) => useUi.getState().notify(String(e)));
   const items = () => found.map((p) => [p, root] as [string, string | null]);
 
@@ -200,7 +207,15 @@ export function BatchPage() {
             </p>
           )}
         </div>
-        <FooterBar summary={<b>{t("{n} Dateien gefunden", { n: String(found.length) })}</b>}>
+        <FooterBar
+          summary={
+            <b>
+              {t(plural(found.length, "{n} Datei gefunden", "{n} Dateien gefunden"), {
+                n: String(found.length),
+              })}
+            </b>
+          }
+        >
           <button
             type="button"
             className="btn"

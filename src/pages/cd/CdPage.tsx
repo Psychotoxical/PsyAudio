@@ -2,6 +2,7 @@ import { Disc3, Eject, FolderOpen, Globe, RefreshCw, ScrollText, Square } from "
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fmtLen } from "../../format";
+import { plural } from "../../i18n";
 import { openFolder, useNaming } from "../../ipc/naming";
 import { FooterBar } from "../../shell/FooterBar";
 import { PageHeader } from "../../shell/PageHeader";
@@ -16,6 +17,7 @@ import { cancel, ejectCd, readCd, rip, scanDrives, searchInfo } from "./cdFlow";
 import { DiscHeader } from "./DiscHeader";
 import { ReadModePanel } from "./ReadModePanel";
 import { RipFormatPanel, RipNamingPanel, RipSavePanel } from "./RipPanels";
+import { summaryText } from "./status";
 import { TrackTable } from "./TrackTable";
 import "./cd.css";
 
@@ -51,7 +53,7 @@ function RipFooter() {
       onClick={() => void rip()}
     >
       <Disc3 size={16} />
-      {t("{0} Titel rippen", { 0: String(count) })}
+      {t(plural(count, "1 Titel rippen", "{0} Titel rippen"), { 0: String(count) })}
     </button>
   );
 
@@ -89,15 +91,7 @@ function RipFooter() {
 
   const summary = ripState?.summary;
   if (summary) {
-    const text =
-      summary.kind === "Done"
-        ? t("Fertig: {0} Dateien, {accurate} von AccurateRip bestätigt", {
-            0: String(summary.files),
-            accurate: String(summary.accurate),
-          })
-        : summary.kind === "Cancelled"
-          ? t("Abgebrochen")
-          : summary.reason;
+    const text = summaryText(summary, t);
     return (
       <>
         <FooterBar summary={<b>{text}</b>}>
@@ -154,7 +148,16 @@ function RipFooter() {
 
   return (
     <FooterBar
-      summary={<b>{disc ? t("{0} Titel · {1}", { 0: String(count), 1: fmtLen(seconds) }) : ""}</b>}
+      summary={
+        <b>
+          {disc
+            ? t(plural(count, "1 Titel · {1}", "{0} Titel · {1}"), {
+                0: String(count),
+                1: fmtLen(seconds),
+              })
+            : ""}
+        </b>
+      }
     >
       {ripButton}
     </FooterBar>

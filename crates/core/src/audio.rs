@@ -246,7 +246,14 @@ fn decode_builtin(path: &Path, cancel: &AtomicBool, progress: Progress) -> Resul
         return Err(Fail::Unsupported(crate::i18n::t("leere oder unbekannte Audiodaten").into()));
     }
     if bad_packets > 0 {
-        return Err(Fail::Stop(crate::i18n::tf(crate::i18n::t("Datei ist beschädigt: {0} Stellen nicht lesbar"), &[("0", bad_packets.to_string())])));
+        return Err(Fail::Stop(crate::i18n::tf(
+            crate::i18n::t(crate::i18n::plural(
+                bad_packets as u64,
+                "Datei ist beschädigt: {0} Stelle nicht lesbar",
+                "Datei ist beschädigt: {0} Stellen nicht lesbar",
+            )),
+            &[("0", bad_packets.to_string())],
+        )));
     }
     // more than a tenth of a second missing against the length in the header: cut off
     if total_frames > 0 && decoded_frames < total_frames && total_frames - decoded_frames > (audio.rate as u64 / 10).max(1) {

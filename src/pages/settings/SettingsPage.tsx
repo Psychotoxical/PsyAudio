@@ -2,7 +2,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { CircleCheck, CircleX, RefreshCw } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { setLanguage } from "../../i18n";
+import { plural, setLanguage } from "../../i18n";
 import type { Tools } from "../../ipc/bindings/Tools";
 import { refreshEncode } from "../../ipc/encode";
 import { fileManagerMenu } from "../../ipc/events";
@@ -148,7 +148,7 @@ function PerformanceBox({ info }: { info: SystemInfo | null }) {
   if (!s) return null;
   const cores = info?.cores ?? 8;
   const max = Math.min(cores * 2, 64);
-  const kerne = (n: number) => t(n === 1 ? "{0} Kern" : "{0} Kerne", { 0: String(n) });
+  const kerne = (n: number) => t(plural(n, "{0} Kern", "{0} Kerne"), { 0: String(n) });
   const chooseTemp = async () => {
     const picked = await open({
       directory: true,

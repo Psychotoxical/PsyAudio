@@ -3,6 +3,7 @@ import { Check, X } from "lucide-react";
 import { type KeyboardEvent, type MouseEvent, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fmtFormat, fmtLen, fmtSize } from "../../format";
+import { plural } from "../../i18n";
 import { revealFolder } from "../../ipc/files";
 import { useFiles } from "../../store/files";
 import { groupRuns } from "./groupRuns";
@@ -86,7 +87,12 @@ export function FileList() {
               >
                 <span className="files-group-title">{row.title}</span>
                 <small>
-                  {[row.year, t("{0} Titel", { 0: String(row.count) })].filter(Boolean).join(" · ")}
+                  {[
+                    row.year,
+                    t(plural(row.count, "1 Titel", "{0} Titel"), { 0: String(row.count) }),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </small>
                 <span className={row.tagged ? "chip ok" : "chip bad"}>
                   {row.tagged ? <Check size={12} /> : <X size={12} />}Tags

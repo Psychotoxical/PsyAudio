@@ -11,6 +11,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { encodingSpeed, fmtLen, longDuration } from "../../format";
+import { plural } from "../../i18n";
 import { revealFolder } from "../../ipc/files";
 import { cancelConversion } from "../../ipc/run";
 import { canRetry, type JobView, type Run, useRun } from "../../store/run";
@@ -129,18 +130,25 @@ export function RunView({ run }: { run: Run }) {
   let sub: string;
   if (finished) {
     heading = t(
-      done === 1 ? "{0} Datei umgewandelt nach {1}" : "{0} Dateien umgewandelt nach {1}",
+      plural(done, "{0} Datei umgewandelt nach {1}", "{0} Dateien umgewandelt nach {1}"),
       {
         0: String(done),
         1: run.target,
       },
     );
-    sub = t("Fertig in {0} · {done} erledigt · {skipped} übersprungen · {failed} Fehler", {
-      0: longDuration(elapsed, true, t),
-      done: String(done),
-      skipped: String(skipped),
-      failed: String(failed),
-    });
+    sub = t(
+      plural(
+        failed,
+        "Fertig in {0} · {done} erledigt · {skipped} übersprungen · 1 Fehler",
+        "Fertig in {0} · {done} erledigt · {skipped} übersprungen · {failed} Fehler",
+      ),
+      {
+        0: longDuration(elapsed, true, t),
+        done: String(done),
+        skipped: String(skipped),
+        failed: String(failed),
+      },
+    );
     if (run.audioSecs > 0 && done > 0)
       sub += ` · ${encodingSpeed(run.audioSecs, elapsed, t, lang)}`;
   } else {
@@ -150,7 +158,7 @@ export function RunView({ run }: { run: Run }) {
     );
     sub = t("Datei {current} von {total}", { current: String(current), total: String(total) });
     if (total >= 2)
-      sub += t(run.threads === 1 ? " · {0} Kern" : " · {0} Kerne", { 0: String(run.threads) });
+      sub += t(plural(run.threads, " · {0} Kern", " · {0} Kerne"), { 0: String(run.threads) });
     sub += t(" · {0} vergangen", { 0: fmtLen(elapsed) });
     if (elapsed > 4 && overall > 0)
       sub += t(" · noch etwa {0}", { 0: fmtLen(Math.max(0, elapsed / overall - elapsed)) });

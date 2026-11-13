@@ -2,6 +2,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { FolderPlus, Play, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { fmtLen } from "../../format";
+import { plural } from "../../i18n";
 import { inputExtensions } from "../../ipc/files";
 import { useNaming } from "../../ipc/naming";
 import { FooterBar } from "../../shell/FooterBar";
@@ -106,7 +107,14 @@ export function ConvertPage() {
           {files.length > 0 ? <FileList /> : <DropZone onPick={() => void pickFiles()} />}
         </div>
         <FooterBar
-          summary={<b>{t("{0} Dateien · {1}", { 0: String(files.length), 1: fmtLen(seconds) })}</b>}
+          summary={
+            <b>
+              {t(plural(files.length, "{0} Datei · {1}", "{0} Dateien · {1}"), {
+                0: String(files.length),
+                1: fmtLen(seconds),
+              })}
+            </b>
+          }
         >
           <button
             type="button"

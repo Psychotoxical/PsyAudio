@@ -19,6 +19,12 @@ void i18n.use(initReactI18next).init({
   initAsync: false,
 });
 
+/** The German text for a count: `one` for exactly 1, else `many` (German and English share the
+ * rule). Where German has one form for both ("Titel"), `one` spells out the 1 ("1 Titel"). */
+export function plural(n: number, one: string, many: string): string {
+  return n === 1 ? one : many;
+}
+
 export function setLanguage(lang: "de" | "en"): Promise<unknown> {
   return i18n.changeLanguage(lang);
 }

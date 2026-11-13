@@ -1,4 +1,4 @@
-import { i18n } from "../../i18n";
+import { i18n, plural } from "../../i18n";
 import {
   cancelRip,
   type DiscInfo,
@@ -241,7 +241,11 @@ export async function detectOffset(): Promise<void> {
           });
           notify(
             t(
-              "Laufwerks-Versatz {off} Samples gefunden und eingetragen ({n} Titel stimmen überein)",
+              plural(
+                e.matching_tracks,
+                "Laufwerks-Versatz {off} Samples gefunden und eingetragen (1 Titel stimmt überein)",
+                "Laufwerks-Versatz {off} Samples gefunden und eingetragen ({n} Titel stimmen überein)",
+              ),
               {
                 off: e.offset > 0 ? `+${e.offset}` : String(e.offset),
                 n: String(e.matching_tracks),

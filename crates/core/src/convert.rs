@@ -135,6 +135,19 @@ impl Plan {
             && self.scheme.iter().any(|t| naming::DATA.contains(&t.as_str()) && t != "filename")
     }
 
+    /// Error text when two files of a run get the same destination `name`. The chips are only
+    /// worth adjusting when they name the file; a structure run (batch) or a run keeping the
+    /// source path uses the source's own name, so the clash comes from the source itself.
+    pub fn name_clash(&self, name: &str, root: Option<&Path>) -> String {
+        let source_names = (self.keep_structure && root.is_some()) || self.output_mode == OutputMode::PreservePath;
+        let text = if source_names {
+            "Eine andere Datei dieses Laufs bekommt schon den Namen {0} – die Quelle enthält diesen Namen zweimal, nur mit anderer Endung"
+        } else {
+            "Eine andere Datei dieses Laufs bekommt schon den Namen {0} – Bausteine für die Namen anpassen"
+        };
+        crate::i18n::tf(crate::i18n::t(text), &[("0", name.to_string())])
+    }
+
     /// `t` are the source's own tags: names follow them after the run's tag processing, also
     /// when the output gets no tags, so preview, overwrite question and worker agree.
     pub fn destination(&self, src: &Path, root: Option<&Path>, t: &Tags, info: &tags::Info, codec: Codec) -> PathBuf {
@@ -350,7 +363,11 @@ fn finish(plan: &Plan, shared: &Shared, tx: &Sender<Msg>) {
                     let _ = tags::write(f, &t, false);
                 }
                 let _ = tx.send(Msg::Report(crate::i18n::tf(
-                    crate::i18n::t("Album-ReplayGain „{name}“: {lufs} LUFS » {gain} dB ({0} Dateien)"),
+                    crate::i18n::t(crate::i18n::plural(
+                        files.len() as u64,
+                        "Album-ReplayGain „{name}“: {lufs} LUFS » {gain} dB ({0} Datei)",
+                        "Album-ReplayGain „{name}“: {lufs} LUFS » {gain} dB ({0} Dateien)",
+                    )),
                     &[("name", name.to_string()), ("lufs", format!("{lufs:.2}")), ("gain", format!("{gain:+.2}")), ("0", format!("{}", files.len()))],
                 )));
             }
@@ -817,6 +834,19 @@ mod destination_tests {
         let no_title = plan(OutputMode::SingleFolder, &["artist", "/", "album", "/", "year"]);
         assert_eq!(no_title.destination(src, None, &t, &i, Codec::Flac), PathBuf::from("D:\\Out\\Band\\Platte\\a.flac"));
     }
+
+    #[test]
+    fn name_clash_hint_points_to_the_chips_only_when_they_name_the_file() {
+        let root = Path::new("/music");
+        let chips = plan(OutputMode::SingleFolder, &["title"]);
+        assert!(chips.name_clash("a.opus", None).contains("Bausteine"));
+        let mut batch = plan(OutputMode::SingleFolder, &["title"]);
+        batch.keep_structure = true;
+        let msg = batch.name_clash("a.opus", Some(root));
+        assert!(!msg.contains("Bausteine") && msg.contains("a.opus"), "{msg}");
+        let keep = plan(OutputMode::PreservePath, &["title"]);
+        assert!(!keep.name_clash("a.opus", None).contains("Bausteine"));
+    }
 }
 
 #[cfg(test)]
@@ -965,10 +995,8 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                             return Err(crate::i18n::t("Ziel ist dieselbe Datei wie die Quelle – anderen Ordner oder Namen wählen").into());
                         }
                         if !shared.reserved.lock().unwrap().insert(path_key(&dest)) {
-                            return Err(crate::i18n::tf(
-                                crate::i18n::t("Eine andere Datei dieses Laufs bekommt schon den Namen {0} – Bausteine für die Namen anpassen"),
-                                &[("0", dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default())],
-                            ));
+                            let name = dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                            return Err(plan.name_clash(&name, job.root.as_deref()));
                         }
                         if dest.exists() && !plan.overwrite && !plan.overwrite_list.iter().any(|o| same_path(o, &dest)) {
                             return Ok(JobResult::Skipped(crate::i18n::t("Zieldatei gibt es schon – übersprungen").into()));
@@ -1031,7 +1059,11 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                 outputs: vec![],
                 audio_secs: original_secs,
                 note: crate::i18n::tf(
-                    crate::i18n::t("fehlerfrei dekodiert ({0} Hz, {1} Kanäle)"),
+                    crate::i18n::t(crate::i18n::plural(
+                        a.channels as u64,
+                        "fehlerfrei dekodiert ({0} Hz, {1} Kanal)",
+                        "fehlerfrei dekodiert ({0} Hz, {1} Kanäle)",
+                    )),
                     &[("0", format!("{}", a.rate)), ("1", format!("{}", a.channels))],
                 ),
             });
@@ -1041,7 +1073,11 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             let lufs = loudness::integrated(&blocks);
             let peak = a.peak();
             let text = crate::i18n::tf(
-                crate::i18n::t("{0}\n  Länge {1} · {2} Hz · {3} Bit · {4} Kanäle · {5} · Spitze {6} dBFS · Lautheit {7} LUFS"),
+                crate::i18n::t(crate::i18n::plural(
+                    a.channels as u64,
+                    "{0}\n  Länge {1} · {2} Hz · {3} Bit · {4} Kanal · {5} · Spitze {6} dBFS · Lautheit {7} LUFS",
+                    "{0}\n  Länge {1} · {2} Hz · {3} Bit · {4} Kanäle · {5} · Spitze {6} dBFS · Lautheit {7} LUFS",
+                )),
                 &[
                     ("0", format!("{}", job.src.display())),
                     ("1", audio::fmt_len(original_secs).to_string()),
@@ -1197,10 +1233,8 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                 return Err(crate::i18n::t("Ziel ist dieselbe Datei wie die Quelle – anderen Ordner oder Namen wählen").into());
             }
             if !shared.reserved.lock().unwrap().insert(path_key(&dest)) {
-                return Err(crate::i18n::tf(
-                    crate::i18n::t("Eine andere Datei dieses Laufs bekommt schon den Namen {0} – Bausteine für die Namen anpassen"),
-                    &[("0", dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default())],
-                ));
+                let name = dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                return Err(plan.name_clash(&name, job.root.as_deref()));
             }
             if dest.exists() && !plan.overwrite && !plan.overwrite_list.iter().any(|o| same_path(o, &dest)) {
                 kept.push(dest);

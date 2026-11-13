@@ -29,6 +29,17 @@ pub fn t(s: &str) -> &str {
     english().get(s).copied().unwrap_or(s)
 }
 
+/// The German text for a count: `one` for exactly 1, else `many`. German and English share this
+/// rule, so the English singular is the dictionary's entry for `one`. Where German has one form
+/// for both ("Titel"), `one` spells out the 1 ("1 Titel") to stay a key of its own.
+pub fn plural<'a>(n: u64, one: &'a str, many: &'a str) -> &'a str {
+    if n == 1 {
+        one
+    } else {
+        many
+    }
+}
+
 /// Fill `{name}` placeholders of a (translated) template.
 pub fn tf(template: &str, args: &[(&str, String)]) -> String {
     let mut out = String::with_capacity(template.len() + 16);
@@ -62,6 +73,65 @@ pub fn tf(template: &str, args: &[(&str, String)]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn plural_picks_one_only_for_exactly_one() {
+        assert_eq!(plural(1, "1 Datei", "{0} Dateien"), "1 Datei");
+        assert_eq!(plural(0, "1 Datei", "{0} Dateien"), "{0} Dateien");
+        assert_eq!(plural(2, "1 Datei", "{0} Dateien"), "{0} Dateien");
+    }
+
+    /// The first two string literals of a Rust source, unescaped.
+    fn literals(src: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        let mut chars = src.chars();
+        while let Some(c) = chars.next() {
+            if c != '"' {
+                continue;
+            }
+            let mut s = String::new();
+            while let Some(c) = chars.next() {
+                match c {
+                    '"' => break,
+                    '\\' => match chars.next() {
+                        Some('n') => s.push('\n'),
+                        Some(o) => s.push(o),
+                        None => {}
+                    },
+                    o => s.push(o),
+                }
+            }
+            out.push(s);
+            if out.len() == 2 {
+                break;
+            }
+        }
+        out
+    }
+
+    /// Every `plural(n, "…", "…")` of the core has English for both texts, and the English
+    /// singular really differs from the plural.
+    #[test]
+    fn plural_texts_have_english() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut found = 0;
+        for entry in std::fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_none_or(|e| e != "rs") || path.ends_with("i18n.rs") {
+                continue;
+            }
+            let src = std::fs::read_to_string(&path).unwrap();
+            for (i, _) in src.match_indices("plural(") {
+                let pair = literals(&src[i..]);
+                let (one, many) = (&pair[0], &pair[1]);
+                let (en_one, en_many) = (english().get(one.as_str()), english().get(many.as_str()));
+                assert!(en_one.is_some() && en_many.is_some(), "no English for {one:?} / {many:?} in {}", path.display());
+                assert_ne!(en_one, en_many, "English singular equals plural: {one:?}");
+                found += 1;
+            }
+        }
+        assert!(found > 0, "no plural() calls found");
+    }
+
     #[test]
     fn fills_and_translates() {
         assert_eq!(tf("{a} von {0}", &[("a", "1".into()), ("0", "2".into())]), "1 von 2");
