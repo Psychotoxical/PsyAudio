@@ -385,6 +385,30 @@ enum JobResult {
     Skipped(String),
 }
 
+/// The plan for a run with the current settings (a batch sets `keep_structure` afterwards).
+pub fn plan_from_settings(s: &crate::settings::Settings, codec: Codec, ffmpeg: Option<PathBuf>, encoders: Vec<String>) -> Plan {
+    Plan {
+        codec,
+        enc: s.enc.clone(),
+        effects: effects_for(codec, &s.effects),
+        output_mode: s.output_mode,
+        output_folder: PathBuf::from(&s.output_folder),
+        scheme: s.name_scheme.clone(),
+        keep_structure: false,
+        overwrite: s.overwrite == crate::settings::Overwrite::Always,
+        overwrite_list: Vec::new(),
+        copy_tags: s.copy_tags,
+        copy_art: s.copy_art,
+        threads: s.threads.max(1),
+        low_priority: s.low_priority,
+        ffmpeg,
+        ffmpeg_encoders: encoders,
+        tools: s.tools.clone(),
+        temp: s.temp_dir(),
+        tag_scheme: s.tag_scheme.clone(),
+    }
+}
+
 /// The effects a run applies. Tools that only read or tag the source files ignore the
 /// converter's effect chain (a ReplayGain value must be measured on the file as it is);
 /// "Tags aktualisieren" keeps the tag processing it exists for.

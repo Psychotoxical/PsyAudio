@@ -562,86 +562,6 @@ pub fn effect_editor(ui: &mut egui::Ui, p: &Palette, e: &mut Effect) {
     }
 }
 
-/// Add or remove the Explorer right-click entry for audio files (current user only).
-pub fn context_menu(add: bool) -> String {
-    #[cfg(windows)]
-    {
-        let Ok(exe) = std::env::current_exe() else { return crate::i18n::t("Programmpfad unbekannt").into() };
-        let key = r"HKCU\Software\Classes\SystemFileAssociations\audio\shell\PsyAudio";
-        let run = |args: &[&str]| {
-            let mut c = std::process::Command::new("reg");
-            c.args(args);
-            audio::hidden(&mut c);
-            c.status().map(|s| s.success()).unwrap_or(false)
-        };
-        if add {
-            let cmd = format!("\"{}\" \"%1\"", exe.display());
-            let icon = exe.display().to_string();
-            let ok = run(&["add", key, "/ve", "/d", crate::i18n::t("Mit PsyAudio konvertieren"), "/f"])
-                && run(&["add", key, "/v", "Icon", "/d", &icon, "/f"])
-                && run(&["add", &format!(r"{key}\command"), "/ve", "/d", &cmd, "/f"]);
-            if ok {
-                crate::i18n::t("Kontextmenü eingerichtet").into()
-            } else {
-                crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden").into()
-            }
-        } else if run(&["delete", key, "/f"]) {
-            crate::i18n::t("Kontextmenü entfernt").into()
-        } else {
-            crate::i18n::t("Kein Kontextmenü vorhanden").into()
-        }
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let Some(data) = dirs::data_dir() else { return crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden").into() };
-        let menu = data.join("kio/servicemenus/psyaudio.desktop");
-        let icon = data.join("PsyAudio/PsyAudio.png");
-        if !add {
-            let _ = std::fs::remove_file(&icon);
-            return if std::fs::remove_file(&menu).is_ok() {
-                crate::i18n::t("Kontextmenü entfernt").into()
-            } else {
-                crate::i18n::t("Kein Kontextmenü vorhanden").into()
-            };
-        }
-        let Ok(exe) = std::env::current_exe() else { return crate::i18n::t("Programmpfad unbekannt").into() };
-        match write_service_menu(&menu, &icon, &exe) {
-            Ok(()) => crate::i18n::t("Kontextmenü eingerichtet").into(),
-            Err(_) => crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden").into(),
-        }
-    }
-    #[cfg(not(any(windows, target_os = "linux")))]
-    {
-        let _ = add;
-        crate::i18n::t("Nur unter Windows verfügbar").into()
-    }
-}
-
-/// Dolphin service menu for audio files; Dolphin only offers local service menus that are executable.
-#[cfg(target_os = "linux")]
-fn write_service_menu(menu: &std::path::Path, icon: &std::path::Path, exe: &std::path::Path) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    for dir in [menu.parent(), icon.parent()].into_iter().flatten() {
-        std::fs::create_dir_all(dir)?;
-    }
-    std::fs::write(icon, crate::APP_ICON_PNG)?;
-    std::fs::write(menu, service_menu_text(exe, icon, crate::i18n::t("Mit PsyAudio konvertieren")))?;
-    std::fs::set_permissions(menu, std::fs::Permissions::from_mode(0o755))
-}
-
-/// The `.desktop` text: one entry for audio files that hands the whole selection to PsyAudio.
-#[cfg(target_os = "linux")]
-pub(crate) fn service_menu_text(exe: &std::path::Path, icon: &std::path::Path, label: &str) -> String {
-    // Exec quoting: inside double quotes, `"`, `` ` ``, `$` and `\` need a backslash; then the
-    // string escape doubles every backslash once more, and `%` is written `%%`
-    let quoted: String = exe.to_string_lossy().chars().flat_map(|c| if matches!(c, '"' | '`' | '$' | '\\') { vec!['\\', c] } else { vec![c] }).collect();
-    let quoted = quoted.replace('\\', "\\\\").replace('%', "%%");
-    format!(
-        "[Desktop Entry]\nType=Service\nMimeType=audio/*;\nActions=psyaudio;\nX-KDE-Priority=TopLevel\n\n[Desktop Action psyaudio]\nName={label}\nIcon={}\nExec=\"{quoted}\" %F\n",
-        icon.display()
-    )
-}
-
 /// A slider with its label on its own line and the slider filling the width,
 /// so long labels never push the panel wider than the window.
 pub fn slider_row(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>, slider: egui::Slider<'_>) -> egui::Response {
@@ -701,24 +621,4 @@ pub fn folder_field(ui: &mut egui::Ui, p: &Palette, value: &mut String, hint: &s
 /// Width of the settings column on the right: a third of the page, at least 440 px, at most 560 px.
 pub fn side_panel_width(ui: &egui::Ui) -> f32 {
     (ui.available_width() * 0.36).clamp(440.0, 560.0)
-}
-
-#[cfg(all(test, target_os = "linux"))]
-mod service_menu_tests {
-    use super::service_menu_text;
-    use std::path::Path;
-
-    #[test]
-    fn hands_the_selection_to_psyaudio() {
-        let t = service_menu_text(Path::new("/opt/Psy Audio/PsyAudio"), Path::new("/tmp/i.png"), "Convert");
-        assert!(t.contains("MimeType=audio/*;"));
-        assert!(t.contains("Name=Convert\n"));
-        assert!(t.contains("Exec=\"/opt/Psy Audio/PsyAudio\" %F\n"));
-    }
-
-    #[test]
-    fn special_characters_in_the_path_are_escaped() {
-        let t = service_menu_text(Path::new("/a$b/50%\"x"), Path::new("/i.png"), "C");
-        assert!(t.contains(r#"Exec="/a\\$b/50%%\\"x" %F"#), "{t}");
-    }
 }

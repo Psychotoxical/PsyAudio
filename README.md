@@ -6,12 +6,14 @@ Audio toolbox for Windows, written in Rust with eframe/egui: converter, batch co
 
 | Task | Command |
 |---|---|
-| Build | `cargo build` (dev profile with `opt-level = 2` and `incremental = false`) |
-| Tests | `cargo test` (includes a real conversion into several formats; needs FFmpeg on the `PATH`) |
-| Screenshot | `PsyAudio.exe --screenshot out.png` draws about 120 frames, saves the PNG and exits |
+| Build | `cargo build --workspace` (dev profile with `opt-level = 2` and `incremental = false`) |
+| Tests | `cargo test --workspace` (includes a real conversion into several formats; needs FFmpeg on the `PATH`) |
+| Screenshot | `PsyAudio-egui.exe --screenshot out.png` draws about 120 frames, saves the PNG and exits |
 | Test pages | Only in screenshot mode: `PSYAUDIO_PAGE=cd\|settings\|tags\|batch` (`cd` shows a sample disc with rip rows), `PSYAUDIO_LIGHT=1`, `PSYAUDIO_LANG=de\|en` |
 
-If `PsyAudio.exe` is still running, linking fails with `os error 5`. Rename `target/debug/PsyAudio.exe` and build again.
+The workspace has two crates: `crates/core` (`psyaudio-core`, everything except drawing) and `egui` (`psyaudio-egui`, the current window, built as `PsyAudio-egui.exe`). The egui window is being replaced by a Tauri interface.
+
+If `PsyAudio-egui.exe` is still running, linking fails with `os error 5`. Rename `target/debug/PsyAudio-egui.exe` and build again.
 
 Settings are stored in `%APPDATA%\PsyAudio\settings.json` (not in screenshot mode).
 
@@ -22,7 +24,7 @@ Settings are stored in `%APPDATA%\PsyAudio\settings.json` (not in screenshot mod
 - Monkey's Audio, Musepack and DSD need `mac.exe`, `mpcenc.exe` and `sox.exe`; their paths are set on the settings page.
 - HDCD decoding uses FFmpeg's `hdcd` filter.
 
-## Source (`src/`)
+## Source (`crates/core/src/` and `egui/src/`)
 
 | File | Contents |
 |---|---|
@@ -48,7 +50,7 @@ Settings are stored in `%APPDATA%\PsyAudio\settings.json` (not in screenshot mod
 ## Translation
 
 - Visible texts are written in **German** in the code and wrapped in `crate::i18n::t("…")` or `tf(...)`. The German text is the key.
-- English translations live in `tools/i18n_dict.tsv` (one line: German, tab, English). Regenerate the table with `python -I tools/i18n_gen.py tools/i18n_dict.tsv src/i18n_dict.rs`.
+- English translations live in `tools/i18n_dict.tsv` (one line: German, tab, English). Regenerate the table with `python -I tools/i18n_gen.py tools/i18n_dict.tsv crates/core/src/i18n_dict.rs`.
 - A test checks that every translation keeps the same `{…}` placeholders as the German text.
 - Texts in constant arrays (e.g. `tags::FIELDS`, `naming::label`, `dsp::NORMALIZE_MODES`) are translated with `t()` where they are shown.
 

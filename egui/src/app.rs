@@ -8,6 +8,7 @@ use crate::dsp;
 use crate::encode::{self, Codec, Env};
 use crate::naming;
 use crate::settings::{OutputMode, Overwrite, Profile, Settings};
+use crate::rip::RipMsg;
 use crate::tags::{self, Info, Tags};
 use crate::theme::{self, Palette};
 use crate::widgets::*;
@@ -109,13 +110,6 @@ mod run_tests {
         assert!(!run_active(&Some(state(Some(3.0)))));
         assert!(!run_active(&None));
     }
-}
-
-pub(crate) enum RipMsg {
-    Progress(usize, f32, String),
-    TrackDone(usize, String, String),
-    Log(String),
-    Finished(String),
 }
 
 pub(crate) struct RipRun {
@@ -326,32 +320,7 @@ impl PsyApp {
     // ---------------- files ----------------
 
     pub(crate) fn add_paths(&mut self, paths: Vec<PathBuf>, root: Option<PathBuf>) {
-        let mut new = Vec::new();
-        for p in paths {
-            if p.is_dir() {
-                let mut seen = std::collections::HashSet::new();
-                let mut stack = vec![p.clone()];
-                while let Some(d) = stack.pop() {
-                    // a junction that loops back is walked once
-                    if !seen.insert(std::fs::canonicalize(&d).unwrap_or_else(|_| d.clone())) {
-                        continue;
-                    }
-                    if let Ok(rd) = std::fs::read_dir(&d) {
-                        let mut entries: Vec<PathBuf> = rd.flatten().map(|e| e.path()).collect();
-                        entries.sort();
-                        for e in entries {
-                            if e.is_dir() {
-                                stack.push(e);
-                            } else if audio::is_audio_file(&e) {
-                                new.push((e, Some(root.clone().unwrap_or_else(|| p.clone()))));
-                            }
-                        }
-                    }
-                }
-            } else if audio::is_audio_file(&p) {
-                new.push((p, root.clone()));
-            }
-        }
+        let new = crate::files::expand_paths(&paths, root.as_deref());
         let mut known: std::collections::HashSet<PathBuf> = self.files.iter().map(|f| f.path.clone()).collect();
         let mut to_load = Vec::new();
         for (p, r) in new {
@@ -379,26 +348,7 @@ impl PsyApp {
     }
 
     pub(crate) fn plan(&self, codec: Codec) -> Plan {
-        Plan {
-            codec,
-            enc: self.s.enc.clone(),
-            effects: crate::convert::effects_for(codec, &self.s.effects),
-            output_mode: self.s.output_mode,
-            output_folder: PathBuf::from(&self.s.output_folder),
-            scheme: self.s.name_scheme.clone(),
-            keep_structure: false,
-            overwrite: self.s.overwrite == Overwrite::Always,
-            overwrite_list: Vec::new(),
-            copy_tags: self.s.copy_tags,
-            copy_art: self.s.copy_art,
-            threads: self.s.threads.max(1),
-            low_priority: self.s.low_priority,
-            ffmpeg: self.ffmpeg.clone(),
-            ffmpeg_encoders: self.ffmpeg_encoders.clone(),
-            tools: self.s.tools.clone(),
-            temp: self.s.temp_dir(),
-            tag_scheme: self.s.tag_scheme.clone(),
-        }
+        crate::convert::plan_from_settings(&self.s, codec, self.ffmpeg.clone(), self.ffmpeg_encoders.clone())
     }
 
     pub(crate) fn start_conversion(&mut self, items: Vec<(PathBuf, Option<PathBuf>)>, codec: Codec) {
@@ -430,25 +380,10 @@ impl PsyApp {
         let jobs: Vec<Job> =
             items.into_iter().enumerate().map(|(i, (src, root))| Job { id: i, src, root, tags: None, audio: None }).collect();
         if self.s.overwrite == Overwrite::Ask && !plan.outputs().is_empty() {
-            let mut existing = Vec::new();
-            // tags are only read when the names are built from them (not for a batch with its
-            // folder structure, nor for "keep path"), and a loaded file's tags are reused
-            let known: std::collections::HashMap<&PathBuf, &(Tags, tags::Info)> =
-                self.files.iter().filter_map(|f| f.info.as_ref().map(|i| (&f.path, i))).collect();
-            let need_tags = plan.names_need_tags();
-            for j in &jobs {
-                let (t, i) = match known.get(&j.src) {
-                    Some(x) => (*x).clone(),
-                    None if need_tags => tags::read(&j.src),
-                    None => (Tags::default(), tags::Info::default()),
-                };
-                for c in plan.outputs() {
-                    let d = plan.destination(&j.src, j.root.as_deref(), &t, &i, c);
-                    if d.exists() {
-                        existing.push((d, true));
-                    }
-                }
-            }
+            let known: std::collections::HashMap<PathBuf, (Tags, tags::Info)> =
+                self.files.iter().filter_map(|f| f.info.clone().map(|i| (f.path.clone(), i))).collect();
+            let existing: Vec<(PathBuf, bool)> =
+                crate::files::existing_outputs(&plan, &jobs, &known).into_iter().map(|d| (d, true)).collect();
             if !existing.is_empty() {
                 self.overwrite_prompt = Some((existing, jobs, plan));
                 return;
@@ -648,7 +583,7 @@ impl eframe::App for PsyApp {
         let busy = self.run.as_ref().is_some_and(|r| r.finished.is_none())
             || self.cd.rip.as_ref().is_some_and(|r| r.finished.is_none());
         if busy != self.awake {
-            keep_awake(busy);
+            crate::integration::keep_awake(busy);
             self.awake = busy;
         }
         // progress only grows, and the window title shows "[NN%]"
@@ -1486,10 +1421,10 @@ impl PsyApp {
                 ui.label(RichText::new(&run.title).size(26.0).strong());
             }
             let sub = if run.finished.is_some() {
-                let mut s = crate::i18n::tf(crate::i18n::t("Fertig in {0} · {done} erledigt · {skipped} übersprungen · {failed} Fehler"), &[("0", long_duration(elapsed as u64, true)), ("done", format!("{done}")), ("skipped", format!("{skipped}")), ("failed", format!("{failed}"))]);
+                let mut s = crate::i18n::tf(crate::i18n::t("Fertig in {0} · {done} erledigt · {skipped} übersprungen · {failed} Fehler"), &[("0", crate::timefmt::long_duration(elapsed as u64, true)), ("done", format!("{done}")), ("skipped", format!("{skipped}")), ("failed", format!("{failed}"))]);
                 if run.audio_secs > 0.0 && done > 0 {
                     s += " · ";
-                    s += &encoding_speed(run.audio_secs, elapsed);
+                    s += &crate::timefmt::encoding_speed(run.audio_secs, elapsed);
                 }
                 s
             } else {
@@ -1607,73 +1542,5 @@ impl PsyApp {
         } else if action == 1 {
             self.run = None;
         }
-    }
-}
-
-/// SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED) = 0x80000001 while converting
-/// or ripping, so the PC doesn't go to standby; ES_CONTINUOUS alone (0x80000000) lets it sleep again.
-pub(crate) const KEEP_AWAKE_FLAGS: u32 = 0x8000_0001;
-
-fn keep_awake(on: bool) {
-    #[cfg(windows)]
-    unsafe {
-        windows_sys::Win32::System::Power::SetThreadExecutionState(if on { KEEP_AWAKE_FLAGS } else { 0x8000_0000 });
-    }
-    #[cfg(not(windows))]
-    let _ = on;
-}
-
-/// Seconds as words. Splits into days, hours, minutes and seconds
-/// (/3600, %24, /60), shows the largest non-zero unit and, when `verbose` or that unit is below 4,
-/// the next unit after a space. Singular for exactly 1.
-pub(crate) fn long_duration(total: u64, verbose: bool) -> String {
-    let hours_all = total / 3600;
-    let rest = total % 3600;
-    let (d, h, m, s) = (hours_all / 24, hours_all % 24, rest / 60, rest % 60);
-    let unit = |n: u64, one: &str, many: &str| {
-        crate::i18n::tf(crate::i18n::t(if n == 1 { one } else { many }), &[("0", n.to_string())])
-    };
-    let parts = [
-        (d, unit(d, "{0} Tag", "{0} Tage")),
-        (h, unit(h, "{0} Stunde", "{0} Stunden")),
-        (m, unit(m, "{0} Minute", "{0} Minuten")),
-        (s, unit(s, "{0} Sekunde", "{0} Sekunden")),
-    ];
-    match parts.iter().position(|(n, _)| *n > 0) {
-        None => unit(0, "{0} Sekunde", "{0} Sekunden"),
-        Some(3) => parts[3].1.clone(),
-        Some(i) => {
-            let mut out = parts[i].1.clone();
-            if verbose || parts[i].0 < 4 {
-                out.push(' ');
-                out.push_str(&parts[i + 1].1);
-            }
-            out
-        }
-    }
-}
-
-/// Audio length / elapsed time (elapsed 0 counts as 1);
-/// up to 4× shown with one decimal, above that rounded (+0.5) to a whole number.
-pub(crate) fn encoding_speed(audio_secs: f64, elapsed_secs: f64) -> String {
-    let e = if elapsed_secs == 0.0 { 1.0 } else { elapsed_secs };
-    let x = audio_secs / e;
-    let n = if x <= 4.0 { format!("{x:.1}") } else { format!("{}", (x + 0.5) as i64) };
-    crate::i18n::tf(crate::i18n::t("{0}× Kodiergeschwindigkeit"), &[("0", n)])
-}
-
-#[cfg(test)]
-mod finish_tests {
-    use super::*;
-    #[test]
-    fn duration_and_speed_wording() {
-        assert_eq!(long_duration(0, true), "0 Sekunden");
-        assert_eq!(long_duration(1, true), "1 Sekunde");
-        assert_eq!(long_duration(75, false), "1 Minute 15 Sekunden");
-        assert_eq!(long_duration(5 * 60 + 9, false), "5 Minuten");
-        assert_eq!(long_duration(5 * 60 + 9, true), "5 Minuten 9 Sekunden");
-        assert_eq!(long_duration(90_000, true), "1 Tag 1 Stunde");
-        assert_eq!(encoding_speed(300.0, 100.0), "3.0× Kodiergeschwindigkeit");
-        assert_eq!(encoding_speed(300.0, 40.0), "8× Kodiergeschwindigkeit");
     }
 }

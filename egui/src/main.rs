@@ -2,27 +2,19 @@
 #![windows_subsystem = "windows"]
 
 mod app;
-mod audio;
-mod cdrip;
-mod cdrip_read;
-mod convert;
-mod dsp;
-mod encode;
-mod i18n;
-mod loudness;
-mod naming;
 mod pages;
-mod settings;
-mod tags;
 mod theme;
 mod widgets;
 
+// the core modules keep their `crate::…` paths in this program
+pub(crate) use psyaudio_core::{audio, cdrip, cdrip_read, convert, dsp, encode, files, i18n, integration, naming, rip, settings, tags, timefmt};
+
 use std::path::PathBuf;
 
-/// The app icon (also built into PsyAudio.exe from assets/PsyAudio.ico by build.rs).
-pub(crate) const APP_ICON_PNG: &[u8] = include_bytes!("../assets/PsyAudio.png");
+/// The app icon (also built into PsyAudio-egui.exe from assets/PsyAudio.ico by build.rs).
+pub(crate) const APP_ICON_PNG: &[u8] = include_bytes!("../../assets/PsyAudio.png");
 /// The PsyAudio lettering, white on transparent (tinted with the accent colour when drawn).
-pub(crate) const WORDMARK_PNG: &[u8] = include_bytes!("../assets/PsyAudio-wordmark.png");
+pub(crate) const WORDMARK_PNG: &[u8] = include_bytes!("../../assets/PsyAudio-wordmark.png");
 
 /// This window is the one other instances hand their files to.
 pub(crate) static PRIMARY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);

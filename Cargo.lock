@@ -2582,22 +2582,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d595e54a326bc53c1c197b32d295e14b169e3cfeaa8dc82b529f947fba6bcf5"
 
 [[package]]
-name = "psyaudio"
+name = "psyaudio-core"
 version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "dirs",
- "eframe",
- "egui-phosphor",
- "image",
  "libc",
  "lofty",
- "rfd",
  "serde",
  "serde_json",
  "sha1",
  "symphonia",
  "ureq",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "psyaudio-egui"
+version = "1.0.0"
+dependencies = [
+ "dirs",
+ "eframe",
+ "egui-phosphor",
+ "image",
+ "libc",
+ "psyaudio-core",
+ "rfd",
  "windows-sys 0.59.0",
  "winresource",
 ]
