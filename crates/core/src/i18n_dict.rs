@@ -597,4 +597,9 @@ pub(crate) static EN: &[(&str, &str)] = &[
     ("Komprimiert", "Compressed"),
     ("Dolphin-Integration", "Dolphin integration"),
     ("Fügt im Dolphin-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).", "Adds “Convert with PsyAudio” to the Dolphin right-click menu of audio files (for your user account only)."),
+    ("Seitenleiste einklappen", "Collapse sidebar"),
+    ("Seitenleiste ausklappen", "Expand sidebar"),
+    ("Folgt in der nächsten Stufe", "Coming in the next stage"),
+    ("Benennung", "Naming"),
+    ("Zielordner", "Target folder"),
 ];

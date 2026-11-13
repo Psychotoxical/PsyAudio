@@ -395,6 +395,7 @@ pub fn to_int(s: f32, bits: u16) -> i64 {
 // ---------- WAV / AIFF writers ----------
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum PcmFormat {
     U8,
     S16,

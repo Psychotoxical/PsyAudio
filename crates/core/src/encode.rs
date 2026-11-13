@@ -8,6 +8,7 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum Codec {
     Mp3,
     Flac,
@@ -164,6 +165,7 @@ impl Codec {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum RateMode {
     Vbr,
     Cbr,
@@ -172,6 +174,7 @@ pub enum RateMode {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub struct EncSettings {
     pub mp3_mode: RateMode,
     pub mp3_vbr: u8,
@@ -285,6 +288,7 @@ pub const STEREO_MODES: &[&str] = &["Stereo (automatisch)", "Joint Stereo", "Erz
 /// External programs used by the formats FFmpeg can't write.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub struct Tools {
     pub ffmpeg: String,
     pub mac: String,

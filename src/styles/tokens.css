@@ -1,0 +1,101 @@
+/* Catppuccin Mocha (default) and Latte with the semantic tokens of Psysonic; accent fixed Mauve.
+   Selection and chip colours as in PsyTags (psytags/ui/theme.py). */
+:root,
+:root[data-theme="mocha"] {
+  color-scheme: dark;
+  --ctp-mauve: #cba6f7;
+  --ctp-red: #f38ba8;
+  --ctp-peach: #fab387;
+  --ctp-yellow: #f9e2af;
+  --ctp-green: #a6e3a1;
+  --ctp-blue: #89b4fa;
+  --ctp-text: #cdd6f4;
+  --ctp-subtext1: #bac2de;
+  --ctp-subtext0: #a6adc8;
+  --ctp-overlay1: #7f849c;
+  --ctp-surface2: #585b70;
+  --ctp-surface1: #45475a;
+  --ctp-surface0: #313244;
+  --ctp-base: #1e1e2e;
+  --ctp-mantle: #181825;
+  --ctp-crust: #11111b;
+
+  --bg-app: var(--ctp-base);
+  --bg-sidebar: var(--ctp-mantle);
+  --bg-card: var(--ctp-surface0);
+  --bg-hover: var(--ctp-surface1);
+  --bg-field: var(--ctp-crust);
+  --accent: var(--ctp-mauve);
+  --accent-hover: #dfc8fb;
+  --accent-dim: rgba(203, 166, 247, 0.15);
+  --text-primary: var(--ctp-text);
+  --text-secondary: var(--ctp-subtext1);
+  --text-muted: var(--ctp-subtext0);
+  --text-disabled: var(--ctp-overlay1);
+  --text-on-accent: var(--ctp-crust);
+  --border: var(--ctp-surface1);
+  --border-subtle: var(--ctp-surface0);
+  --border-field: var(--ctp-surface2);
+  --selection: #45385c;
+  --positive: var(--ctp-green);
+  --warning: var(--ctp-yellow);
+  --danger: var(--ctp-red);
+  --ok-bg: #2a3b32;
+  --ok-text: #a6e3a1;
+  --bad-bg: #4b2c36;
+  --bad-text: #fbb4c6;
+  --warn-bg: #4a4030;
+  --warn-text: #f9e2af;
+}
+
+:root[data-theme="latte"] {
+  color-scheme: light;
+  --ctp-mauve: #8839ef;
+  --ctp-red: #d20f39;
+  --ctp-peach: #fe640b;
+  --ctp-yellow: #df8e1d;
+  --ctp-green: #40a02b;
+  --ctp-blue: #1e66f5;
+  --ctp-text: #4c4f69;
+  --ctp-subtext1: #5c5f77;
+  --ctp-subtext0: #6c6f85;
+  --ctp-overlay1: #8c8fa1;
+  --ctp-surface2: #acb0be;
+  --ctp-surface1: #bcc0cc;
+  --ctp-surface0: #ccd0da;
+  --ctp-base: #eff1f5;
+  --ctp-mantle: #e6e9ef;
+  --ctp-crust: #dce0e8;
+
+  --accent-hover: #7a2fd8;
+  --accent-dim: rgba(136, 57, 239, 0.12);
+  /* subtext0 reaches only 4.4:1 on base; PsyTags uses subtext1 for secondary text */
+  --text-muted: var(--ctp-subtext1);
+  --text-on-accent: var(--ctp-base);
+  --selection: #d8c9f4;
+  --ok-bg: #cfe9cc;
+  --ok-text: #2b6e1c;
+  --bad-bg: #f6ccd6;
+  --bad-text: #9c0b2b;
+  --warn-bg: #f6e6c8;
+  --warn-text: #8a5508;
+}
+
+:root {
+  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk Variable", "Inter Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, Consolas, monospace;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+  --sidebar-width: 220px;
+  --panel-width: 400px;
+  --transition-fast: 120ms ease;
+}

@@ -160,7 +160,8 @@ impl Tags {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub struct Info {
     pub seconds: f64,
     pub bitrate: Option<u32>,

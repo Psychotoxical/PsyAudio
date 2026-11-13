@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum OutputMode {
     /// Under one base folder, folders and file names from the chip scheme.
     #[serde(alias = "Dynamic")]
@@ -17,6 +18,7 @@ pub enum OutputMode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum Overwrite {
     Ask,
     Always,
@@ -25,6 +27,7 @@ pub enum Overwrite {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub struct Profile {
     pub name: String,
     pub codec: Codec,
@@ -39,6 +42,7 @@ impl Default for Profile {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum RipMode {
     Burst,
     Secure,
@@ -47,6 +51,7 @@ pub enum RipMode {
 /// CD ripper settings.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub struct RipSettings {
     pub mode: RipMode,
     pub drive_offset: i32,
@@ -107,6 +112,7 @@ impl Default for RipSettings {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub struct Settings {
     pub codec: Codec,
     pub enc: EncSettings,
@@ -135,6 +141,23 @@ pub struct Settings {
     pub batch_subfolders: bool,
     /// Chips for reading tags from file names.
     pub tag_scheme: Vec<String>,
+    /// What the window looked like (open columns, tiles, boxes); pages are "convert", "batch",
+    /// "cd" and "settings".
+    pub ui: UiState,
+}
+
+/// The window's layout, kept between starts.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+pub struct UiState {
+    /// Whether a page's right column is open.
+    pub panel_open: std::collections::BTreeMap<String, bool>,
+    /// The step tile a page showed last.
+    pub tile: std::collections::BTreeMap<String, String>,
+    pub sidebar_collapsed: bool,
+    /// Whether a collapsible box (settings page) is open.
+    pub boxes_open: std::collections::BTreeMap<String, bool>,
 }
 
 fn scheme(v: &[&str]) -> Vec<String> {
@@ -168,11 +191,13 @@ impl Default for Settings {
             batch_extensions: vec!["flac".into(), "wav".into(), "mp3".into(), "m4a".into(), "ogg".into(), "opus".into(), "aiff".into(), "wma".into(), "ape".into(), "wv".into()],
             batch_subfolders: true,
             tag_scheme: scheme(crate::naming::TAG_SCHEME),
+            ui: UiState::default(),
         }
     }
 }
 
-fn path() -> PathBuf {
+/// Where settings.json lives (%APPDATA%\PsyAudio on Windows).
+pub fn path() -> PathBuf {
     dirs::config_dir().unwrap_or_else(std::env::temp_dir).join("PsyAudio").join("settings.json")
 }
 
@@ -208,14 +233,18 @@ impl Settings {
     /// Settings from disk, and a note when parts of the file could not be read (the file is then
     /// kept as settings.json.bak, so nothing is lost by the next save).
     pub fn load() -> (Settings, Option<String>) {
-        let p = path();
-        let Ok(text) = std::fs::read_to_string(&p) else { return (Settings::default(), None) };
+        Settings::load_from(&path())
+    }
+
+    /// `load` from a given file; the file itself is never changed here.
+    pub fn load_from(p: &std::path::Path) -> (Settings, Option<String>) {
+        let Ok(text) = std::fs::read_to_string(p) else { return (Settings::default(), None) };
         let (st, complete) = Settings::parse(&text);
         if complete {
             return (st, None);
         }
         let backup = p.with_extension("json.bak");
-        let _ = std::fs::copy(&p, &backup);
+        let _ = std::fs::copy(p, &backup);
         (st, Some(crate::i18n::tf(crate::i18n::t("Einstellungen teilweise unlesbar – die alte Datei liegt als {0}"), &[("0", backup.display().to_string())])))
     }
 
@@ -272,6 +301,32 @@ mod tests {
     fn s(v: &[&str]) -> Vec<String> {
         v.iter().map(|x| x.to_string()).collect()
     }
+
+    #[test]
+    fn egui_settings_load_with_default_ui() {
+        let json = r#"{"codec":"Opus","side_open":false,"lang":"de","dark":false,"threads":5}"#;
+        let (st, complete) = Settings::parse(json);
+        assert!(complete);
+        assert_eq!(st.ui, UiState::default());
+        assert!(!st.side_open);
+        assert_eq!((st.codec, st.lang.as_str(), st.dark, st.threads), (Codec::Opus, "de", false, 5));
+    }
+
+    #[test]
+    fn broken_settings_warn_and_keep_file() {
+        let dir = std::env::temp_dir().join(format!("psyaudio-broken-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("settings.json");
+        let text = r#"{"threads": "viele", "lang": "de""#;
+        std::fs::write(&p, text).unwrap();
+        let (st, warning) = Settings::load_from(&p);
+        assert!(warning.is_some());
+        assert_eq!(std::fs::read_to_string(&p).unwrap(), text, "the file stays as it was");
+        assert_eq!(st.threads, Settings::default().threads);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn old_settings_keep_other_values() {
         let json = r#"{"codec":"Flac","threads":3,"output_mode":"Dynamic","naming":"[artist]\\[title]",

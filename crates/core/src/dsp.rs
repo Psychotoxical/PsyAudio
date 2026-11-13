@@ -4,6 +4,7 @@ use crate::audio::Audio;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub enum Effect {
     Resample { rate: u32 },
     BitDepth { bits: u16, dither: bool },

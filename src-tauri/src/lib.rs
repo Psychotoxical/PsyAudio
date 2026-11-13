@@ -1,6 +1,7 @@
 //! The PsyAudio window: starts Tauri, hands files over between instances and from drops.
 
 mod commands;
+mod settings_cmd;
 mod state;
 
 use serde::Serialize;
@@ -53,24 +54,36 @@ fn send_files(app: &AppHandle, files: Vec<PathBuf>, source: &'static str) {
 }
 
 pub fn run() {
-    let state = AppState::default();
+    let args: Vec<OsString> = std::env::args_os().collect();
+    let demo = state::Demo::from_args(&args);
+    let state = AppState { demo: demo.clone(), ..AppState::default() };
     if let Ok(mut f) = state.startup_files.lock() {
-        *f = file_args(std::env::args_os(), &std::env::current_dir().unwrap_or_default());
+        *f = file_args(args, &std::env::current_dir().unwrap_or_default());
     }
 
-    tauri::Builder::default()
-        // first, so a second start hands its files over before anything else runs
-        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+    let mut builder = tauri::Builder::default();
+    // first, so a second start hands its files over before anything else runs; the sample mode
+    // runs on its own, next to a PsyAudio that is already open
+    if demo.is_none() {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
             send_files(app, file_args(args.into_iter().map(OsString::from), Path::new(&cwd)), "instance");
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.unminimize();
                 let _ = w.show();
                 let _ = w.set_focus();
             }
-        }))
+        }));
+    }
+    builder
         .plugin(tauri_plugin_dialog::init())
         .manage(state)
-        .invoke_handler(tauri::generate_handler![commands::frontend_ready, commands::file_manager_menu])
+        .invoke_handler(tauri::generate_handler![
+            commands::frontend_ready,
+            commands::file_manager_menu,
+            settings_cmd::load_settings,
+            settings_cmd::save_settings,
+            settings_cmd::demo_state,
+        ])
         .setup(|app| {
             // show the window even if the frontend never reports ready
             let handle = app.handle().clone();

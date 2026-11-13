@@ -1,73 +1,103 @@
-import { useEffect, useState } from "react";
-import {
-  type FilesSource,
-  fileManagerMenu,
-  frontendReady,
-  onDragState,
-  onFilesAdded,
-} from "./ipc/events";
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { setLanguage } from "./i18n";
+import { demoState, loadSettings } from "./ipc/commands";
+import { frontendReady, onFilesAdded } from "./ipc/events";
+import { Placeholder } from "./pages/Placeholder";
+import { Sidebar } from "./shell/Sidebar";
+import { Toast } from "./shell/Toast";
+import "./shell/shell.css";
+import { useSettings } from "./store/settings";
+import { type Page, useUi } from "./store/ui";
+import { applyTheme } from "./theme";
 
-interface Received {
-  path: string;
-  source: FilesSource;
-}
+/** `--demo=<page>` names (German, as on the command line) to pages. */
+const DEMO_PAGES: Record<string, Page> = {
+  konverter: "convert",
+  stapel: "batch",
+  cd: "cd",
+  einstellungen: "settings",
+};
 
-// Platform check (stage 2): shows every path that reaches the window and where it came from.
 export function App() {
-  const [files, setFiles] = useState<Received[]>([]);
-  const [dragging, setDragging] = useState(false);
-  const [message, setMessage] = useState("");
+  const { t } = useTranslation();
+  const settings = useSettings((s) => s.settings);
+  const page = useUi((s) => s.page);
 
   useEffect(() => {
-    const add = (paths: string[], source: FilesSource) =>
-      setFiles((f) => [...f, ...paths.map((path) => ({ path, source }))]);
-    const listeners = [
-      onFilesAdded((e) => add(e.paths, e.source)),
-      onDragState((e) => setDragging(e.active)),
-    ];
-    // listen first, then ask for the start files, so nothing falls in between
-    Promise.all(listeners)
-      .then(() => frontendReady())
-      .then((paths) => add(paths, "start"));
+    // listen first, then load the settings, then show the window with its theme and language
+    const unlisten = onFilesAdded(() => useUi.getState().setPage("convert"));
+    demoState()
+      .then((demo) => {
+        const target = demo ? DEMO_PAGES[demo.page] : undefined;
+        if (target) useUi.getState().setPage(target);
+      })
+      .then(loadSettings)
+      .then(({ settings, warning }) => {
+        useSettings.getState().load(settings);
+        if (warning) useUi.getState().notify(warning);
+      })
+      .catch((e: unknown) => useUi.getState().notify(String(e)))
+      .finally(() => {
+        void frontendReady();
+      });
     return () => {
-      for (const l of listeners) l.then((un) => un());
+      void unlisten.then((un) => un());
     };
   }, []);
 
-  const menu = (add: boolean) => fileManagerMenu(add).then(setMessage);
+  useEffect(() => {
+    if (!settings) return;
+    applyTheme(settings.dark);
+    void setLanguage(settings.lang === "de" ? "de" : "en");
+  }, [settings]);
+
+  if (!settings) return null;
+
+  const pages = {
+    convert: (
+      <Placeholder
+        page="convert"
+        title={t("Konvertieren")}
+        tiles={[
+          { id: "format", title: t("Format"), summary: settings.codec },
+          { id: "save", title: t("Speichern in"), summary: settings.output_folder },
+          { id: "naming", title: t("Benennung"), summary: settings.name_scheme.join(" ") },
+          { id: "effects", title: t("Effekte"), summary: String(settings.effects.length) },
+        ]}
+      />
+    ),
+    batch: (
+      <Placeholder
+        page="batch"
+        title={t("Stapel-Konverter")}
+        tiles={[
+          { id: "format", title: t("Format"), summary: settings.codec },
+          { id: "target", title: t("Zielordner"), summary: settings.output_folder },
+          { id: "effects", title: t("Effekte"), summary: String(settings.effects.length) },
+        ]}
+      />
+    ),
+    cd: (
+      <Placeholder
+        page="cd"
+        title="CD-Ripper"
+        tiles={[
+          { id: "format", title: t("Format"), summary: settings.rip_codec },
+          { id: "save", title: t("Speichern in"), summary: settings.rip_folder },
+          { id: "naming", title: t("Benennung"), summary: settings.rip.name_scheme.join(" ") },
+          { id: "readmode", title: t("Lesemodus"), summary: settings.rip.mode },
+        ]}
+      />
+    ),
+    settings: <Placeholder page="settings" title={t("Einstellungen")} tiles={[]} />,
+  };
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: 24,
-        background: dragging ? "#313244" : "#1e1e2e",
-        color: "#cdd6f4",
-        font: "14px/1.5 system-ui, sans-serif",
-      }}
-    >
-      <h1 style={{ color: "#cba6f7", fontSize: 22, margin: "0 0 12px" }}>
-        PsyAudio – Plattform-Test
-      </h1>
-      <p style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <button type="button" onClick={() => menu(true)}>
-          Menü einrichten
-        </button>
-        <button type="button" onClick={() => menu(false)}>
-          Menü entfernen
-        </button>
-        <span>{message}</span>
-      </p>
-      <p>{dragging ? "Loslassen zum Hinzufügen" : `${files.length} Pfade empfangen`}</p>
-      <ol>
-        {files.map((f, i) => (
-          // the same path may arrive twice from different sources
-          // biome-ignore lint/suspicious/noArrayIndexKey: entries are only ever appended
-          <li key={i}>
-            <code>{f.path}</code> <span style={{ color: "#a6adc8" }}>({f.source})</span>
-          </li>
-        ))}
-      </ol>
-    </main>
+    <div className="app">
+      <Sidebar />
+      <main>{pages[page]}</main>
+      <Toast />
+    </div>
   );
 }
