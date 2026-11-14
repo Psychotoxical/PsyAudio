@@ -6,6 +6,10 @@ Every version has its own section. The section of a version becomes the text of 
 
 The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch converter in one window.
 
+### Changed
+
+- The README opens with the PsyAudio wordmark, white on GitHub's dark theme and black on the light one.
+
 ### Added
 
 - **Bit-perfect CD rips**, every track checked against the CUETools database (CTDB). A confirmed track is identical, sample for sample, to other people's rips of the same disc.

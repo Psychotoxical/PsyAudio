@@ -1,4 +1,9 @@
-# PsyAudio
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/PsyAudio-wordmark.png">
+    <img src="assets/PsyAudio-wordmark-black.png" alt="PsyAudio" width="360">
+  </picture>
+</h1>
 
 ![PsyAudio: CD ripper, first-start setup, converter and batch converter, in Mocha and Latte](assets/screenshots.webp)
 
