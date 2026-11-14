@@ -195,6 +195,47 @@ pub fn scsi_command_in(index: usize, cdb: &[u8], len: usize) -> Result<Vec<u8>, 
     Ok(data)
 }
 
+#[link(name = "IOKit", kind = "framework")]
+extern "C" {
+    fn IOPMAssertionCreateWithName(kind: core_foundation::string::CFStringRef, level: u32, name: core_foundation::string::CFStringRef, id: *mut u32) -> i32;
+    fn IOPMAssertionRelease(id: u32) -> i32;
+}
+
+/// The assertion that keeps the Mac awake and how many jobs want it (a rip and a conversion can
+/// run at once; Windows keeps one request per thread, this counts them).
+static SLEEP_ASSERTION: std::sync::Mutex<(u32, Option<u32>)> = std::sync::Mutex::new((0, None));
+
+/// Keeps the Mac from idle sleep while converting or ripping (the display may still sleep); every
+/// `true` needs its `false`, the assertion goes when the last job ends.
+pub fn power_assertion(on: bool) {
+    let mut state = SLEEP_ASSERTION.lock().unwrap_or_else(|e| e.into_inner());
+    let (count, held) = &mut *state;
+    if on {
+        *count += 1;
+        if held.is_none() {
+            let kind = CFString::new("PreventUserIdleSystemSleep");
+            let name = CFString::new("PsyAudio");
+            let mut id = 0u32;
+            // kIOPMAssertionLevelOn = 255
+            if unsafe { IOPMAssertionCreateWithName(kind.as_concrete_TypeRef(), 255, name.as_concrete_TypeRef(), &mut id) } == 0 {
+                *held = Some(id);
+            }
+        }
+    } else {
+        *count = count.saturating_sub(1);
+        if *count == 0 {
+            if let Some(id) = held.take() {
+                unsafe { IOPMAssertionRelease(id) };
+            }
+        }
+    }
+}
+
+/// Whether PsyAudio keeps the Mac awake right now.
+pub fn power_assertion_held() -> bool {
+    SLEEP_ASSERTION.lock().unwrap_or_else(|e| e.into_inner()).1.is_some()
+}
+
 /// `dk_cd_read_t` from `<IOKit/storage/IOCDMediaBSDClient.h>` (LP64).
 #[repr(C)]
 #[derive(Default)]
@@ -249,6 +290,24 @@ mod tests {
         assert_eq!(offset_of!(CdReadToc, buffer), 16);
         assert_eq!(DKIOCCDREAD, 0xc020_6460);
         assert_eq!(DKIOCCDREADTOC, 0xc018_6464);
+    }
+
+    /// Held while any job wants it (a rip and a conversion at once): released when the last one
+    /// ends, and an extra "off" does not go below zero.
+    #[test]
+    fn sleep_assertion_is_held_until_the_last_job_ends() {
+        power_assertion(true);
+        power_assertion(true);
+        assert!(power_assertion_held());
+        power_assertion(false);
+        assert!(power_assertion_held(), "the other job still runs");
+        power_assertion(false);
+        assert!(!power_assertion_held());
+        power_assertion(false);
+        power_assertion(true);
+        assert!(power_assertion_held());
+        power_assertion(false);
+        assert!(!power_assertion_held());
     }
 
     /// Listing drives works without one attached.

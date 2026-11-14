@@ -14,7 +14,7 @@ vi.mock("../../ipc/cd", async (original) => ({
 }));
 
 import { i18n } from "../../i18n";
-import { resetSettings } from "../../ipc/system";
+import { resetSettings, systemInfo } from "../../ipc/system";
 import { newRun } from "../../store/run";
 import { useSettings } from "../../store/settings";
 import { RunView } from "../convert/RunView";
@@ -44,6 +44,14 @@ describe("settings page", () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     await act(() => i18n.changeLanguage("de"));
+  });
+
+  it("finder_integration_on_macos", async () => {
+    vi.mocked(systemInfo).mockResolvedValueOnce({ cores: 8, temp_default: "/tmp", os: "macos" });
+    render(<SettingsPage />);
+    const box = await screen.findByRole("region", { name: "Finder-Integration" });
+    expect(box.textContent).toContain("Finder");
+    expect(box.textContent).toContain("Kontextmenü einrichten");
   });
 
   it("boxes_in_two_columns_for_wide_windows", async () => {

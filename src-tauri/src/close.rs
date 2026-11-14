@@ -27,7 +27,7 @@ use crate::jobs::Kind;
 use crate::state::AppState;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, CloseRequestApi, Emitter, Manager, State, Window};
+use tauri::{AppHandle, CloseRequestApi, Emitter, ExitRequestApi, Manager, State, Window};
 
 /// What a click on the window's close button does.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -50,25 +50,38 @@ pub fn close_decision(conversion_running: bool, rip_running: bool, closing: bool
 
 /// The window's close button: closes, or keeps the window and asks the frontend.
 pub fn on_close_requested(window: &Window, api: &CloseRequestApi) {
-    let state = window.state::<AppState>();
+    api.prevent_close();
+    close_or_ask(window.app_handle());
+}
+
+/// An exit request without a code (the last window gone): the same as the close button. Exits
+/// PsyAudio itself asks for (`app.exit`) carry a code and pass. ⌘Q on macOS: `mac_menu`.
+pub fn on_exit_requested(app: &AppHandle, code: Option<i32>, api: &ExitRequestApi) {
+    if code.is_none() {
+        api.prevent_exit();
+        close_or_ask(app);
+    }
+}
+
+/// Closes once the window has saved its settings, or asks first while work runs.
+pub fn close_or_ask(app: &AppHandle) {
+    let state = app.state::<AppState>();
     let decision = close_decision(state.jobs.busy_with(Kind::Conversion), state.jobs.busy_with(Kind::Rip), state.closing.load(Ordering::SeqCst));
     match decision {
         CloseDecision::Allow => {
             // the window saves a settings change still waiting, then confirms; if it does not
             // answer, PsyAudio closes anyway
-            api.prevent_close();
-            let _ = window.emit_to("main", "close-now", ());
-            let app = window.app_handle().clone();
+            let _ = app.emit_to("main", "close-now", ());
+            let app = app.clone();
             std::thread::spawn(move || {
                 std::thread::sleep(UNANSWERED_CLOSE);
                 app.exit(0);
             });
         }
         CloseDecision::Ask => {
-            api.prevent_close();
-            let _ = window.emit_to("main", "close-requested", ());
+            let _ = app.emit_to("main", "close-requested", ());
         }
-        CloseDecision::Wait => api.prevent_close(),
+        CloseDecision::Wait => {}
     }
 }
 

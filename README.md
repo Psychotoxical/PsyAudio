@@ -30,7 +30,7 @@ The CUETools database is open: its data is public domain, and lookups need no ac
 - MP3, FLAC, AAC, ALAC, Opus, Vorbis, WavPack, WMA, Speex, WAV, AIFF, Monkey's Audio, Musepack and DSD.
 - About 35 effects, ReplayGain and EBU R128 loudness, tags and covers carried over, file and folder names built from tags.
 - The batch converter converts a whole folder tree and keeps its structure.
-- "Convert with PsyAudio" in the right-click menu of the Explorer (Windows) or Dolphin (Linux).
+- "Convert with PsyAudio" in the right-click menu of the Explorer (Windows), Dolphin (Linux) or Finder (macOS, as a quick action).
 - Catppuccin Mocha (dark) and Latte (light), English and German.
 
 ## Build and run
@@ -90,7 +90,7 @@ Settings are stored in `%APPDATA%\PsyAudio\settings.json` (Linux: `~/.config/Psy
 | `ctdb.rs` | CUETools database (CTDB): lookup, track checksums, disc page, rolling CRC32 and the drive offset search |
 | `cdrip_read.rs` | Secure reading: passes, re-reads, cache flushing, interpolation |
 | `scsi.rs` | Raw SCSI commands to the drive (Windows pass-through, Linux SG_IO, macOS SCSITaskLib through `macos_scsi.c`): buffer size, cache flush size, stopping the disc (not on macOS) |
-| `integration.rs` | Explorer (per extension) and Dolphin context menu, keeping the computer awake |
+| `integration.rs` | Explorer (per extension), Dolphin and Finder (quick action) context menu, keeping the computer awake |
 | `i18n.rs` / `i18n_dict.rs` | Translation; `i18n_dict.rs` is generated |
 | `timefmt.rs` | Durations and encoding speed in words |
 

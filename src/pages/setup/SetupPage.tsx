@@ -105,13 +105,11 @@ export function SetupPage() {
     {
       title: t("Rechtsklick"),
       summary:
-        info?.os === "macos"
-          ? t("nicht nötig")
-          : menu === null
-            ? t("freiwillig")
-            : menu
-              ? t("Kontextmenü eingerichtet")
-              : t("Kontextmenü entfernt"),
+        menu === null
+          ? t("freiwillig")
+          : menu
+            ? t("Kontextmenü eingerichtet")
+            : t("Kontextmenü entfernt"),
     },
     {
       title: t("Rips"),
@@ -186,11 +184,7 @@ export function SetupPage() {
             )}
             {step === 3 && (
               <StepBox icon={<MousePointerClick size={16} />} title={t("Kontextmenü")}>
-                {info?.os === "macos" ? (
-                  <Hint>{t("Auf dem Mac gibt es diesen Schritt nicht.")}</Hint>
-                ) : info ? (
-                  <IntegrationFields info={info} onDone={setMenu} />
-                ) : null}
+                {info ? <IntegrationFields info={info} onDone={setMenu} /> : null}
               </StepBox>
             )}
             {step === 4 && (

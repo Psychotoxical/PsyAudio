@@ -311,13 +311,14 @@ export function LookFields() {
 
 function IntegrationBox({ info }: { info: SystemInfo | null }) {
   const { t } = useTranslation();
-  if (!info || info.os === "macos") return null;
+  if (!info) return null;
+  const title = {
+    windows: t("Windows-Integration"),
+    linux: t("Dolphin-Integration"),
+    macos: t("Finder-Integration"),
+  }[info.os];
   return (
-    <CollapsibleBox
-      id="integration"
-      title={info.os === "linux" ? t("Dolphin-Integration") : t("Windows-Integration")}
-      summary={t("Kontextmenü")}
-    >
+    <CollapsibleBox id="integration" title={title} summary={t("Kontextmenü")}>
       <IntegrationFields info={info} />
     </CollapsibleBox>
   );
@@ -332,7 +333,6 @@ export function IntegrationFields({
   onDone?: (added: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const linux = info.os === "linux";
   const menu = (add: boolean) =>
     fileManagerMenu(add)
       .then((msg) => {
@@ -340,17 +340,20 @@ export function IntegrationFields({
         onDone?.(add);
       })
       .catch((e: unknown) => useUi.getState().notify(String(e)));
+  const hint = {
+    windows: t(
+      "Fügt im Explorer-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).",
+    ),
+    linux: t(
+      "Fügt im Dolphin-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).",
+    ),
+    macos: t(
+      "Fügt im Finder-Rechtsklickmenü von Audiodateien die Schnellaktion „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).",
+    ),
+  }[info.os];
   return (
     <>
-      <Hint>
-        {linux
-          ? t(
-              "Fügt im Dolphin-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).",
-            )
-          : t(
-              "Fügt im Explorer-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).",
-            )}
-      </Hint>
+      <Hint>{hint}</Hint>
       <div className="row">
         <button type="button" className="btn" onClick={() => void menu(true)}>
           {t("Kontextmenü einrichten")}

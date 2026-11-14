@@ -15,6 +15,7 @@ vi.mock("../../ipc/cd", async (original) => ({
 }));
 
 import { i18n } from "../../i18n";
+import { systemInfo } from "../../ipc/system";
 import { Sidebar } from "../../shell/Sidebar";
 import { useSettings } from "../../store/settings";
 import { useUi } from "../../store/ui";
@@ -59,6 +60,21 @@ describe("setup", () => {
     });
     expect(screen.getByRole("heading", { name: "Encoder-Programme" })).toBeInTheDocument();
     expect(screen.getByText("Schritt 2 von 5")).toBeInTheDocument();
+  });
+
+  it("context_menu_step_on_macos", async () => {
+    vi.mocked(systemInfo).mockResolvedValue({ cores: 8, temp_default: "/tmp", os: "macos" });
+    render(<SetupPage />);
+    for (let i = 0; i < 2; i++) {
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
+      });
+    }
+    expect(screen.getByRole("heading", { name: "Kontextmenü" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Kontextmenü einrichten" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Finder/)).toBeInTheDocument();
   });
 
   it("finish_marks_setup_done", async () => {
