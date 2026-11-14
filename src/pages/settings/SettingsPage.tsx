@@ -431,14 +431,19 @@ export function SettingsPage() {
     <div className="page">
       <div className="page-main">
         <PageHeader title={t("Einstellungen")} />
+        {/* two groups: one under the other, side by side once the window is wide (settings.css) */}
         <div className="content settings">
-          <div className="settings-col">
-            <ProgramsBox />
-            <PerformanceBox info={info} />
-            <DrivesBox />
-            <LookBox />
-            <IntegrationBox info={info} />
-            <ResetBox />
+          <div className="settings-grid">
+            <div className="settings-col">
+              <ProgramsBox />
+              <PerformanceBox info={info} />
+            </div>
+            <div className="settings-col">
+              <DrivesBox />
+              <LookBox />
+              <IntegrationBox info={info} />
+              <ResetBox />
+            </div>
           </div>
         </div>
       </div>

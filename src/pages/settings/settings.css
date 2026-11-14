@@ -1,12 +1,29 @@
-/* settings page: folding boxes in one column (accordion draft) */
+/* settings page: folding boxes in two groups, one under the other; side by side once each
+   column gets at least 560 px (2 × 560 + gap) */
 .settings {
   padding: 20px 24px 32px;
+  container: settings / inline-size;
 }
 .settings-col {
   max-width: 760px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@container settings (min-width: 1132px) {
+  .settings-grid {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .settings-grid > .settings-col {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 .box {
   border: 1px solid var(--border-subtle);

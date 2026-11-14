@@ -46,6 +46,20 @@ describe("settings page", () => {
     await act(() => i18n.changeLanguage("de"));
   });
 
+  it("boxes_in_two_columns_for_wide_windows", async () => {
+    render(<SettingsPage />);
+    await screen.findByRole("region", { name: "Windows-Integration" });
+    // one under the other in narrow windows, side by side in wide ones (settings.css)
+    const cols = [...document.querySelectorAll(".settings-grid > .settings-col")];
+    const names = cols.map((c) =>
+      [...c.querySelectorAll(":scope > section")].map((s) => s.getAttribute("aria-label")),
+    );
+    expect(names).toEqual([
+      ["Encoder-Programme", "Leistung"],
+      ["CD-Laufwerke", "Aussehen", "Windows-Integration", "Zurücksetzen"],
+    ]);
+  });
+
   it("reset_needs_confirmation", async () => {
     render(<SettingsPage />);
     fireEvent.click(screen.getByRole("button", { name: "Alle Einstellungen auf Standard" }));
