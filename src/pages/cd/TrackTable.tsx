@@ -4,6 +4,7 @@ import { fmtLen } from "../../format";
 import type { CtdbResult, TrackStatus } from "../../ipc/cd";
 import { useCd } from "../../store/cd";
 import { InlineText } from "../../ui/InlineText";
+import { Tip } from "../../ui/Tip";
 import { setMeta } from "./cdFlow";
 import { ctdbText, phaseText, statusChip, statusText } from "./status";
 
@@ -19,10 +20,10 @@ export function StatusChip({ status, ctdb }: { status: TrackStatus; ctdb: CtdbRe
     muted: <Minus size={12} />,
   }[chip.tone];
   return (
-    <span className={`chip ${chip.tone}`} title={title}>
+    <Tip className={`chip ${chip.tone}`} text={title}>
       {icon}
       <span>{chip.text}</span>
-    </span>
+    </Tip>
   );
 }
 

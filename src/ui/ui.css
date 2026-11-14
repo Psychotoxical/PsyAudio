@@ -675,3 +675,21 @@ button.chip-link:focus-visible {
 .picker.close-dialog {
   width: min(480px, 100%);
 }
+
+/* hover text that stays inside the window (Tip.tsx places it) */
+.tip {
+  position: fixed;
+  z-index: 50;
+  max-width: min(420px, calc(100vw - 16px));
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sidebar);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  color: var(--text-primary);
+  font: 400 12px / 1.45 var(--font-sans);
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  pointer-events: none;
+}
