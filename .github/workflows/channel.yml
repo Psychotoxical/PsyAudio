@@ -32,6 +32,7 @@ jobs:
       sha: ${{ steps.move.outputs.sha }}
       version: ${{ steps.tag.outputs.version }}
       tag: ${{ steps.tag.outputs.tag }}
+      file_version: ${{ steps.tag.outputs.file_version }}
       title: ${{ steps.tag.outputs.title }}
       prerelease: ${{ steps.tag.outputs.prerelease }}
     env:
@@ -109,19 +110,23 @@ jobs:
             last=$( { git tag -l "v$version-rc.*"; jq -r '.[].tagName' <<< "$releases"; } \
                     | sed -n "s/^v${version//./\\.}-rc\.\([0-9][0-9]*\)$/\1/p" | sort -n | tail -1)
             n=$(( ${last:-0} + 1 ))
+            tag=v$version-rc.$n
             {
-              echo "tag=v$version-rc.$n"
+              echo "tag=$tag"
               echo "title=$APP $version RC $n"
               echo "prerelease=true"
             } >> "$GITHUB_OUTPUT"
           else
+            tag=v$version
             {
-              echo "tag=v$version"
+              echo "tag=$tag"
               echo "title=$APP $version"
               echo "prerelease=false"
             } >> "$GITHUB_OUTPUT"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          # the files carry the tag's version, so a release candidate's files say which one they are
+          echo "file_version=${tag#v}" >> "$GITHUB_OUTPUT"
       - id: move
         name: Push
         run: |
@@ -135,6 +140,7 @@ jobs:
     with:
       ref: ${{ needs.promote.outputs.sha }}
       signed: true
+      file_version: ${{ needs.promote.outputs.file_version }}
     secrets: inherit
 
   draft:
@@ -148,6 +154,7 @@ jobs:
       SHA: ${{ needs.promote.outputs.sha }}
       VERSION: ${{ needs.promote.outputs.version }}
       TAG: ${{ needs.promote.outputs.tag }}
+      FILE_VERSION: ${{ needs.promote.outputs.file_version }}
       TITLE: ${{ needs.promote.outputs.title }}
       PRERELEASE: ${{ needs.promote.outputs.prerelease }}
     steps:
@@ -161,7 +168,7 @@ jobs:
           merge-multiple: true
       - name: Create or update the draft
         run: |
-          python3 .github/release/release_notes.py "$VERSION" > notes.md
+          python3 .github/release/release_notes.py "$VERSION" "$FILE_VERSION" > notes.md
           shopt -s nullglob
           files=("$RUNNER_TEMP"/packages/*)
           if [ ${#files[@]} = 0 ]; then
@@ -175,6 +182,10 @@ jobs:
           fi
           if gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null | grep -q true; then
             gh release edit "$TAG" --title "$TITLE" --notes-file notes.md --target "$SHA" "${pre[@]}"
+            # files of an earlier run under other names would stay next to the new ones
+            gh release view "$TAG" --json assets --jq '.assets[].name' | while read -r old; do
+              gh release delete-asset "$TAG" "$old" --yes
+            done
             gh release upload "$TAG" "${files[@]}" --clobber
             echo "::notice::Draft $TAG updated"
           else

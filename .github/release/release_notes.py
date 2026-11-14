@@ -1,8 +1,9 @@
 """Prints the release text of a version: its CHANGELOG.md section plus the download table.
 
-    python .github/release/release_notes.py VERSION
+    python .github/release/release_notes.py VERSION [FILE_VERSION]
 
-The download table comes from .github/release/downloads.md ({version} is filled in); without
+The download table comes from .github/release/downloads.md ({version} is filled in with
+FILE_VERSION, the version in the file names: "1.2.0-rc.1" for a release candidate); without
 that file there is none. Exits with 1 if the section is missing or empty.
 """
 import pathlib
@@ -24,22 +25,22 @@ def section(text: str, version: str) -> str:
     return ""
 
 
-def notes(text: str, version: str, downloads: str = "") -> str:
+def notes(text: str, version: str, downloads: str = "", file_version: str = "") -> str:
     body = section(text, version)
     if not body:
         raise ValueError(f"CHANGELOG.md has no section for {version}")
     body = re.sub(r"^### ", "## ", body, flags=re.MULTILINE)
-    table = downloads.replace("{version}", version).strip()
+    table = downloads.replace("{version}", file_version or version).strip()
     return f"{body}\n\n{table}" if table else body
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 2:
+    if len(argv) not in (2, 3):
         print(__doc__, file=sys.stderr)
         return 2
     downloads = DOWNLOADS.read_text(encoding="utf-8") if DOWNLOADS.exists() else ""
     try:
-        print(notes((ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), argv[1], downloads))
+        print(notes((ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), argv[1], downloads, argv[2] if len(argv) == 3 else ""))
     except ValueError as e:
         print(e, file=sys.stderr)
         return 1

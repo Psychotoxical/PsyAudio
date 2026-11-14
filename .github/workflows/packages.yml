@@ -15,6 +15,10 @@ on:
         description: macOS disk image must be signed and notarized (fails without the Apple secrets)
         type: boolean
         default: false
+      file_version:
+        description: Version in the file names, e.g. 1.2.0-rc.1 (empty = the version in package.json)
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       ref:
@@ -25,6 +29,10 @@ on:
         description: macOS disk image must be signed and notarized (fails without the Apple secrets)
         type: boolean
         default: false
+      file_version:
+        description: Version in the file names, e.g. 1.2.0-rc.1 (empty = the version in package.json)
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -120,8 +128,9 @@ jobs:
         env:
           NAME: ${{ matrix.name }}
           TARGET: ${{ matrix.target }}
+          FILE_VERSION: ${{ inputs.file_version }}
         run: |
-          version=$(node -p "require('./package.json').version")
+          version=${FILE_VERSION:-$(node -p "require('./package.json').version")}
           bundle="target/${TARGET:+$TARGET/}release/bundle"
           mkdir out
           shopt -s nullglob

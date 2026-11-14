@@ -29,5 +29,6 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 
 ### Fixed
 
+- The files of a release candidate carry its number, for example `PsyAudio-1.0.0-rc.1-x86_64.AppImage`, so they can't be mixed up with the release.
 - The AppImage shows its own icon in the Wayland taskbar; it no longer took the entry it carries inside for an installed package.
 - The Dolphin menu follows PsyAudio when its AppImage is moved, for example by Gear Lever; it is set to the program's current file on every start.
