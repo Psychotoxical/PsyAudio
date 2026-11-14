@@ -134,6 +134,7 @@ jobs:
     uses: ./.github/workflows/packages.yml
     with:
       ref: ${{ needs.promote.outputs.sha }}
+      signed: true
     secrets: inherit
 
   draft:
