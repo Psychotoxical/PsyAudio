@@ -8,6 +8,10 @@ vi.mock("../../ipc/system", () => ({
   systemInfo: vi.fn(() => Promise.resolve({ cores: 12, temp_default: "C:\\Temp", os: "windows" })),
   resetSettings: vi.fn((s: Settings) => Promise.resolve(s)),
 }));
+vi.mock("../../ipc/cd", async (original) => ({
+  ...(await original<typeof import("../../ipc/cd")>()),
+  listDrives: vi.fn(() => Promise.resolve([])),
+}));
 
 import { i18n } from "../../i18n";
 import { resetSettings } from "../../ipc/system";
@@ -25,6 +29,7 @@ function settings(): Settings {
     temp_folder: "",
     tools: { ffmpeg: "", mac: "", mpcenc: "", sox: "" },
     profiles: [],
+    rip: { drives: [], drive_offset: 0, cache_kb: 0, ctdb: true },
     ui: {
       panel_open: {},
       tile: {},

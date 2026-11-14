@@ -1,30 +1,39 @@
-import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { plural } from "../../i18n";
 import type { RipMode } from "../../ipc/bindings/RipMode";
 import type { RipSettings } from "../../ipc/bindings/RipSettings";
 import { useCd } from "../../store/cd";
 import { useSettings } from "../../store/settings";
+import { useUi } from "../../store/ui";
 import { Check, Disclosure, Hint, Segmented, Select } from "../../ui/controls";
 import { SliderField } from "../../ui/SliderField";
-import { detectOffset } from "./cdFlow";
+import { methodText } from "../settings/DriveFacts";
+import { driveKey } from "./driveProfile";
+import { signed } from "./measure";
 
-/** How the disc is read: mode, re-reads, drive offset; the fine points under "Erweitert". */
+/** Settings with the drives box open: where the offset is measured or entered. */
+function openDriveSettings(): void {
+  useSettings.getState().update((s) => {
+    s.ui.boxes_open.drives = true;
+  });
+  useUi.getState().setPage("settings");
+}
+
+/** How the disc is read: mode, re-reads, the drive's offset; the fine points under "Erweitert". */
 export function ReadModePanel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const r = useSettings((s) => s.settings?.rip);
   const update = useSettings((s) => s.update);
-  const disc = useCd((s) => s.disc);
-  const ar = useCd((s) => s.ar.state);
   const offset = useCd((s) => s.offset);
-  const ripping = useCd((s) => s.rip?.running ?? false);
+  const current = useCd((s) => s.drives.find((d) => d.id === s.drive));
   if (!r) return null;
+  const key = current ? driveKey(current) : null;
+  const profile = key ? r.drives.find((p) => p.model === key) : undefined;
   const set = (patch: Partial<RipSettings>) =>
     update((s) => {
       Object.assign(s.rip, patch);
     });
   const secure = r.mode === "Secure";
-  const canFind = !!disc && ar === "done" && !offset.busy && !ripping;
 
   return (
     <>
@@ -41,10 +50,10 @@ export function ReadModePanel() {
         <Hint>
           {secure
             ? t(
-                "Liest jeden Titel in einem Zug. Bestätigt AccurateRip das Ergebnis, ist der Titel fertig; sonst folgt ein zweiter Durchgang, und nur abweichende Stellen werden wiederholt.",
+                "Liest jeden Titel in einem Zug. Bestätigt die CUETools-Datenbank das Ergebnis, ist der Titel fertig; sonst folgt ein zweiter Durchgang, und nur abweichende Stellen werden wiederholt.",
               )
             : t(
-                "Schnellstes Rippen ohne Fehlerkorrektur – AccurateRip zeigt trotzdem, ob alles stimmt.",
+                "Schnellstes Rippen ohne Fehlerkorrektur – die CUETools-Datenbank zeigt trotzdem, ob alles stimmt.",
               )}
         </Hint>
       </div>
@@ -63,39 +72,36 @@ export function ReadModePanel() {
         </Hint>
       </div>
       <div className="field">
-        <div className="row offset-row">
-          <SliderField
-            bare
-            label={t("Laufwerks-Versatz")}
-            min={-3000}
-            max={3000}
-            value={r.drive_offset}
-            format={(v) => (v > 0 ? `+${v}` : String(v))}
-            unit="Samples"
-            onChange={(v) => set({ drive_offset: v })}
-          />
-          <button
-            type="button"
-            className="btn"
-            disabled={!canFind}
-            title={
-              canFind ? undefined : t("Zuerst eine CD lesen, die in der AccurateRip-Datenbank ist.")
-            }
-            onClick={() => void detectOffset()}
-          >
-            <Search size={15} />
-            {offset.busy
-              ? t("Suche … {0} %", { 0: String(Math.round(offset.fraction * 100)) })
-              : t("Ermitteln")}
+        <div className="panel-offset">
+          <span className="lbl">{t("Laufwerks-Versatz")}</span>
+          <button type="button" className="link-btn" onClick={openDriveSettings}>
+            {t("In den Einstellungen ändern")}
           </button>
         </div>
-        <Hint>
-          {t(
-            "Jedes Laufwerk liest leicht versetzt. Einmal pro Laufwerk ermitteln, dann stimmen die AccurateRip-Prüfsummen.",
-          )}
-        </Hint>
+        {offset.busy ? (
+          <div className="measure-row">
+            <span
+              className="prog wide"
+              role="progressbar"
+              aria-label={t("Fortschritt")}
+              aria-valuenow={Math.round(offset.fraction * 100)}
+            >
+              <i style={{ width: `${offset.fraction * 100}%` }} />
+            </span>
+            <span className="muted">
+              {t("Misst … {0} %", { 0: String(Math.round(offset.fraction * 100)) })}
+            </span>
+          </div>
+        ) : profile ? (
+          <p className="offset-value">
+            <strong>{`${signed(profile.offset)} Samples`}</strong>{" "}
+            <span className="muted">{methodText(profile, t, i18n.language)}</span>
+          </p>
+        ) : (
+          <p className="muted">{t("noch nicht gemessen")}</p>
+        )}
       </div>
-      <Disclosure title={t("Erweitert")} summary={t("Kontroll-Durchgänge, Cache, Abbruch")}>
+      <Disclosure title={t("Erweitert")} summary={t("Kontroll-Durchgänge, Abbruch")}>
         <div className="field">
           <Check
             label={t("Zusätzliche Kontroll-Durchgänge")}
@@ -135,23 +141,6 @@ export function ReadModePanel() {
         <div className="field">
           <SliderField
             bare
-            label={t("Laufwerks-Cache")}
-            min={0}
-            max={16384}
-            value={r.cache_kb}
-            unit="KB"
-            disabled={!secure}
-            onChange={(v) => set({ cache_kb: v })}
-          />
-          <Hint>
-            {t(
-              "So viel liest PsyAudio vor einer Neu-Lesung weg, damit das Laufwerk nicht aus seinem Zwischenspeicher antwortet.",
-            )}
-          </Hint>
-        </div>
-        <div className="field">
-          <SliderField
-            bare
             label={t("Abbrechen nach unlesbaren Sektoren")}
             min={0}
             max={100000}
@@ -186,7 +175,7 @@ export function ReadModePanel() {
             options={[
               [0, t("(aus)")],
               [1, t("unsicher")],
-              [2, t("nicht von AccurateRip bestätigt")],
+              [2, t("nicht von CTDB bestätigt")],
             ]}
             onChange={(v) => set({ mark_error: v })}
           />
@@ -202,9 +191,9 @@ export function ReadModePanel() {
         </div>
         <div className="field">
           <Check
-            label={t("Mit AccurateRip prüfen")}
-            checked={r.accuraterip}
-            onChange={(v) => set({ accuraterip: v })}
+            label={t("Mit der CUETools-Datenbank prüfen")}
+            checked={r.ctdb}
+            onChange={(v) => set({ ctdb: v })}
           />
           <Hint>{t("Vergleicht jeden Titel mit den Prüfsummen anderer Rips derselben CD.")}</Hint>
         </div>

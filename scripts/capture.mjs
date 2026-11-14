@@ -1,5 +1,6 @@
 // Screenshot of one page in the sample mode, through the WebView2 DevTools protocol (Windows).
-//   node scripts/capture.mjs <konverter|stapel|cd|einstellungen> <file.png> [--light] [--click=<css>]…
+//   node scripts/capture.mjs <konverter|stapel|cd|einstellungen|einrichtung> <file.png> [--light] [--en]
+//   [--click=<css>]…
 // --click clicks the first element matching the selector before the picture (e.g. a tile).
 // --eval=<js> runs an expression in the page; --wait=<css> waits up to 2 minutes for an element;
 // --file=<path> passes a file on the command line; --title prints the window title at the end;
@@ -20,7 +21,8 @@ if (!page || !file) {
 const port = 9333;
 const exe = resolve(import.meta.dirname, "..", "target", "debug", "PsyAudio.exe");
 const files = rest.filter((a) => a.startsWith("--file=")).map((a) => a.slice(7));
-const args = [`--demo=${page}`, ...(rest.includes("--light") ? ["--light"] : []), ...files];
+const flags = ["--light", "--en"].filter((f) => rest.includes(f));
+const args = [`--demo=${page}`, ...flags, ...files];
 const child = spawn(exe, args, {
   env: {
     ...process.env,

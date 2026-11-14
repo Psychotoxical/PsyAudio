@@ -15,10 +15,12 @@ export function saveSettings(settings: Settings): Promise<void> {
   return invoke<void>("save_settings", { settings });
 }
 
-/** `--demo=<page>` for screenshots: konverter, stapel, cd or einstellungen. */
+/** `--demo=<page>` for screenshots: konverter, stapel, cd, einstellungen or einrichtung. */
 export interface Demo {
   page: string;
   light: boolean;
+  /** `--en`: English window and sample names. */
+  en: boolean;
 }
 
 export function demoState(): Promise<Demo | null> {

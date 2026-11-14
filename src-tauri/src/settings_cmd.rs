@@ -13,18 +13,35 @@ pub struct LoadedSettings {
     warning: Option<String>,
 }
 
-/// The saved settings (in the sample mode the defaults, in German); the file is not written here.
+/// The saved settings (in the sample mode the defaults); the file is not written here.
 #[tauri::command]
 pub fn load_settings(state: State<'_, AppState>) -> LoadedSettings {
     let (settings, warning) = match &state.demo {
-        Some(demo) => {
-            let s = Settings { lang: "de".into(), dark: !demo.light, ..Settings::default() };
-            (s, None)
+        Some(demo) => (demo_settings(demo), None),
+        None => {
+            let (mut s, warning) = Settings::load();
+            // the single offset of earlier versions belongs to the drive attached now
+            if s.rip.drive_offset != 0 {
+                let key = psyaudio_core::cdrip::drives().first().map(|d| psyaudio_core::cdrip::drive_key(*d));
+                if adopt_on_start(&mut s, key, &psyaudio_core::settings::today()) {
+                    let _ = s.save();
+                }
+            }
+            (s, warning)
         }
-        None => Settings::load(),
     };
     psyaudio_core::i18n::set_lang(&settings.lang);
     LoadedSettings { settings, warning }
+}
+
+/// The sample mode's settings: the defaults, in German unless `--en`, Mocha unless `--light`.
+fn demo_settings(demo: &Demo) -> Settings {
+    Settings { lang: if demo.en { "en" } else { "de" }.into(), dark: !demo.light, ..Settings::default() }
+}
+
+/// Hand the old single offset to the drive `key` (the first one attached); true when it moved.
+fn adopt_on_start(st: &mut Settings, key: Option<String>, today: &str) -> bool {
+    key.is_some_and(|k| st.rip.adopt_legacy_offset(&k, today))
 }
 
 #[tauri::command]
@@ -53,6 +70,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn english_demo_speaks_english() {
+        let demo = |en| Demo { page: "cd".into(), light: false, en };
+        assert_eq!(demo_settings(&demo(true)).lang, "en");
+        assert_eq!(demo_settings(&demo(false)).lang, "de");
+    }
+
+    #[test]
     fn demo_never_writes_settings() {
         let dir = std::env::temp_dir().join(format!("psyaudio-demo-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -64,6 +88,16 @@ mod tests {
         save_unless_demo(&Settings::default(), false, &p).unwrap();
         assert_ne!(std::fs::read_to_string(&p).unwrap(), "{}", "a normal start saves");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn start_hands_the_old_offset_to_the_drive_present() {
+        let mut st = Settings::default();
+        st.rip.drive_offset = 667;
+        assert!(!adopt_on_start(&mut st, None, "2026-11-14"), "no drive attached: keep the old value");
+        assert_eq!(st.rip.drive_offset, 667);
+        assert!(adopt_on_start(&mut st, Some("Band Drive X".into()), "2026-11-14"));
+        assert_eq!(st.rip.drive("Band Drive X").map(|p| p.offset), Some(667));
     }
 }
 

@@ -1,10 +1,9 @@
-import { i18n, plural } from "../../i18n";
+import { i18n } from "../../i18n";
 import {
   cancelRip,
   type DiscInfo,
   type DiscMetaView,
   ejectDisc,
-  findOffset,
   type LookupEvent,
   listDrives,
   lookupDisc,
@@ -15,6 +14,8 @@ import {
 import { type CdState, emptyMeta, emptyRow, useCd } from "../../store/cd";
 import { useSettings } from "../../store/settings";
 import { useUi } from "../../store/ui";
+import { driveKey } from "./driveProfile";
+import { measure } from "./measure";
 
 const t = (key: string, values?: Record<string, string>) => i18n.t(key, values);
 const notify = (e: unknown) => useUi.getState().notify(String(e));
@@ -83,24 +84,25 @@ function applyLookup(e: LookupEvent) {
     case "Cover":
       useCd.setState({ cover: `data:${e.mime};base64,${e.data_base64}` });
       break;
-    case "AccurateRip":
-      useCd.setState({ ar: { state: "done", pressings: e.pressings, reason: null } });
+    case "Ctdb":
+      useCd.setState({ ctdb: { state: "done", total: e.total, url: e.url, reason: null } });
+      measureIfUnknown(e.total);
       break;
     case "Failed":
       if (e.source === "musicbrainz") useCd.setState({ lookup: "failed", lookupError: e.reason });
-      else useCd.setState({ ar: { state: "failed", pressings: 0, reason: e.reason } });
+      else useCd.setState({ ctdb: { state: "failed", total: 0, url: null, reason: e.reason } });
       break;
   }
 }
 
-/** "Titel-Infos suchen" (MusicBrainz), and after reading AccurateRip too. */
-export async function searchInfo(accuraterip = false): Promise<void> {
+/** "Titel-Infos suchen" (MusicBrainz), and after reading the CUETools database too. */
+export async function searchInfo(ctdb = false): Promise<void> {
   useCd.setState((s) => ({
     lookup: "busy",
-    ar: accuraterip ? { state: "busy", pressings: 0, reason: null } : s.ar,
+    ctdb: ctdb ? { state: "busy", total: 0, url: null, reason: null } : s.ctdb,
   }));
   try {
-    await lookupDisc(true, accuraterip, lookupHandler(discNumber));
+    await lookupDisc(true, ctdb, lookupHandler(discNumber));
   } catch (e) {
     useCd.setState({ lookup: "failed", lookupError: String(e) });
   }
@@ -128,10 +130,9 @@ export async function readCd(): Promise<void> {
       selected: disc.tracks.map(() => true),
       rows: disc.tracks.map(emptyRow),
       lookup: "idle",
-      ar: { state: "idle", pressings: 0, reason: null },
+      ctdb: { state: "idle", total: 0, url: null, reason: null },
     });
-    const accuraterip = useSettings.getState().settings?.rip.accuraterip ?? true;
-    void searchInfo(accuraterip);
+    void searchInfo(useSettings.getState().settings?.rip.ctdb ?? true);
   } catch (e) {
     useCd.setState({ error: String(e) });
   } finally {
@@ -176,7 +177,7 @@ function applyRip(s: CdState, e: RipEvent): Partial<CdState> {
     }
     case "TrackDone": {
       const row = rows[e.row];
-      if (row) rows[e.row] = { fraction: 1, phase: null, status: e.status, ar: e.ar };
+      if (row) rows[e.row] = { fraction: 1, phase: null, status: e.status, ctdb: e.ctdb };
       return { rows };
     }
     case "Log":
@@ -227,36 +228,14 @@ export function cancel() {
   void cancelRip();
 }
 
-/** "Ermitteln": finds the drive offset with this disc and enters it. */
-export async function detectOffset(): Promise<void> {
-  useCd.setState({ offset: { busy: true, fraction: 0 } });
-  try {
-    await findOffset((e) => {
-      if (e.kind === "Progress") useCd.setState({ offset: { busy: true, fraction: e.fraction } });
-      else {
-        useCd.setState({ offset: { busy: false, fraction: 0 } });
-        if (e.kind === "Found") {
-          useSettings.getState().update((x) => {
-            x.rip.drive_offset = e.offset;
-          });
-          notify(
-            t(
-              plural(
-                e.matching_tracks,
-                "Laufwerks-Versatz {off} Samples gefunden und eingetragen (1 Titel stimmt überein)",
-                "Laufwerks-Versatz {off} Samples gefunden und eingetragen ({n} Titel stimmen überein)",
-              ),
-              {
-                off: e.offset > 0 ? `+${e.offset}` : String(e.offset),
-                n: String(e.matching_tracks),
-              },
-            ),
-          );
-        } else notify(e.reason);
-      }
-    });
-  } catch (e) {
-    useCd.setState({ offset: { busy: false, fraction: 0 } });
-    notify(e);
-  }
+/** A drive without a measured offset is measured with the first disc the CUETools database knows;
+ * with a disc it does not know, the next disc is tried. */
+function measureIfUnknown(total: number): void {
+  const settings = useSettings.getState().settings;
+  const { drives, drive, offset, rip } = useCd.getState();
+  const current = drives.find((d) => d.id === drive);
+  if (!settings?.rip.ctdb || !drive || !current || offset.busy || rip?.running) return;
+  if (settings.rip.drives.some((p) => p.model === driveKey(current))) return;
+  if (total > 0) void measure(drive, true);
+  else notify(t("Diese CD kennt CTDB nicht – PsyAudio misst den Versatz mit der nächsten CD"));
 }

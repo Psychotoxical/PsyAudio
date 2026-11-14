@@ -1,16 +1,17 @@
-//! The CD ripper: drives, reading the disc, MusicBrainz and AccurateRip, the drive offset, the rip.
+//! The CD ripper: drives, reading the disc, MusicBrainz and the CUETools database, the drive offset, the rip.
 //! Everything that touches the drive or the network runs off the window's thread.
 
 use crate::jobs::Kind;
 use crate::run_cmd::ProgressGate;
 use crate::state::AppState;
 use base64::Engine;
-use psyaudio_core::cdrip::{self, DiscMeta, Pressing, Toc};
+use psyaudio_core::cdrip::{self, DiscMeta, Toc};
 use psyaudio_core::convert;
+use psyaudio_core::ctdb::{self, Entry};
 use psyaudio_core::encode::{self, Env};
 use psyaudio_core::i18n::t;
-use psyaudio_core::rip::{self, ArResult, RipContext, RipMsg, RipPhase, RipSummary, TrackStatus};
-use psyaudio_core::settings::{OutputMode, Settings};
+use psyaudio_core::rip::{self, CtdbResult, RipContext, RipMsg, RipPhase, RipSummary, TrackStatus};
+use psyaudio_core::settings::{DriveProfile, OffsetMethod, OutputMode, Settings};
 use psyaudio_core::tags;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -75,8 +76,8 @@ mod tests {
         let first = cd.generation;
         cd.new_disc(Some('G'), None);
         cd.set_cover(first, vec![1, 2, 3]);
-        cd.set_ar(first, Ok(Vec::new()));
-        assert!(cd.cover.is_none() && cd.ar.is_none(), "a lookup of the disc before must not land here");
+        cd.set_ctdb(first, Ok(Vec::new()));
+        assert!(cd.cover.is_none() && cd.ctdb.is_none(), "a lookup of the disc before must not land here");
         let now = cd.generation;
         cd.set_cover(now, vec![4]);
         assert_eq!(cd.cover.as_deref(), Some(&[4u8][..]));
@@ -86,7 +87,38 @@ mod tests {
     fn rip_events_carry_codes() {
         let e = rip_event(RipMsg::TrackDone(2, TrackStatus::Insecure { sectors: 4 }, None));
         let v = serde_json::to_value(e).unwrap();
-        assert_eq!(v, serde_json::json!({ "kind": "TrackDone", "row": 2, "status": { "kind": "Insecure", "sectors": 4 }, "ar": null }));
+        assert_eq!(v, serde_json::json!({ "kind": "TrackDone", "row": 2, "status": { "kind": "Insecure", "sectors": 4 }, "ctdb": null }));
+    }
+
+    #[test]
+    fn ctdb_answer_becomes_count_and_link() {
+        let toc = Toc {
+            tracks: vec![
+                psyaudio_core::cdrip::TocTrack { number: 1, lba: 0, audio: true },
+                psyaudio_core::cdrip::TocTrack { number: 2, lba: 11413, audio: true },
+            ],
+            leadout: 25024,
+        };
+        let entries = vec![psyaudio_core::ctdb::Entry { confidence: 7, track_crcs: vec![1, 2] }];
+        let v = serde_json::to_value(ctdb_event(&toc, &Ok(entries))).unwrap();
+        assert_eq!(v["kind"], "Ctdb");
+        assert_eq!(v["total"], 7);
+        assert!(v["url"].as_str().unwrap().starts_with("https://db.cue.tools/ui/?tocid="));
+        let v = serde_json::to_value(ctdb_event(&toc, &Err("weg".into()))).unwrap();
+        assert_eq!(v, serde_json::json!({ "kind": "Failed", "source": "ctdb", "reason": "weg" }));
+    }
+
+    #[test]
+    fn a_measurement_becomes_a_drive_profile() {
+        let p = profile_from("Band Drive X".into(), 667, Some(4096), "2026-11-14");
+        assert_eq!(
+            (p.model.as_str(), p.offset, p.method, p.measured.as_str(), p.buffer_kb),
+            ("Band Drive X", 667, OffsetMethod::Ctdb, "2026-11-14", Some(4096))
+        );
+        let v = serde_json::to_value(MeasureEvent::Done { profile: p, agreeing_tracks: 2 }).unwrap();
+        assert_eq!(v["kind"], "Done");
+        assert_eq!(v["profile"]["offset"], 667);
+        assert_eq!(v["agreeing_tracks"], 2);
     }
 }
 
@@ -94,13 +126,13 @@ mod tests {
 #[derive(Default)]
 pub struct CdState {
     /// Counts the discs read (and ejects): a lookup still running for the disc before must not
-    /// write its cover or AccurateRip data onto the next one.
+    /// write its cover or database answer onto the next one.
     generation: u64,
     drive: Option<char>,
     toc: Option<Toc>,
-    /// AccurateRip's data, or why there is none; `None` while not asked yet.
-    ar: Option<Result<Vec<Pressing>, String>>,
-    ar_pending: bool,
+    /// The CUETools database's entries, or why there are none; `None` while not asked yet.
+    ctdb: Option<Result<Vec<Entry>, String>>,
+    ctdb_pending: bool,
     cover: Option<Vec<u8>>,
 }
 
@@ -117,11 +149,11 @@ impl CdState {
         }
     }
 
-    /// AccurateRip's answer for disc `generation`.
-    fn set_ar(&mut self, generation: u64, r: Result<Vec<Pressing>, String>) {
+    /// The database's answer for disc `generation`.
+    fn set_ctdb(&mut self, generation: u64, r: Result<Vec<Entry>, String>) {
         if generation == self.generation {
-            self.ar = Some(r);
-            self.ar_pending = false;
+            self.ctdb = Some(r);
+            self.ctdb_pending = false;
         }
     }
 }
@@ -134,12 +166,14 @@ fn drive_char(id: &str) -> Result<char, String> {
 pub struct DriveInfo {
     id: String,
     name: String,
+    /// Vendor and product, when the system tells them.
+    model: Option<String>,
 }
 
 /// The CD drives of this computer (letters on Windows, /dev/srN on Linux).
 #[tauri::command]
 pub fn list_drives() -> Vec<DriveInfo> {
-    cdrip::drives().into_iter().map(|d| DriveInfo { id: d.to_string(), name: cdrip::drive_name(d) }).collect()
+    cdrip::drives().into_iter().map(|d| DriveInfo { id: d.to_string(), name: cdrip::drive_name(d), model: cdrip::drive_model(d) }).collect()
 }
 
 #[derive(Serialize)]
@@ -236,10 +270,22 @@ impl DiscMetaView {
 #[derive(Clone, Serialize)]
 #[serde(tag = "kind")]
 pub enum LookupEvent {
-    Candidates { list: Vec<DiscMetaView> },
-    Cover { mime: String, data_base64: String },
-    AccurateRip { pressings: usize },
-    Failed { source: &'static str, reason: String },
+    Candidates {
+        list: Vec<DiscMetaView>,
+    },
+    Cover {
+        mime: String,
+        data_base64: String,
+    },
+    /// How many rips of the disc the database knows, and its public page.
+    Ctdb {
+        total: u32,
+        url: String,
+    },
+    Failed {
+        source: &'static str,
+        reason: String,
+    },
 }
 
 fn image_mime(data: &[u8]) -> &'static str {
@@ -250,15 +296,23 @@ fn image_mime(data: &[u8]) -> &'static str {
     }
 }
 
-/// Asks MusicBrainz (titles, cover) and AccurateRip (whether the disc is known) about the disc read
-/// last; each answer comes as its own event.
+/// The database's answer as the window shows it: how many rips it knows and the disc's page.
+fn ctdb_event(toc: &Toc, r: &Result<Vec<Entry>, String>) -> LookupEvent {
+    match r {
+        Ok(entries) => LookupEvent::Ctdb { total: ctdb::disc_confidence(entries, toc.audio_tracks().len()), url: ctdb::disc_url(toc) },
+        Err(reason) => LookupEvent::Failed { source: "ctdb", reason: reason.clone() },
+    }
+}
+
+/// Asks MusicBrainz (titles, cover) and the CUETools database (whether the disc is known) about
+/// the disc read last; each answer comes as its own event.
 #[tauri::command]
-pub fn lookup_disc(app: AppHandle, musicbrainz: bool, accuraterip: bool, on: Channel<LookupEvent>) -> Result<(), String> {
+pub fn lookup_disc(app: AppHandle, musicbrainz: bool, ctdb: bool, on: Channel<LookupEvent>) -> Result<(), String> {
     let state = app.state::<AppState>();
     let (toc, generation) = {
         let mut cd = state.cd.lock().unwrap_or_else(|e| e.into_inner());
-        if accuraterip {
-            cd.ar_pending = true;
+        if ctdb {
+            cd.ctdb_pending = true;
         }
         (cd.toc.clone().ok_or_else(|| t("Zuerst eine CD lesen").to_string())?, cd.generation)
     };
@@ -278,14 +332,11 @@ pub fn lookup_disc(app: AppHandle, musicbrainz: bool, accuraterip: bool, on: Cha
             }
         });
     }
-    if accuraterip {
+    if ctdb {
         std::thread::spawn(move || {
-            let r = cdrip::accuraterip_lookup(&toc);
-            let event = match &r {
-                Ok(db) => LookupEvent::AccurateRip { pressings: db.len() },
-                Err(reason) => LookupEvent::Failed { source: "accuraterip", reason: reason.clone() },
-            };
-            app.state::<AppState>().cd.lock().unwrap_or_else(|e| e.into_inner()).set_ar(generation, r);
+            let r = ctdb::lookup(&toc);
+            let event = ctdb_event(&toc, &r);
+            app.state::<AppState>().cd.lock().unwrap_or_else(|e| e.into_inner()).set_ctdb(generation, r);
             let _ = on.send(event);
         });
     }
@@ -306,24 +357,31 @@ pub async fn eject(state: State<'_, AppState>, drive: String) -> Result<(), Stri
 
 #[derive(Clone, Serialize)]
 #[serde(tag = "kind")]
-pub enum OffsetEvent {
-    Progress { fraction: f32 },
-    Found { offset: i32, matching_tracks: usize },
-    Failed { reason: String },
+pub enum MeasureEvent {
+    Progress {
+        fraction: f32,
+    },
+    /// The drive's profile for the window to store, and how many tracks agreed on the offset.
+    Done {
+        profile: DriveProfile,
+        agreeing_tracks: usize,
+    },
+    Failed {
+        reason: String,
+    },
 }
 
-/// Finds the drive's read offset with this disc and AccurateRip's data; the window enters it.
-/// Uses the drive like a rip, so it counts as one.
+/// A measured drive as the settings keep it.
+fn profile_from(model: String, offset: i32, buffer_kb: Option<u32>, today: &str) -> DriveProfile {
+    DriveProfile { model, offset, method: OffsetMethod::Ctdb, measured: today.to_string(), buffer_kb }
+}
+
+/// Measures the drive's read offset (with the disc in it and the CUETools database) and its
+/// buffer; the window stores the profile. Uses the drive like a rip, so it counts as one.
 #[tauri::command]
-pub fn find_offset(app: AppHandle, on: Channel<OffsetEvent>) -> Result<(), String> {
+pub fn measure_drive(app: AppHandle, drive: String, on: Channel<MeasureEvent>) -> Result<(), String> {
     let state = app.state::<AppState>();
-    let (d, toc) = {
-        let cd = state.cd.lock().unwrap_or_else(|e| e.into_inner());
-        match (cd.drive, cd.toc.clone()) {
-            (Some(d), Some(toc)) => (d, toc),
-            _ => return Err(t("Zuerst eine CD lesen, die in der AccurateRip-Datenbank ist.").into()),
-        }
-    };
+    let d = drive_char(&drive)?;
     let handle = state.jobs.begin(Kind::Rip)?;
     std::thread::spawn(move || {
         let progress = {
@@ -333,22 +391,44 @@ pub fn find_offset(app: AppHandle, on: Channel<OffsetEvent>) -> Result<(), Strin
                 let mut l = last.lock().unwrap_or_else(|e| e.into_inner());
                 if l.elapsed().as_millis() >= 100 {
                     *l = Instant::now();
-                    let _ = on.send(OffsetEvent::Progress { fraction: f });
+                    let _ = on.send(MeasureEvent::Progress { fraction: f });
                 }
             }
         };
         let r = (|| {
-            let db = cdrip::accuraterip_lookup_full(&toc)?;
-            let drive = cdrip::Drive::open(d)?;
-            psyaudio_core::cdrip_read::find_offset(&drive, &toc, &db, &handle.cancel, &progress)
+            let dr = cdrip::Drive::open(d)?;
+            let toc = dr.toc()?;
+            let entries = ctdb::lookup(&toc)?;
+            let found = ctdb::find_offset(&dr, &toc, &entries, &handle.cancel, &progress);
+            // the drive would keep spinning at full speed for a while: let it rest
+            let _ = psyaudio_core::scsi::stop_disc(d);
+            let (offset, agreeing) = found?;
+            let profile = profile_from(cdrip::drive_key(d), offset, psyaudio_core::scsi::buffer_kb(d), &psyaudio_core::settings::today());
+            Ok::<_, String>((profile, agreeing))
         })();
         handle.finish();
         let _ = on.send(match r {
-            Ok((offset, matching_tracks)) => OffsetEvent::Found { offset, matching_tracks },
-            Err(reason) => OffsetEvent::Failed { reason },
+            Ok((profile, agreeing_tracks)) => MeasureEvent::Done { profile, agreeing_tracks },
+            Err(reason) => MeasureEvent::Failed { reason },
         });
     });
     Ok(())
+}
+
+/// Opens the CUETools database's page of the disc read last in the browser, so anyone can check
+/// the count; only that page, never an address from the window.
+#[tauri::command]
+pub fn open_ctdb_page(state: State<'_, AppState>) -> Result<(), String> {
+    let toc = state.cd.lock().unwrap_or_else(|e| e.into_inner()).toc.clone().ok_or_else(|| t("Zuerst eine CD lesen").to_string())?;
+    let url = ctdb::disc_url(&toc);
+    let result = if cfg!(windows) {
+        std::process::Command::new("explorer").arg(&url).spawn()
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg(&url).spawn()
+    } else {
+        std::process::Command::new("xdg-open").arg(&url).spawn()
+    };
+    result.map(|_| ()).map_err(|e| e.to_string())
 }
 
 /// One row of the track list as the rip needs it.
@@ -366,7 +446,7 @@ pub struct RipTrack {
 #[serde(tag = "kind")]
 pub enum RipEvent {
     Progress { row: usize, fraction: f32, phase: RipPhase },
-    TrackDone { row: usize, status: TrackStatus, ar: Option<ArResult> },
+    TrackDone { row: usize, status: TrackStatus, ctdb: Option<CtdbResult> },
     Log { line: String },
     Finished { summary: RipSummary },
 }
@@ -374,7 +454,7 @@ pub enum RipEvent {
 fn rip_event(m: RipMsg) -> RipEvent {
     match m {
         RipMsg::Progress(row, fraction, phase) => RipEvent::Progress { row, fraction, phase },
-        RipMsg::TrackDone(row, status, ar) => RipEvent::TrackDone { row, status, ar },
+        RipMsg::TrackDone(row, status, ctdb) => RipEvent::TrackDone { row, status, ctdb },
         RipMsg::Log(line) => RipEvent::Log { line },
         RipMsg::Finished(summary) => RipEvent::Finished { summary },
     }
@@ -385,18 +465,18 @@ fn rip_event(m: RipMsg) -> RipEvent {
 #[tauri::command]
 pub fn start_rip(app: AppHandle, settings: Settings, tracks: Vec<RipTrack>, meta: DiscMetaView, on: Channel<RipEvent>) -> Result<(), String> {
     let state = app.state::<AppState>();
-    let (letter, toc, ar_db, cover) = {
+    let (letter, toc, ctdb, cover) = {
         let cd = state.cd.lock().unwrap_or_else(|e| e.into_inner());
         let (Some(letter), Some(toc)) = (cd.drive, cd.toc.clone()) else {
             return Err(t("Zuerst eine CD lesen").into());
         };
-        // no AccurateRip data: say why in every row instead of "not in the database"
-        let ar_db = match (&cd.ar, cd.ar_pending) {
+        // no answer from the database: say why in every row instead of "not in the database"
+        let ctdb = match (&cd.ctdb, cd.ctdb_pending) {
             (Some(r), _) => r.clone(),
             (None, true) => Err(t("Abfrage lief beim Start noch").to_string()),
             (None, false) => Err(t("nicht abgefragt").to_string()),
         };
-        (letter, toc, ar_db, cd.cover.clone())
+        (letter, toc, ctdb, cd.cover.clone())
     };
     let codec = settings.rip_codec;
     let tools = crate::tools_cmd::ffmpeg(&state, &settings.tools.ffmpeg, false);
@@ -438,7 +518,7 @@ pub fn start_rip(app: AppHandle, settings: Settings, tracks: Vec<RipTrack>, meta
     let handle = state.jobs.begin(Kind::Rip)?;
     let first_audio = audio.first().map(|tr| tr.number).unwrap_or(1);
     let last_audio = audio.last().map(|tr| tr.number).unwrap_or(1);
-    let ctx = RipContext { letter, toc: toc.clone(), plan, rs: settings.rip.clone(), ar_db, cover, first_audio, last_audio, meta };
+    let ctx = RipContext { letter, toc: toc.clone(), plan, rs: settings.rip.clone(), ctdb, cover, first_audio, last_audio, meta };
     let (tx, rx) = channel();
     let cancel = handle.cancel.clone();
     std::thread::spawn(move || rip::rip_thread(ctx, jobs, cancel, tx));

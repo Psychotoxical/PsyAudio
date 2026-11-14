@@ -12,6 +12,7 @@ import { addFiles } from "./pages/convert/addFiles";
 import { ConvertPage } from "./pages/convert/ConvertPage";
 import { OverwriteQuestion } from "./pages/convert/OverwriteQuestion";
 import { SettingsPage } from "./pages/settings/SettingsPage";
+import { firstPage, SetupPage } from "./pages/setup/SetupPage";
 import { CloseDialog } from "./shell/CloseDialog";
 import { Sidebar } from "./shell/Sidebar";
 import { Toast } from "./shell/Toast";
@@ -32,6 +33,7 @@ const DEMO_PAGES: Record<string, Page> = {
   stapel: "batch",
   cd: "cd",
   einstellungen: "settings",
+  einrichtung: "setup",
 };
 
 export function App() {
@@ -76,17 +78,24 @@ export function App() {
       onDragState((e) => useUi.getState().setDragging(e.active)),
     ];
     loadNamingOptions().catch((e: unknown) => useUi.getState().notify(String(e)));
+    let demoPage: Page | undefined;
     demoState()
       .then((demo) => {
         const target = demo ? DEMO_PAGES[demo.page] : undefined;
+        demoPage = target;
         if (target) useUi.getState().setPage(target);
-        if (target === "convert") useFiles.setState({ files: demoFiles(), selected: new Set([2]) });
-        if (target === "batch") useBatch.setState(demoBatch());
-        if (target === "cd") useCd.setState(demoCd());
+        const en = demo?.en ?? false;
+        if (target === "convert")
+          useFiles.setState({ files: demoFiles(en), selected: new Set([2]) });
+        if (target === "batch") useBatch.setState(demoBatch(en));
+        if (target === "cd") useCd.setState(demoCd(en));
       })
       .then(loadSettings)
       .then(({ settings, warning }) => {
         useSettings.getState().load(settings);
+        // the first start opens the setup (a demo shows the page it names)
+        const first = demoPage ? null : firstPage(settings.setup_done);
+        if (first) useUi.getState().setPage(first);
         if (warning) useUi.getState().notify(warning);
       })
       .catch((e: unknown) => useUi.getState().notify(String(e)))
@@ -123,6 +132,7 @@ export function App() {
     batch: <BatchPage />,
     cd: <CdPage />,
     settings: <SettingsPage />,
+    setup: <SetupPage />,
   };
 
   return (

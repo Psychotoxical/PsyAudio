@@ -1,4 +1,4 @@
-//! Secure reading of one CD track: pass 1, AccurateRip check, pass 2, optional extra passes,
+//! Secure reading of one CD track: pass 1, CUETools database check, pass 2, optional extra passes,
 //! then re-reads of every block that differed.
 
 use crate::cdrip::{read_block, read_block_lenient, read_range, SectorRead, Toc, TrackRip, READ_SECTORS, SAMPLES_PER_SECTOR, SECTOR};
@@ -59,7 +59,7 @@ fn add_pass(pass: &[u8], block: usize, versions: &mut Versions, bad: &mut [bool]
 }
 
 /// Read one track with the drive offset applied. Burst: one pass. Secure: pass 1; if
-/// AccurateRip confirms it, done; otherwise pass 2 (and with extra passes more until
+/// the CUETools database confirms it, done; otherwise pass 2 (and with extra passes more until
 /// enough clean passes); every block that differed is re-read after flushing the drive cache,
 /// up to `reread_limit` times, until a read matches an earlier one. Each pass streams the
 /// track in order, so the drive does not jump back and forth.
@@ -304,154 +304,5 @@ mod tests {
         super::interpolate_block(&mut raw, 4..20);
         let s = |i: usize| i16::from_le_bytes([raw[i * 4], raw[i * 4 + 1]]);
         assert_eq!((s(1), s(2), s(3), s(4)), (100, 200, 300, 400));
-    }
-}
-
-/// Largest offset tried, in samples (either direction).
-pub const OFFSET_SEARCH: i64 = 1763;
-/// Samples in the offset-finding checksum (one sector).
-const OFFSET_CRC_SAMPLES: usize = 588;
-
-/// The 588-sample checksum used to find the drive offset: Σ sample[k] × (k+1).
-fn offset_crc(frames: &[u32]) -> u32 {
-    frames.iter().enumerate().fold(0u32, |acc, (k, s)| acc.wrapping_add(s.wrapping_mul(k as u32 + 1)))
-}
-
-/// Find the drive's read offset with the AccurateRip database: for each audio track read around sector 450, slide
-/// the 588-sample checksum by -1763..+1763 samples and look for the database's sector-450 CRC.
-/// All tracks that match must agree, and at least `min(6, tracks)` must match.
-pub fn find_offset(drive: &dyn SectorRead, toc: &Toc, db: &[Vec<(u8, u32, u32)>], cancel: &AtomicBool, progress: &dyn Fn(f32)) -> Result<(i32, usize), String> {
-    let audio = toc.audio_tracks();
-    let margin = (OFFSET_SEARCH as usize).div_ceil(SAMPLES_PER_SECTOR) as i64 + 1; // sectors each side
-                                                                                   // per track: (pressing, shift) for every pressing whose sector-450 CRC is found
-    let mut hits: Vec<Vec<(usize, i32)>> = Vec::new();
-    let mut tried = 0;
-    for (idx, t) in audio.iter().enumerate() {
-        if cancel.load(Ordering::Relaxed) {
-            return Err(crate::i18n::t("abgebrochen").into());
-        }
-        progress(idx as f32 / audio.len().max(1) as f32);
-        let (start, end) = toc.span(t.number).unwrap_or((0, 0));
-        if end <= start + 450 + margin as u32 {
-            continue; // track too short to have a sector 450 with margin
-        }
-        let targets: Vec<(usize, u32)> = db.iter().enumerate().filter_map(|(pi, p)| p.get(idx).map(|e| (pi, e.2))).filter(|(_, c)| *c != 0).collect();
-        if targets.is_empty() {
-            continue;
-        }
-        tried += 1;
-        let first = start as i64 + 450 - margin;
-        let raw = read_block(drive, first, margin * 2 + 1, toc.readable_end() as i64)?;
-        let frames: Vec<u32> = raw.as_chunks::<4>().0.iter().map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
-        let base = (margin as usize) * SAMPLES_PER_SECTOR;
-        let mut track_hits: Vec<(usize, i32)> = Vec::new();
-        'search: for s in 0..=OFFSET_SEARCH {
-            for shift in if s == 0 { vec![0] } else { vec![s, -s] } {
-                let a = base as i64 + shift;
-                if a < 0 || a as usize + OFFSET_CRC_SAMPLES > frames.len() {
-                    continue;
-                }
-                let crc = offset_crc(&frames[a as usize..a as usize + OFFSET_CRC_SAMPLES]);
-                for (pi, c) in &targets {
-                    // the smallest shift per pressing
-                    if *c == crc && !track_hits.iter().any(|(p, _)| p == pi) {
-                        track_hits.push((*pi, shift as i32));
-                    }
-                }
-                if track_hits.len() == targets.len() {
-                    break 'search;
-                }
-            }
-        }
-        hits.push(track_hits);
-    }
-    progress(1.0);
-    if tried == 0 {
-        return Err(crate::i18n::t("Diese CD hat keine Daten zum Bestimmen des Versatzes – bitte eine andere bekannte CD versuchen").into());
-    }
-    // confidence of each pressing: its highest track confidence
-    let confidence: Vec<u32> = db.iter().map(|p| p.iter().map(|e| e.0 as u32).max().unwrap_or(0)).collect();
-    pick_offset(&hits, &confidence, audio.len().min(6))
-}
-
-/// The drive offset from the matches of every track. Each pressing must agree with itself;
-/// the pressing that matches most tracks wins, on a tie the one with more confidence.
-/// Returns (offset, matching tracks).
-pub(crate) fn pick_offset(hits: &[Vec<(usize, i32)>], confidence: &[u32], need: usize) -> Result<(i32, usize), String> {
-    if hits.iter().all(|h| h.is_empty()) {
-        return Err(crate::i18n::t("Kein Versatz gefunden – Laufwerk liest diese CD anders als die Datenbank; bitte eine andere CD versuchen").into());
-    }
-    let mut best: Option<(usize, u32, i32)> = None; // (tracks, confidence, offset)
-    let mut disagree = false;
-    for (pi, conf) in confidence.iter().enumerate() {
-        let shifts: Vec<i32> = hits.iter().filter_map(|h| h.iter().find(|(p, _)| *p == pi).map(|(_, s)| *s)).collect();
-        let Some(first) = shifts.first() else { continue };
-        if shifts.iter().any(|s| s != first) {
-            disagree = true;
-            continue;
-        }
-        let cand = (shifts.len(), *conf, *first);
-        if best.map(|b| (cand.0, cand.1) > (b.0, b.1)).unwrap_or(true) {
-            best = Some(cand);
-        }
-    }
-    let Some((n, _, offset)) = best else {
-        return Err(if disagree {
-            crate::i18n::t("Die Titel ergeben verschiedene Versätze (Kratzer?) – bitte eine andere CD versuchen").into()
-        } else {
-            crate::i18n::t("Kein Versatz gefunden – Laufwerk liest diese CD anders als die Datenbank; bitte eine andere CD versuchen").into()
-        });
-    };
-    if n < need {
-        return Err(crate::i18n::tf(
-            crate::i18n::t(crate::i18n::plural(
-                n as u64,
-                "Nur {0} Titel passt (nötig: {need}) – bitte eine andere bekannte CD versuchen. Gefunden: {1}",
-                "Nur {0} Titel passen (nötig: {need}) – bitte eine andere bekannte CD versuchen. Gefunden: {1}",
-            )),
-            &[("0", n.to_string()), ("need", need.to_string()), ("1", format!("{offset:+}"))],
-        ));
-    }
-    Ok((offset, n))
-}
-
-#[cfg(test)]
-mod offset_tests {
-    use super::*;
-    #[test]
-    fn crc_weights_start_at_one() {
-        assert_eq!(super::offset_crc(&[5, 7]), 5 + 14);
-    }
-
-    /// `hits[track]` = (pressing, shift) for every pressing that matched that track.
-    fn hits(per_track: &[&[(usize, i32)]]) -> Vec<Vec<(usize, i32)>> {
-        per_track.iter().map(|t| t.to_vec()).collect()
-    }
-
-    #[test]
-    fn the_pressing_with_more_confidence_wins_a_tie() {
-        // pressing 0 (confidence 20) says +30 on all 6 tracks, pressing 1 (confidence 3) says +6
-        let both: &[(usize, i32)] = &[(0, 30), (1, 6)];
-        let h = hits(&[both; 6]);
-        assert_eq!(pick_offset(&h, &[20, 3], 6), Ok((30, 6)));
-    }
-
-    #[test]
-    fn one_pressing_must_agree_with_itself() {
-        let h = hits(&[&[(0, 30)], &[(0, 30)], &[(0, 31)], &[(0, 30)], &[(0, 30)], &[(0, 30)]]);
-        assert!(pick_offset(&h, &[20], 6).is_err());
-    }
-
-    #[test]
-    fn too_few_matching_tracks_are_not_enough() {
-        let h = hits(&[&[(0, 30)], &[(0, 30)], &[], &[], &[], &[]]);
-        assert!(pick_offset(&h, &[20], 6).is_err());
-    }
-
-    #[test]
-    fn one_matching_track_is_named_in_the_singular() {
-        let h = hits(&[&[(0, 30)], &[], &[], &[], &[], &[]]);
-        let e = pick_offset(&h, &[20], 6).unwrap_err();
-        assert!(e.starts_with("Nur 1 Titel passt (nötig: 6)"), "{e}");
     }
 }

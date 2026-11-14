@@ -1,4 +1,5 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
+import type { DriveProfile } from "./bindings/DriveProfile";
 import type { Settings } from "./bindings/Settings";
 
 /** The CD ripper's commands (src-tauri/src/cd_cmd.rs) and what they answer. */
@@ -6,6 +7,8 @@ import type { Settings } from "./bindings/Settings";
 export interface DriveInfo {
   id: string;
   name: string;
+  /** Vendor and product, when the system tells them. */
+  model: string | null;
 }
 
 export interface DiscInfo {
@@ -36,12 +39,14 @@ export interface DiscMetaView {
 export type LookupEvent =
   | { kind: "Candidates"; list: DiscMetaView[] }
   | { kind: "Cover"; mime: string; data_base64: string }
-  | { kind: "AccurateRip"; pressings: number }
-  | { kind: "Failed"; source: "musicbrainz" | "accuraterip"; reason: string };
+  /** How many rips of the disc the CUETools database knows, and its public page. */
+  | { kind: "Ctdb"; total: number; url: string }
+  | { kind: "Failed"; source: "musicbrainz" | "ctdb"; reason: string };
 
-export type OffsetEvent =
+/** Measuring a drive: progress, then its profile to store (and how many tracks agreed). */
+export type MeasureEvent =
   | { kind: "Progress"; fraction: number }
-  | { kind: "Found"; offset: number; matching_tracks: number }
+  | { kind: "Done"; profile: DriveProfile; agreeing_tracks: number }
   | { kind: "Failed"; reason: string };
 
 export type RipPhase = { kind: "Reading"; done: number } | { kind: "Encoding" };
@@ -54,10 +59,13 @@ export type TrackStatus =
   | { kind: "Failed"; reason: string; encoding: boolean }
   | { kind: "Cancelled" };
 
-export interface ArResult {
+/** What the CUETools database says about one ripped track (rip::CtdbResult). */
+export interface CtdbResult {
   confirmed: boolean;
+  /** Rips with the same checksum for this track. */
   confidence: number;
-  version: number;
+  /** Rips of the disc the database knows. */
+  total: number;
   in_db: boolean;
   unavailable: string | null;
 }
@@ -69,7 +77,7 @@ export type RipSummary =
 
 export type RipEvent =
   | { kind: "Progress"; row: number; fraction: number; phase: RipPhase }
-  | { kind: "TrackDone"; row: number; status: TrackStatus; ar: ArResult | null }
+  | { kind: "TrackDone"; row: number; status: TrackStatus; ctdb: CtdbResult | null }
   | { kind: "Log"; line: string }
   | { kind: "Finished"; summary: RipSummary };
 
@@ -91,22 +99,28 @@ export function readDisc(drive: string): Promise<DiscInfo> {
 
 export function lookupDisc(
   musicbrainz: boolean,
-  accuraterip: boolean,
+  ctdb: boolean,
   onEvent: (e: LookupEvent) => void,
 ): Promise<void> {
   const on = new Channel<LookupEvent>();
   on.onmessage = onEvent;
-  return invoke<void>("lookup_disc", { musicbrainz, accuraterip, on });
+  return invoke<void>("lookup_disc", { musicbrainz, ctdb, on });
+}
+
+/** Opens the CUETools database's page of the disc read last in the browser. */
+export function openCtdbPage(): Promise<void> {
+  return invoke<void>("open_ctdb_page");
 }
 
 export function ejectDisc(drive: string): Promise<void> {
   return invoke<void>("eject", { drive });
 }
 
-export function findOffset(onEvent: (e: OffsetEvent) => void): Promise<void> {
-  const on = new Channel<OffsetEvent>();
+/** Measures the drive's read offset (disc in it, CUETools database) and its buffer. */
+export function measureDrive(drive: string, onEvent: (e: MeasureEvent) => void): Promise<void> {
+  const on = new Channel<MeasureEvent>();
   on.onmessage = onEvent;
-  return invoke<void>("find_offset", { on });
+  return invoke<void>("measure_drive", { drive, on });
 }
 
 export function startRip(

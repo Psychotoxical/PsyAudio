@@ -90,6 +90,11 @@
 .confirm p {
   margin: 0;
 }
+/* a question that loses nothing either way (keep or replace an offset) */
+.confirm.ask {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
 .btn.danger {
   border-color: var(--danger);
   background: var(--danger);

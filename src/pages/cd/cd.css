@@ -227,11 +227,20 @@
   color: var(--text-disabled);
   font-size: 12px;
 }
-.offset-row {
-  align-items: flex-end;
+/* read mode panel: the drive's offset, changed in the settings */
+.panel-offset {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
-.offset-row .field {
-  flex: 1;
+.offset-value {
+  margin: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.offset-value strong {
+  font-weight: 600;
 }
 
 /* no drive, no disc */

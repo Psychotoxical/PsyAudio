@@ -9,7 +9,11 @@ import type { RipSettings } from "./RipSettings";
 import type { Tools } from "./Tools";
 import type { UiState } from "./UiState";
 
-export type Settings = { codec: Codec, enc: EncSettings, effects: Array<Effect>, output_mode: OutputMode, output_folder: string, 
+export type Settings = { 
+/**
+ * The setup assistant was finished; files from before it count as set up.
+ */
+setup_done: boolean, codec: Codec, enc: EncSettings, effects: Array<Effect>, output_mode: OutputMode, output_folder: string, 
 /**
  * Chips for converted folder and file names.
  */

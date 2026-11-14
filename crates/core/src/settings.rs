@@ -48,13 +48,45 @@ pub enum RipMode {
     Secure,
 }
 
+/// How a drive's read offset was found.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+pub enum OffsetMethod {
+    /// Measured with a disc the CUETools database knows.
+    #[default]
+    Ctdb,
+    /// Entered by hand.
+    Manual,
+    /// Taken over from the single offset of earlier versions.
+    Adopted,
+}
+
+/// What PsyAudio knows about one drive model.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
+pub struct DriveProfile {
+    /// Vendor and product ("VENDOR CD-RW X1"), or the drive's name when the system tells no model.
+    pub model: String,
+    /// Read offset in samples.
+    pub offset: i32,
+    pub method: OffsetMethod,
+    /// When the offset was found, YYYY-MM-DD.
+    pub measured: String,
+    /// The drive's buffer as it reports it, in KB.
+    pub buffer_kb: Option<u32>,
+}
+
 /// CD ripper settings.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub struct RipSettings {
     pub mode: RipMode,
+    /// The single offset of earlier versions: moves to the first drive seen (`adopt_legacy_offset`), 0 afterwards.
     pub drive_offset: i32,
+    /// Every drive measured or entered so far, one per model.
+    pub drives: Vec<DriveProfile>,
     /// How often a block that differs between passes is read again (default 34).
     pub reread_limit: u32,
     /// Extra check passes after the second pass (default off).
@@ -63,15 +95,17 @@ pub struct RipSettings {
     pub extra_min: u32,
     pub extra_max: u32,
     pub extra_clean: u32,
-    /// Drive read cache in KB that is flushed before a re-read (default 1024).
+    /// Drive cache in KB to flush before a re-read; 0 (default) follows the measured buffer.
     pub cache_kb: u32,
     /// Abort a track after this many unrecoverable blocks (0 = never).
     pub abort_unrecoverable: u32,
     /// Interpolate blocks that could not be recovered (default off).
     pub interpolate: bool,
-    /// Mark a track as failed: 0 never, 1 when insecure, 2 when not confirmed by AccurateRip.
+    /// Mark a track as failed: 0 never, 1 when insecure, 2 when not confirmed by the CUETools database.
     pub mark_error: u8,
-    pub accuraterip: bool,
+    /// Check rips against the CUETools database (CTDB).
+    #[serde(alias = "accuraterip")]
+    pub ctdb: bool,
     /// Write the rip log into the album folder (default off).
     pub write_log: bool,
     pub write_cue: bool,
@@ -89,16 +123,17 @@ impl Default for RipSettings {
         RipSettings {
             mode: RipMode::Secure,
             drive_offset: 0,
+            drives: Vec::new(),
             reread_limit: 34,
             extra_passes: false,
             extra_min: 3,
             extra_max: 6,
             extra_clean: 2,
-            cache_kb: 1024,
+            cache_kb: 0,
             abort_unrecoverable: 0,
             interpolate: false,
             mark_error: 0,
-            accuraterip: true,
+            ctdb: true,
             write_log: false,
             write_cue: false,
             embed_art: true,
@@ -110,10 +145,63 @@ impl Default for RipSettings {
     }
 }
 
+impl RipSettings {
+    /// The saved profile of a drive model.
+    pub fn drive(&self, model: &str) -> Option<&DriveProfile> {
+        self.drives.iter().find(|p| p.model == model)
+    }
+
+    /// Store a drive's profile, replacing the one of the same model.
+    pub fn set_drive(&mut self, p: DriveProfile) {
+        match self.drives.iter_mut().find(|x| x.model == p.model) {
+            Some(x) => *x = p,
+            None => self.drives.push(p),
+        }
+    }
+
+    /// Give the single offset of earlier versions to `model`, the first drive seen; true when that happened.
+    pub fn adopt_legacy_offset(&mut self, model: &str, today: &str) -> bool {
+        if self.drive_offset == 0 || !self.drives.is_empty() {
+            return false;
+        }
+        self.set_drive(DriveProfile {
+            model: model.to_string(),
+            offset: self.drive_offset,
+            method: OffsetMethod::Adopted,
+            measured: today.to_string(),
+            buffer_kb: None,
+        });
+        self.drive_offset = 0;
+        true
+    }
+}
+
+/// A day count since 1970-01-01 as YYYY-MM-DD (proleptic Gregorian, H. Hinnant's civil_from_days).
+pub(crate) fn date_from_days(days: i64) -> String {
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + if m <= 2 { 1 } else { 0 };
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// Today's date (UTC), YYYY-MM-DD.
+pub fn today() -> String {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    date_from_days((secs / 86_400) as i64)
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 pub struct Settings {
+    /// The setup assistant was finished; files from before it count as set up.
+    pub setup_done: bool,
     pub codec: Codec,
     pub enc: EncSettings,
     pub effects: Vec<Effect>,
@@ -166,6 +254,7 @@ impl Default for Settings {
     fn default() -> Self {
         let music = dirs::audio_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join("Music"));
         Settings {
+            setup_done: false,
             codec: Codec::Mp3,
             enc: EncSettings::default(),
             effects: Vec::new(),
@@ -280,6 +369,15 @@ impl Settings {
         st.name_scheme = sanitize(&st.name_scheme, DATA, true, CONVERT_SCHEME);
         st.rip.name_scheme = sanitize(&st.rip.name_scheme, &DATA[1..], true, CD_SCHEME);
         st.tag_scheme = sanitize(&st.tag_scheme, &DATA[1..], false, TAG_SCHEME);
+        // a file from before the setup assistant: that installation is set up, and its cache
+        // value 1024 was the old default, not a choice
+        let had_setup = serde_json::from_str::<serde_json::Value>(s).ok().is_some_and(|v| v.get("setup_done").is_some());
+        if !had_setup {
+            st.setup_done = true;
+            if st.rip.cache_kb == 1024 {
+                st.rip.cache_kb = 0;
+            }
+        }
         (st, complete)
     }
 
@@ -385,6 +483,57 @@ mod tests {
         assert_eq!(Settings::parse(&std::fs::read_to_string(&path).unwrap()).0.threads, 8);
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1, "no temporary file left");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn old_file_counts_as_set_up() {
+        assert!(Settings::parse(r#"{"threads":3}"#).0.setup_done, "a file from before the setup assistant");
+        assert!(!Settings::parse(r#"{"threads":3,"setup_done":false}"#).0.setup_done);
+        assert!(!Settings::default().setup_done, "a fresh installation runs the setup");
+    }
+
+    #[test]
+    fn old_cache_default_becomes_automatic() {
+        assert_eq!(Settings::parse(r#"{"rip":{"cache_kb":1024}}"#).0.rip.cache_kb, 0);
+        assert_eq!(Settings::parse(r#"{"rip":{"cache_kb":2048}}"#).0.rip.cache_kb, 2048);
+        assert_eq!(Settings::parse(r#"{"setup_done":true,"rip":{"cache_kb":1024}}"#).0.rip.cache_kb, 1024, "set on purpose");
+        assert_eq!(RipSettings::default().cache_kb, 0);
+    }
+
+    #[test]
+    fn accuraterip_switch_reads_as_ctdb() {
+        assert!(!Settings::parse(r#"{"rip":{"accuraterip":false}}"#).0.rip.ctdb);
+        assert!(RipSettings::default().ctdb);
+    }
+
+    #[test]
+    fn legacy_offset_goes_to_the_first_drive() {
+        let mut st = Settings::parse(r#"{"rip":{"drive_offset":667}}"#).0;
+        assert!(st.rip.adopt_legacy_offset("Band Drive X", "2026-11-14"));
+        let p = st.rip.drive("Band Drive X").expect("profile");
+        assert_eq!((p.offset, p.method, p.measured.as_str()), (667, OffsetMethod::Adopted, "2026-11-14"));
+        assert_eq!(st.rip.drive_offset, 0);
+        assert!(!st.rip.adopt_legacy_offset("Band Drive Y", "2026-11-14"), "only once");
+        assert!(st.rip.drive("Band Drive Y").is_none());
+        let mut fresh = RipSettings::default();
+        assert!(!fresh.adopt_legacy_offset("Band Drive X", "2026-11-14"), "nothing to adopt");
+    }
+
+    #[test]
+    fn set_drive_replaces_the_same_model() {
+        let mut r = RipSettings::default();
+        let p = |o| DriveProfile { model: "Band Drive X".into(), offset: o, method: OffsetMethod::Ctdb, measured: "2026-11-14".into(), buffer_kb: None };
+        r.set_drive(p(6));
+        r.set_drive(p(667));
+        assert_eq!(r.drives.len(), 1);
+        assert_eq!(r.drive("Band Drive X").unwrap().offset, 667);
+    }
+
+    #[test]
+    fn dates_from_days() {
+        assert_eq!(date_from_days(0), "1970-01-01");
+        assert_eq!(date_from_days(11017), "2000-03-01");
+        assert_eq!(date_from_days(19723), "2024-01-01");
     }
 
     #[test]

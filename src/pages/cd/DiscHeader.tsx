@@ -2,7 +2,9 @@ import { Check, Disc3, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { fmtLen } from "../../format";
 import { plural } from "../../i18n";
+import { openCtdbPage } from "../../ipc/cd";
 import { useCd } from "../../store/cd";
+import { useUi } from "../../store/ui";
 import { InlineText } from "../../ui/InlineText";
 import { chooseCandidate, setMeta } from "./cdFlow";
 
@@ -11,34 +13,32 @@ function num(v: string, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? Math.min(n, 99) : fallback;
 }
 
-/** Cover, album data (edited where it stands), AccurateRip and MusicBrainz state, disc IDs. */
+/** Cover, album data (edited where it stands), CUETools database and MusicBrainz state, disc IDs. */
 export function DiscHeader() {
   const { t } = useTranslation();
   const disc = useCd((s) => s.disc);
   const meta = useCd((s) => s.meta);
   const cover = useCd((s) => s.cover);
-  const ar = useCd((s) => s.ar);
+  const ctdb = useCd((s) => s.ctdb);
   const lookup = useCd((s) => s.lookup);
   const lookupError = useCd((s) => s.lookupError);
   const candidates = useCd((s) => s.candidates);
   if (!disc) return null;
 
-  const arChip = {
-    idle: { tone: "muted", text: t("AccurateRip: nicht abgefragt") },
-    busy: { tone: "muted", text: t("AccurateRip: wird abgefragt…") },
-    done: {
-      tone: "ok",
-      text: t(
-        plural(
-          ar.pressings,
-          "AccurateRip: CD in der Datenbank ({0} Pressung)",
-          "AccurateRip: CD in der Datenbank ({0} Pressungen)",
-        ),
-        { 0: String(ar.pressings) },
-      ),
-    },
-    failed: { tone: "warn", text: `AccurateRip: ${ar.reason ?? ""}` },
-  }[ar.state];
+  // the database's count, linked to the disc's public page so anyone can check it
+  const known = ctdb.state === "done" && ctdb.total > 0;
+  const ctdbChip = {
+    idle: { tone: "muted", text: t("CTDB: nicht abgefragt") },
+    busy: { tone: "muted", text: t("CTDB: wird abgefragt…") },
+    done: known
+      ? {
+          tone: "ok",
+          text: t(plural(ctdb.total, "CTDB · 1 Rip", "CTDB · {0} Rips"), { 0: String(ctdb.total) }),
+        }
+      : { tone: "muted", text: t("CTDB: CD nicht in der Datenbank") },
+    failed: { tone: "warn", text: `CTDB: ${ctdb.reason ?? ""}` },
+  }[ctdb.state];
+  const openPage = () => openCtdbPage().catch((e: unknown) => useUi.getState().notify(String(e)));
   const current = candidates.findIndex((c) => c.release_id === meta.release_id);
 
   return (
@@ -128,14 +128,22 @@ export function DiscHeader() {
           />
         </p>
         <div className="ids">
-          <span className={`chip ${arChip.tone}`}>
-            {ar.state === "done" ? (
+          {known ? (
+            <button
+              type="button"
+              className={`chip ${ctdbChip.tone} chip-link`}
+              title={t("Eintrag der CD in der CUETools-Datenbank öffnen")}
+              onClick={() => void openPage()}
+            >
               <Check size={12} />
-            ) : ar.state === "failed" ? (
-              <TriangleAlert size={12} />
-            ) : null}
-            {arChip.text}
-          </span>
+              {ctdbChip.text}
+            </button>
+          ) : (
+            <span className={`chip ${ctdbChip.tone}`}>
+              {ctdb.state === "failed" ? <TriangleAlert size={12} /> : null}
+              {ctdbChip.text}
+            </span>
+          )}
           {lookup === "busy" && (
             <span className="chip muted">
               <LoaderCircle size={12} className="spin" />
