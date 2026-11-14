@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-first-folder"
+description = "Enables the first_folder command without any pre-configured scope."
+commands.allow = ["first_folder"]
+
+[[permission]]
+identifier = "deny-first-folder"
+description = "Denies the first_folder command without any pre-configured scope."
+commands.deny = ["first_folder"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tags-from-name"
+description = "Enables the tags_from_name command without any pre-configured scope."
+commands.allow = ["tags_from_name"]
+
+[[permission]]
+identifier = "deny-tags-from-name"
+description = "Denies the tags_from_name command without any pre-configured scope."
+commands.deny = ["tags_from_name"]

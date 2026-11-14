@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-measure-drive"
+description = "Enables the measure_drive command without any pre-configured scope."
+commands.allow = ["measure_drive"]
+
+[[permission]]
+identifier = "deny-measure-drive"
+description = "Denies the measure_drive command without any pre-configured scope."
+commands.deny = ["measure_drive"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-effect-lines"
+description = "Enables the effect_lines command without any pre-configured scope."
+commands.allow = ["effect_lines"]
+
+[[permission]]
+identifier = "deny-effect-lines"
+description = "Denies the effect_lines command without any pre-configured scope."
+commands.deny = ["effect_lines"]

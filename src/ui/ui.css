@@ -1,0 +1,695 @@
+/* Controls of the side column: label, chips, segments, slider with value field, dropdown,
+   hint line and the "Erweitert" fold. Sizes as in the tiles draft. */
+.field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lbl {
+  margin: 0 0 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.group-title {
+  margin: 0;
+  font: 600 14px var(--font-display);
+}
+
+/* chips */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip-btn {
+  height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+.chip-btn:hover {
+  background: var(--bg-hover);
+}
+.chip-btn.on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+}
+.chip-btn.missing {
+  border-style: dashed;
+  border-color: var(--border-field);
+  background: none;
+  color: var(--text-disabled);
+}
+.chip-btn.missing.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* segments */
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-field);
+}
+.seg label {
+  /* the hidden radio sits in its label; positioned against the page it would stick out of
+     the scroll area and make the whole window scroll */
+  position: relative;
+  padding: 5px 12px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+.seg label:hover {
+  color: var(--text-primary);
+}
+.seg label.on {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+}
+.seg label:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.seg input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* slider with value field */
+.slider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.slider input[type="range"] {
+  flex: 1;
+  min-width: 60px;
+  height: 16px;
+  margin: 0;
+  background: none;
+  appearance: none;
+  cursor: pointer;
+}
+.slider input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--fill), var(--border) var(--fill));
+}
+.slider input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 3px solid var(--accent);
+  border-radius: 50%;
+  background: var(--text-primary);
+}
+.slider input[type="range"]:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.val {
+  width: 112px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-field);
+  border-radius: var(--radius-sm);
+  background: var(--bg-field);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.val:focus,
+.dd:focus,
+.text-field:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* dropdown and text field */
+.dd,
+.text-field {
+  height: 34px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--border-field);
+  border-radius: var(--radius-sm);
+  background: var(--bg-field);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+.dd:disabled {
+  color: var(--text-disabled);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.row > .dd,
+.row > .text-field {
+  flex: 1;
+}
+
+/* checkbox */
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+/* hint line */
+.hint {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.hint svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--accent);
+}
+.hint.warn svg {
+  color: var(--warning);
+}
+
+/* "Erweitert" */
+.more > button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.more > button:hover {
+  color: var(--text-primary);
+}
+.more > button svg {
+  flex: none;
+  transition: transform 0.15s;
+}
+.more.open > button svg {
+  transform: rotate(90deg);
+}
+.more > button small {
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--text-disabled);
+  font-size: 12px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.more-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 14px;
+  padding-left: 14px;
+  border-left: 1px solid var(--border-subtle);
+}
+@media (prefers-reduced-motion: reduce) {
+  .more > button svg {
+    transition: none;
+  }
+}
+.icon-btn:disabled {
+  background: none;
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+/* chip editor */
+.chip-edit .chip-btn {
+  touch-action: none;
+  user-select: none;
+}
+.chip-btn.sep {
+  min-width: 28px;
+  justify-content: center;
+  padding: 0 8px;
+  color: var(--text-muted);
+}
+.chip-btn.dir {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.chip-btn.add {
+  border-style: dashed;
+  background: none;
+  color: var(--text-muted);
+}
+.chip-btn.add[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.chip-btn.dragging {
+  opacity: 0.5;
+}
+.chip-btn.drop-before {
+  box-shadow: -4px 0 0 -1px var(--accent);
+}
+.chip-btn.drop-after {
+  box-shadow: 4px 0 0 -1px var(--accent);
+}
+.chip-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+}
+.chip-pick .lbl {
+  margin: 4px 0 0;
+}
+
+/* target path preview */
+.path {
+  margin: 0;
+  padding: 9px 11px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-field);
+  color: var(--text-secondary);
+  font: 12px / 1.6 var(--font-mono);
+}
+.path em {
+  color: var(--accent);
+  font-style: normal;
+}
+.path-field {
+  cursor: pointer;
+}
+
+/* field: value list */
+.kv {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  font-size: 13px;
+}
+.kv > div {
+  display: flex;
+  gap: 12px;
+}
+.kv dt {
+  width: 110px;
+  flex: none;
+  color: var(--text-muted);
+}
+.kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.kv dd strong {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* a button that reads as a link (goes to another page) */
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.link-btn:hover {
+  text-decoration: underline;
+}
+.link-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* a measurement running: bar and what happens */
+.measure-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.measure-row .prog.wide {
+  flex: 1 1 auto;
+  max-width: 260px;
+}
+
+/* one CD drive with what was measured (settings, setup) */
+.drive-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.drive-row + .drive-row {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 16px;
+}
+.drive-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.drive-title svg {
+  color: var(--accent);
+}
+.drive-title small {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* modal: effect picker */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: start center;
+  padding: 72px 24px 24px;
+  background: rgba(17, 17, 27, 0.55);
+}
+.picker {
+  width: min(640px, 100%);
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-sidebar);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+}
+.picker-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.picker-head h2 {
+  margin: 0 auto 0 0;
+  font: 600 16px var(--font-display);
+}
+.picker-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border-field);
+  border-radius: var(--radius-sm);
+  background: var(--bg-field);
+  color: var(--text-muted);
+}
+.picker-search:focus-within {
+  border-color: var(--accent);
+}
+.picker-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+}
+.picker-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.picker-list [role="option"] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.picker-list [role="option"].on {
+  background: var(--selection);
+}
+.picker-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.picker-name strong {
+  font-weight: 500;
+}
+.picker-name small {
+  color: var(--text-disabled);
+  font-size: 11px;
+}
+.picker-desc {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.picker-empty {
+  margin: 12px 0;
+  color: var(--text-muted);
+}
+
+/* effect list */
+.add-effect {
+  align-self: flex-start;
+}
+.effects {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.effect {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+}
+.effect.open {
+  border-color: var(--border);
+}
+.effect-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
+}
+.effect-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 4px 9px 12px;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.effect-n {
+  width: 20px;
+  flex: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.effect-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.effect-text strong {
+  font-weight: 500;
+  font-size: 13px;
+}
+.effect-text small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.effect-chev {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+.effect.open .effect-chev {
+  transform: rotate(90deg);
+}
+.effect-actions {
+  display: flex;
+  gap: 4px;
+}
+.icon-btn.small {
+  width: 26px;
+  height: 26px;
+}
+.effect-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 12px 14px;
+}
+.effect-body > .hint:first-child {
+  margin-top: 0;
+}
+
+/* graphic equaliser */
+.eq {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 2px;
+}
+.eq-band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.eq-band input {
+  height: 120px;
+  width: 16px;
+  margin: 0;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  accent-color: var(--accent);
+}
+.eq-val {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.eq-hz {
+  color: var(--text-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .effect-chev {
+    transition: none;
+  }
+}
+
+/* status chips (file list groups, CD tracks) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 9px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.chip.ok {
+  background: var(--ok-bg);
+  color: var(--ok-text);
+}
+.chip.warn {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+.chip.bad {
+  background: var(--bad-bg);
+  color: var(--bad-text);
+}
+.chip.muted {
+  background: var(--bg-card);
+  color: var(--text-muted);
+}
+/* a chip that opens a page (the CUETools database's entry of the disc) */
+button.chip-link {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+button.chip-link:hover {
+  text-decoration: underline;
+}
+button.chip-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.picker.close-dialog {
+  width: min(480px, 100%);
+}
+
+/* hover text that stays inside the window (Tip.tsx places it) */
+.tip {
+  position: fixed;
+  z-index: 50;
+  max-width: min(420px, calc(100vw - 16px));
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sidebar);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  color: var(--text-primary);
+  font: 400 12px / 1.45 var(--font-sans);
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  pointer-events: none;
+}

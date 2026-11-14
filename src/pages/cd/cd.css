@@ -1,0 +1,290 @@
+/* CD ripper (draft cd.html): disc header, track list, empty states */
+.cd-content {
+  display: flex;
+  flex-direction: column;
+}
+.dd.sm {
+  height: 32px;
+  font-size: 13px;
+}
+.disc {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.cover {
+  width: 92px;
+  height: 92px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+}
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.disc-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.inline-text {
+  max-width: 100%;
+  min-width: 0;
+  padding: 2px 6px;
+  margin: 0 -6px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+.inline-text:hover {
+  border-color: var(--border);
+}
+.inline-text:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+.inline-text.empty {
+  color: var(--text-disabled);
+}
+.inline-field {
+  width: 100%;
+  min-width: 120px;
+  height: 28px;
+  padding: 0 6px;
+  margin: -1px -7px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bg-field);
+  color: var(--text-primary);
+  font: inherit;
+}
+.inline-text.album,
+.inline-field.album {
+  font: 600 22px / 1.2 var(--font-display);
+}
+.inline-field.album {
+  height: 34px;
+  min-width: 320px;
+}
+.inline-text.short,
+.inline-field.short {
+  min-width: 0;
+  width: auto;
+}
+.inline-field.short {
+  width: 48px;
+}
+.disc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  color: var(--text-secondary);
+}
+.ids {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.disc .mono {
+  margin: 2px 0 0;
+  color: var(--text-disabled);
+  font: 12px var(--font-mono);
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* track list */
+.tracks {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* the scroll bar takes its room up front, so the columns never get wider than the list */
+  scrollbar-gutter: stable;
+}
+.tracks table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.tracks th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-app);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+}
+.tracks td {
+  height: 38px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tracks .c-tick {
+  width: 60px;
+}
+.tracks .c-num {
+  width: 44px;
+}
+.tracks .c-len {
+  width: 76px;
+}
+.tracks .c-status {
+  width: 210px;
+}
+.tracks .tick {
+  padding: 0 12px 0 24px;
+  overflow: visible;
+  text-overflow: clip;
+}
+.tracks .tick input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  vertical-align: middle;
+}
+.tracks .num {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tracks .r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.tracks .st-col {
+  padding-right: 16px;
+}
+.tracks tr.on td {
+  background: var(--selection);
+}
+.tracks tr.off td:not(.tick) {
+  color: var(--text-disabled);
+}
+.reading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.prog {
+  position: relative;
+  display: inline-block;
+  width: 90px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--border);
+}
+.prog > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+}
+.prog.wide {
+  width: 180px;
+}
+/* in the footer the bar gives way before the buttons move to a second row */
+.bar-foot .prog.wide {
+  flex: 1 1 0;
+  min-width: 60px;
+  max-width: 180px;
+}
+.wait {
+  color: var(--text-disabled);
+  font-size: 12px;
+}
+/* read mode panel: the drive's offset, changed in the settings */
+.panel-offset {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.offset-value {
+  margin: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.offset-value strong {
+  font-weight: 600;
+}
+
+/* no drive, no disc */
+.cd-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 40px;
+  color: var(--accent);
+  text-align: center;
+}
+.cd-empty h2 {
+  margin: 10px 0 0;
+  color: var(--text-primary);
+  font: 600 18px var(--font-display);
+}
+.cd-empty p {
+  margin: 0;
+  color: var(--text-muted);
+}
+.cd-empty .cd-error {
+  color: var(--warn-text);
+}
+.rip-log {
+  max-height: 60vh;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  background: var(--bg-field);
+  color: var(--text-secondary);
+  font: 12px / 1.6 var(--font-mono);
+  white-space: pre-wrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+.tracks .wait,
+.tracks .reading,
+.tracks .chip {
+  vertical-align: middle;
+}

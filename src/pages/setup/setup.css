@@ -1,0 +1,29 @@
+/* first-start setup: five steps, each one box with what it sets */
+.setup .settings-col {
+  gap: 16px;
+}
+.setup-lead {
+  max-width: 64ch;
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+/* the box of a step does not fold: its head is a title, not a button */
+.box-head.static {
+  cursor: default;
+}
+.box.open .box-head.static svg {
+  color: var(--accent);
+  transform: none;
+}
+.step .step-n.done {
+  border-color: var(--positive);
+  color: var(--positive);
+}
+/* a drive's box: its name in the body font, the letter right after it */
+.box-head .drive-name {
+  font-weight: 600;
+}
+.box-head small.where {
+  margin-left: 6px;
+}

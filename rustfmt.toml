@@ -1,0 +1,3 @@
+# The code keeps its dense style: long lines, small expressions on one line.
+max_width = 160
+use_small_heuristics = "Max"

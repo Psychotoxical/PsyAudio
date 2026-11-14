@@ -2,16 +2,15 @@ Beispiel-Band	Sample Band
 Beispiel-Album	Sample Album
 Ein ziemlich langer Beispiel-Titel Nummer {i}	A rather long sample title number {i}
 Beispiel-Band mit Gästen	Sample Band with Guests
-Sicher (1 Durchgang, von AccurateRip bestätigt)	Secure (1 pass, confirmed by AccurateRip)
-AccurateRip: Genau (Vertrauen 70, v2)	AccurateRip: Accurate (confidence 70, v2)
+Sicher (1 Durchgang, von CTDB bestätigt)	Secure (1 pass, confirmed by CTDB)
 Sicher (2 Durchgänge identisch)	Secure (2 passes identical)
-AccurateRip: Ungenau (Vertrauen 69) – oder andere Pressung	AccurateRip: Inaccurate (confidence 69) – or a different pressing
 Lesen 63 %	Reading 63 %
 Keine Dateien in der Liste	No files in the list
 Umwandeln in {0} Formate	Converting to {0} formats
 Umwandeln nach {0}	Converting to {0}
 Titel-Infos gefunden	Track info found
 Laufwerks-Versatz {off} Samples gefunden und eingetragen ({n} Titel stimmen überein)	Drive offset {off} samples found and set ({n} tracks agree)
+Laufwerks-Versatz {off} Samples gefunden und eingetragen (1 Titel stimmt überein)	Drive offset {off} samples found and set (1 track agrees)
 Audio-Werkzeugkasten	Audio toolbox
 Konvertieren	Convert
 Stapel	Batch
@@ -64,6 +63,7 @@ Dateien sind schon vorhanden	Files already exist
 Vorhandene überspringen	Skip existing
 Abbrechen	Cancel
 Fertig in {0} · {done} erledigt · {skipped} übersprungen · {failed} Fehler	Finished in {0} · {done} done · {skipped} skipped · {failed} errors
+Fertig in {0} · {done} erledigt · {skipped} übersprungen · 1 Fehler	Finished in {0} · {done} done · {skipped} skipped · 1 error
 Datei {current} von {total}	File {current} of {total}
  · {0} Kern{1}	 · {0} core{1}
  · {0} vergangen	 · {0} elapsed
@@ -77,6 +77,7 @@ Fehler: {e}	Error: {e}
 Ergebnisse	Results
 Fehlgeschlagene Dateien sind wieder in der Liste – Einstellungen anpassen und erneut umwandeln	Failed files are back in the list – adjust the settings and convert again
 {0} Dateien · {1}	{0} files · {1}
+{0} Datei · {1}	{0} file · {1}
 {count} Zieldatei(en) gibt es bereits. Überschreiben?	{count} output file(s) already exist. Overwrite?
 {0}× Echtzeit	{0}× real time
 wartet	waiting
@@ -98,8 +99,10 @@ FFmpeg konnte die Datei nicht lesen: {0}	FFmpeg could not read the file: {0}
 32 Bit Gleitkomma (IEEE float)	32-bit floating point (IEEE float)
 64 Bit Gleitkomma (IEEE float)	64-bit floating point (IEEE float)
 Zieldatei kann nicht angelegt werden: {e}	Cannot create output file: {e}
-CD ist nicht in der AccurateRip-Datenbank	CD is not in the AccurateRip database
-AccurateRip nicht erreichbar: {e}	AccurateRip not reachable: {e}
+nicht erreichbar (keine Verbindung)	not reachable (no connection)
+nicht erreichbar (Zeitüberschreitung)	not reachable (timed out)
+nicht erreichbar (Server meldet {c})	not reachable (server reports {c})
+nicht erreichbar	not reachable
 Keine Treffer bei MusicBrainz	No matches on MusicBrainz
 Laufwerk {0} kann nicht geöffnet werden	Cannot open drive {0}
 Laufwerksbefehl fehlgeschlagen (Fehler {0})	Drive command failed (error {0})
@@ -113,7 +116,9 @@ Diese CD hat keine Daten zum Bestimmen des Versatzes – bitte eine andere bekan
 Kein Versatz gefunden – Laufwerk liest diese CD anders als die Datenbank; bitte eine andere CD versuchen	No offset found – the drive reads this CD differently from the database; please try another CD
 Die Titel ergeben verschiedene Versätze (Kratzer?) – bitte eine andere CD versuchen	The tracks give different offsets (scratches?) – please try another CD
 Nur {0} Titel passen (nötig: {need}) – bitte eine andere bekannte CD versuchen. Gefunden: {1}	Only {0} tracks match (needed: {need}) – please try another well-known CD. Found: {1}
+Nur {0} Titel passt (nötig: {need}) – bitte eine andere bekannte CD versuchen. Gefunden: {1}	Only {0} track matches (needed: {need}) – please try another well-known CD. Found: {1}
 Album-ReplayGain „{name}“: {lufs} LUFS » {gain} dB ({0} Dateien)	Album ReplayGain “{name}”: {lufs} LUFS » {gain} dB ({0} files)
+Album-ReplayGain „{name}“: {lufs} LUFS » {gain} dB ({0} Datei)	Album ReplayGain “{name}”: {lufs} LUFS » {gain} dB ({0} file)
 Wiedergabeliste	Playlist
 Wiedergabeliste geschrieben: {0}	Playlist written: {0}
 Kopieren: {e}	Copying: {e}
@@ -124,7 +129,9 @@ Muster passt nicht	Pattern does not match
 Dekodieren	Decoding
 Effekte	Effects
 fehlerfrei dekodiert ({0} Hz, {1} Kanäle)	decoded without errors ({0} Hz, {1} channels)
+fehlerfrei dekodiert ({0} Hz, {1} Kanal)	decoded without errors ({0} Hz, {1} channel)
 {0}\n  Länge {1} · {2} Hz · {3} Bit · {4} Kanäle · {5} · Spitze {6} dBFS · Lautheit {7} LUFS	{0}\n  Length {1} · {2} Hz · {3} bit · {4} channels · {5} · peak {6} dBFS · loudness {7} LUFS
+{0}\n  Länge {1} · {2} Hz · {3} Bit · {4} Kanal · {5} · Spitze {6} dBFS · Lautheit {7} LUFS	{0}\n  Length {1} · {2} Hz · {3} bit · {4} channel · {5} · peak {6} dBFS · loudness {7} LUFS
 {0}  CRC32 (16 Bit PCM): {crc}	{0}  CRC32 (16-bit PCM): {crc}
 {0}: Stille erkannt, kein ReplayGain-Titelwert	{0}: silence detected, no ReplayGain track value
 Kanal {0}	Channel {0}
@@ -284,9 +291,10 @@ Ziel: {0}  ·  Format: {1}  (Einstellungen und Effekte wie auf der Seite „Konv
 Mit Ordnerstruktur umwandeln	Convert keeping the folders
 Zur Konverter-Liste	To the converter list
 {n} Dateien gefunden	{n} files found
+{n} Datei gefunden	{n} file found
 Kein CD-Laufwerk gefunden	No CD drive found
 Titel {0}	Track {0}
-Audio-CDs sicher auslesen, mit AccurateRip prüfen und Titel-Infos von MusicBrainz holen.	Rip audio CDs securely, verify with AccurateRip and fetch track info from MusicBrainz.
+Audio-CDs sicher auslesen, mit der CUETools-Datenbank prüfen und Titel-Infos von MusicBrainz holen.	Rip audio CDs securely, verify with the CUETools database and fetch track info from MusicBrainz.
 Laufwerk {d}	Drive {d}
 Kein Laufwerk	No drive
 CD lesen	Read CD
@@ -299,9 +307,11 @@ Es wurde kein CD-Laufwerk gefunden.	No CD drive was found.
 Jahr / Genre	Year / Genre
 {0} Treffer	{0} matches
 {0} Titel · {1} · MusicBrainz {2} · freedb {3}	{0} tracks · {1} · MusicBrainz {2} · freedb {3}
-AccurateRip: wird abgefragt…	AccurateRip: looking up…
-AccurateRip: nicht abgefragt	AccurateRip: not looked up
-AccurateRip: CD in der Datenbank ({0} Pressungen)	AccurateRip: CD in the database ({0} pressings)
+1 Titel · {1} · MusicBrainz {2} · freedb {3}	1 track · {1} · MusicBrainz {2} · freedb {3}
+CTDB: wird abgefragt…	CTDB: looking up…
+CTDB: nicht abgefragt	CTDB: not looked up
+CTDB · {0} Rips	CTDB · {0} rips
+CTDB · 1 Rip	CTDB · 1 rip
 Länge	Length
 Rippen läuft…	Ripping…
 {n} Titel rippen	Rip {n} tracks
@@ -309,14 +319,13 @@ So wird gespeichert:	Will be saved as:
 Zurücksetzen	Reset
 Lesemodus	Reading mode
 Schnell (Burst)	Fast (burst)
-Liest jeden Titel in einem Zug. Bestätigt AccurateRip das Ergebnis, ist der Titel fertig; sonst folgt ein zweiter Durchgang, und nur abweichende Stellen werden wiederholt.	Reads each track in one go. If AccurateRip confirms the result, the track is done; otherwise a second pass follows and only the parts that differ are read again.
-Schnellstes Rippen ohne Fehlerkorrektur – AccurateRip zeigt trotzdem, ob alles stimmt.	Fastest ripping without error correction – AccurateRip still shows whether everything is right.
+Liest jeden Titel in einem Zug. Bestätigt die CUETools-Datenbank das Ergebnis, ist der Titel fertig; sonst folgt ein zweiter Durchgang, und nur abweichende Stellen werden wiederholt.	Reads each track in one go. If the CUETools database confirms the result, the track is done; otherwise a second pass follows and only the parts that differ are read again.
+Schnellstes Rippen ohne Fehlerkorrektur – die CUETools-Datenbank zeigt trotzdem, ob alles stimmt.	Fastest ripping without error correction – the CUETools database still shows whether everything is right.
 Max. Neu-Lesungen fehlerhafter Stellen	Max. re-reads of faulty parts
 Zusätzliche Kontroll-Durchgänge	Extra check passes
 Mindestens Durchgänge	Minimum passes
 Höchstens Durchgänge	Maximum passes
 Ende nach sauberen Durchgängen	Stop after clean passes
-Laufwerks-Cache	Drive cache
 Abbrechen nach	Stop after
 (nie)	(never)
 unlesbaren Sektoren	unreadable sectors
@@ -324,13 +333,12 @@ Unlesbare Stellen glätten (interpolieren)	Smooth unreadable parts (interpolate)
 Titel als Fehler markieren, wenn	Mark track as error if
 (aus)	(off)
 unsicher	insecure
-nicht von AccurateRip bestätigt	not confirmed by AccurateRip
+nicht von CTDB bestätigt	not confirmed by CTDB
 Laufwerks-Versatz	Drive offset
 Versatz automatisch finden	Find offset automatically
-Liest ein kurzes Stück jedes Titels und vergleicht es mit AccurateRip. Braucht eine CD, die in der AccurateRip-Datenbank ist.	Reads a short piece of each track and compares it with AccurateRip. Needs a CD that is in the AccurateRip database.
-Zuerst eine CD lesen, die in der AccurateRip-Datenbank ist.	First read a CD that is in the AccurateRip database.
+Liest zwei Titel und vergleicht sie mit der CUETools-Datenbank. Braucht eine CD, die CTDB kennt.	Reads two tracks and compares them with the CUETools database. Needs a CD that CTDB knows.
 suche…	searching…
-Mit AccurateRip prüfen	Verify with AccurateRip
+Mit der CUETools-Datenbank prüfen	Verify with the CUETools database
 Abbrechen nach unsicherem Titel	Stop after an insecure track
 Cover in Dateien einbetten	Embed cover in files
 folder.jpg speichern	Save folder.jpg
@@ -382,28 +390,31 @@ Alle Einstellungen auf Standard	Reset all settings to default
 Einstellungen zurückgesetzt	Settings reset
 PsyAudio – Protokoll der Audio-Extraktion	PsyAudio – audio extraction log
 Album: {0} – {1}	Album: {0} – {1}
-Laufwerk {letter}  Versatz {0} Samples  Modus: {1}	Drive {letter}  offset {0} samples  mode: {1}
+Laufwerk {letter} ({model})  Versatz {0} Samples ({how})  Modus: {1}	Drive {letter} ({model})  offset {0} samples ({how})  mode: {1}
 Lesen…	Reading…
 Lesen {0} %	Reading {0} %
 Titel {number}: Fehler {e}	Track {number}: error {e}
 Gerippt (Burst)	Ripped (burst)
 Unsicher ({0} Sektoren)	Insecure ({0} sectors)
+Unsicher ({0} Sektor)	Insecure ({0} sector)
 Sicher (Warnung: {0} Durchgänge, {1} Blöcke neu gelesen)	Secure (warning: {0} passes, {1} blocks re-read)
+Sicher (Warnung: {0} Durchgänge, {1} Block neu gelesen)	Secure (warning: {0} passes, {1} block re-read)
 Sicher ({0} Durchgänge identisch)	Secure ({0} passes identical)
-AccurateRip: Genau (Vertrauen {c}, {v})	AccurateRip: Accurate (confidence {c}, {v})
-AccurateRip: Ungenau (Vertrauen {c}) – oder andere Pressung	AccurateRip: Inaccurate (confidence {c}) – or a different pressing
-AccurateRip: Titel nicht in der Datenbank	AccurateRip: track not in the database
-AccurateRip: CD nicht in der Datenbank	AccurateRip: CD not in the database
+CTDB: bestätigt ({c} von {total})	CTDB: confirmed ({c} of {total})
+CTDB: nicht bestätigt	CTDB: not confirmed
+CTDB: CD nicht in der Datenbank	CTDB: disc not in the database
 Fehler – {status}	Error – {status}
-Fehler – nicht von AccurateRip bestätigt ({status})	Error – not confirmed by AccurateRip ({status})
-Titel {number}  {0}  CRC32 {1}  AR v1 {v1} v2 {v2}  {status}  {ar}	Track {number}  {0}  CRC32 {1}  AR v1 {v1} v2 {v2}  {status}  {ar}
+Fehler – nicht von CTDB bestätigt ({status})	Error – not confirmed by CTDB ({status})
+Titel {number}  {0}  CRC32 {1}  {status}  {ctdb}	Track {number}  {0}  CRC32 {1}  {status}  {ctdb}
 Kodieren…	Encoding…
 Fehler beim Kodieren: {e}	Error while encoding: {e}
    Kodierfehler: {e}	   Encoding error: {e}
 Abgebrochen nach unsicherem Titel	Stopped after an insecure track
 Abgebrochen	Cancelled
-Fertig: {0} Dateien, {accurate} von AccurateRip bestätigt	Done: {0} files, {accurate} confirmed by AccurateRip
-{accurate} Titel von AccurateRip bestätigt, {insecure_tracks} unsicher	{accurate} tracks confirmed by AccurateRip, {insecure_tracks} insecure
+Fertig: {0} Dateien, {accurate} von CTDB bestätigt	Done: {0} files, {accurate} confirmed by CTDB
+Fertig: {0} Datei, {accurate} von CTDB bestätigt	Done: {0} file, {accurate} confirmed by CTDB
+{accurate} Titel von CTDB bestätigt, {insecure_tracks} unsicher	{accurate} tracks confirmed by CTDB, {insecure_tracks} insecure
+1 Titel von CTDB bestätigt, {insecure_tracks} unsicher	1 track confirmed by CTDB, {insecure_tracks} insecure
 Albuminterpret	Album artist
 Titelnummer	Track number
 Titel gesamt	Total tracks
@@ -579,12 +590,14 @@ Bitrate	Bit rate
 Einstellungen einblenden	Show settings
 Einstellungen ausblenden	Hide settings
 Eine andere Datei dieses Laufs bekommt schon den Namen {0} – Bausteine für die Namen anpassen	Another file in this run already gets the name {0} – adjust the name chips
+Eine andere Datei dieses Laufs bekommt schon den Namen {0} – die Quelle enthält diesen Namen zweimal, nur mit anderer Endung	Another file in this run already gets the name {0} – the source has this name twice, only with another extension
 Zieldatei gibt es schon – übersprungen	Target file already exists – skipped
 Es läuft schon eine Umwandlung – erst abwarten oder abbrechen	A conversion is already running – wait for it or cancel it
 Programm nach {0} endete mit Code {1}	Program for {0} ended with code {1}
 Programm konnte nicht gestartet werden: {e}	Program could not be started: {e}
 FFprobe fehlt neben FFmpeg – ohne FFprobe lässt sich dieses Format nicht unverändert lesen	FFprobe is missing next to FFmpeg – without it this format cannot be read unchanged
 Datei ist beschädigt: {0} Stellen nicht lesbar	File is damaged: {0} parts cannot be read
+Datei ist beschädigt: {0} Stelle nicht lesbar	File is damaged: {0} part cannot be read
 Datei ist beschädigt: endet nach {0} von {1}	File is damaged: ends after {0} of {1}
 Zu groß für WAV/AIFF (über 4 GB) – FLAC oder WavPack wählen	Too large for WAV/AIFF (over 4 GB) – choose FLAC or WavPack
 Abfrage lief beim Start noch	lookup was still running at the start
@@ -608,3 +621,274 @@ Verlustfrei	Lossless
 Komprimiert	Compressed
 Dolphin-Integration	Dolphin integration
 Fügt im Dolphin-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).	Adds “Convert with PsyAudio” to the Dolphin right-click menu of audio files (for your user account only).
+Seitenleiste einklappen	Collapse sidebar
+Seitenleiste ausklappen	Expand sidebar
+Folgt in der nächsten Stufe	Coming in the next stage
+Benennung	Naming
+Zielordner	Target folder
+Format	Format
+{0} Titel	{0} tracks
+1 Titel	1 track
+Gestrichelt: Das Programm dafür fehlt noch (Einstellungen).	Dashed: the program for it is still missing (Settings).
+Prüfen, Aufteilen, Tags, ReplayGain	Check, split, tags, ReplayGain
+Mehr kbit/s heißt bessere Qualität und größere Dateien.	More kbit/s means better quality and larger files.
+VBR passt die Bitrate jedem Stück an und klingt bei gleicher Dateigröße am besten.	VBR adapts the bit rate to each track and sounds best at the same file size.
+CBR hält die Bitrate fest; das brauchen nur alte Geräte und manche Streams.	CBR keeps the bit rate fixed; only old devices and some streams need that.
+Erweitert	Advanced
+Liest die fertige Datei noch einmal und vergleicht sie Sample für Sample mit dem Original.	Reads the finished file again and compares it sample by sample with the original.
+Modus	Mode
+ABR schwankt um die gewählte Bitrate, so bleibt die Dateigröße planbar.	ABR varies around the chosen bit rate, so the file size stays predictable.
+Kanäle, Encoder-Sorgfalt	Channels, encoder effort
+Joint Stereo spart Platz, wenn beide Kanäle ähnlich klingen; „automatisch“ lässt LAME wählen.	Joint stereo saves space when both channels sound alike; “automatic” lets LAME choose.
+Encoder-Sorgfalt	Encoder effort
+Mehr Sorgfalt rechnet länger; hörbar ist der Unterschied selten.	More effort takes longer; the difference is rarely audible.
+Höhere Stufen machen kleinere Dateien und rechnen länger, der Klang bleibt gleich (üblich: 5).	Higher levels make smaller files and take longer; the sound stays the same (usual: 5).
+Eingeschränktes VBR bleibt nahe an der Bitrate, gut für Streams.	Constrained VBR stays close to the bit rate, good for streams.
+Die Bitrate schwankt um den gewählten Wert, so bleibt die Dateigröße planbar.	The bit rate varies around the chosen value, so the file size stays predictable.
+Behält 16, 24 oder 32 Bit der Quelle bei, statt umzurechnen.	Keeps the source's 16, 24 or 32 bits instead of converting.
+Höhere Qualität packt kleiner und rechnet länger; verlustfrei bleibt es immer.	Higher quality packs smaller and takes longer; it always stays lossless.
+Kompression	Compression
+Höhere Stufen packen kleiner, schwache Geräte spielen sie aber schwerer ab.	Higher levels pack smaller, but weak devices have a harder time playing them.
+Speex ist für Sprache gemacht; für Musik ist Opus die bessere Wahl.	Speex is made for speech; for music, Opus is the better choice.
+Formate	Formats
+Jede Datei wird in alle gewählten Formate umgewandelt, jeweils mit deren Einstellungen.	Each file is converted to all chosen formats, each with its own settings.
+Teilt lange Aufnahmen in gleich lange Stücke.	Splits long recordings into pieces of equal length.
+Die Teile bekommen die Einstellungen dieses Formats.	The pieces get this format's settings.
+Profil laden …	Load profile …
+Profil speichern	Save profile
+Ein Profil merkt sich Format, Einstellungen und Effekte.	A profile keeps the format, its settings and the effects.
+Stufe {0}	Level {0}
+Qualität {0}	Quality {0}
+wie die Quelle	as the source
+Abtastrate	Sample rate
+Die Vorschau erscheint, sobald Dateien in der Liste sind.	The preview appears once files are in the list.
+So wird gespeichert	Saved as
+Bausteine	Building blocks
+Alle Dateien landen im Zielordner, Unterordner entstehen aus der Benennung.	All files go to the target folder; subfolders come from the naming.
+Jede neue Datei landet neben ihrer Quelle.	Each new file goes next to its source.
+Im Zielordner entsteht der Ordnerpfad der Quelle noch einmal (ohne Laufwerk).	The source's folder path is rebuilt inside the target folder (without the drive).
+Vor dem Start erscheint eine Liste der Dateien, die es schon gibt.	Before the start, a list shows the files that already exist.
+Vorhandene Dateien werden ohne Rückfrage ersetzt.	Existing files are replaced without asking.
+Vorhandene Dateien bleiben; die Quelle wird übersprungen.	Existing files stay; the source is skipped.
+Ziel	Destination
+Wenn vorhanden	If it exists
+Schreibt die Tags der Quelle in die neue Datei.	Writes the source's tags into the new file.
+Bettet das Cover der Quelle ein, wenn das Format Cover kann.	Embeds the source's cover when the format supports covers.
+Kein Ordner gewählt	No folder chosen
+Neben der Quelle	Next to the source
+Wie die Quelle	As the source
+{0} Bausteine	{0} building blocks
+Liest Tags aus dem Dateinamen und schreibt sie in die Quelldateien.	Reads tags from the file name and writes them into the source files.
+Muster	Pattern
+Gelesen aus „{0}“	Read from “{0}”
+Der Dateiname passt nicht zum Muster.	The file name does not match the pattern.
+Vorlage	Preset
+Eigene Bausteine	Custom building blocks
+{0} entfernen	Remove {0}
+Baustein	Building block
+Daten	Data
+Trenner	Separators
+Ziehen sortiert, Klick entfernt. „Neuer Ordner“ trennt den Ordnernamen vom Dateinamen.	Drag to sort, click to remove. “New folder” separates the folder name from the file name.
+Ziehen sortiert, Klick entfernt.	Drag to sort, click to remove.
+Album	Album
+Albuminterpret – (Jahr) – Album / Track-Disc – Interpret – Titel	Album artist – (Year) – Album / Track-Disc – Artist – Title
+Albuminterpret – (Jahr) – Album / Track – Titel	Album artist – (Year) – Album / Track – Title
+Interpret / Album / Track Titel	Artist / Album / Track Title
+Track – Titel	Track – Title
+Interpret – Titel	Artist – Title
+Zuordnung	Mapping
+Verstärkung	Gain
+Zielpegel	Target level
+Zielpegel (Spitze)	Target level (peak)
+Max. Verstärkung	Max. gain
+True-Peak-Überabtastung	True peak oversampling
+Wenn ReplayGain fehlt	If ReplayGain is missing
+Schwelle	Threshold
+Mindestlänge	Minimum length
+Höchstlänge	Maximum length
+Anteil des Originals	Share of the original
+Bei 0 s gilt der Anteil in Prozent.	At 0 s, the share in percent applies.
+Grenzfrequenz	Cutoff frequency
+Untere Grenze	Lower limit
+Obere Grenze	Upper limit
+Werte in dB; ein Klick auf eine Vorlage setzt alle Bänder.	Values in dB; a click on a preset sets all bands.
+Verhältnis	Ratio
+Ansprechzeit	Attack
+Abklingzeit	Release
+Befehl	Command
+Effekt hinzufügen	Add effect
+Schließen	Close
+Effekt suchen	Search effects
+Kein Effekt passt zur Suche.	No effect matches the search.
+Nach oben	Move up
+Nach unten	Move down
+Effekt entfernen	Remove effect
+Fensterlänge	Window length
+Einblenden	Fade in
+Ausblenden (vom Ende)	Fade out (from the end)
+Vom Anfang	From the start
+Vom Ende	From the end
+Vorne	Before
+Hinten	After
+Rechnet auf eine andere Abtastrate um, etwa von 96 kHz auf 44,1 kHz.	Converts to another sample rate, e.g. from 96 kHz to 44.1 kHz.
+Ändert die Bittiefe; beim Verringern glättet Dither die Rundungsfehler.	Changes the bit depth; when reducing, dither smooths the rounding errors.
+Mischt auf Mono, Stereo oder 5.1 um.	Mixes to mono, stereo or 5.1.
+Tauscht links und rechts oder behält nur einen Kanal.	Swaps left and right or keeps only one channel.
+Bringt jede Datei auf einen einheitlichen Pegel (Spitze, ReplayGain oder EBU R128).	Brings every file to one level (peak, ReplayGain or EBU R128).
+Misst die Lautheit und schreibt ReplayGain-Werte in die Tags; der Ton bleibt unverändert.	Measures loudness and writes ReplayGain values into the tags; the sound stays unchanged.
+Ändert die Lautstärke fest um die ReplayGain-Werte aus den Tags.	Changes the volume permanently by the ReplayGain values from the tags.
+Verringert den Abstand zwischen leisen und lauten Stellen.	Reduces the gap between quiet and loud passages.
+Blendet am Anfang ein und am Ende aus.	Fades in at the start and out at the end.
+Schneidet am Anfang und am Ende eine feste Zeit ab.	Cuts a fixed time off the start and the end.
+Entfernt Stille am Anfang und am Ende.	Removes silence at the start and the end.
+Fügt vorne und hinten Stille an.	Adds silence before and after.
+Dreht die Aufnahme um, sodass sie rückwärts läuft.	Reverses the recording so it plays backwards.
+Hängt die Aufnahme mehrmals hintereinander.	Repeats the recording several times in a row.
+Spielt schneller oder langsamer ab; die Tonhöhe ändert sich mit.	Plays faster or slower; the pitch changes along.
+Überspringt Dateien, die kürzer sind als die angegebene Zeit.	Skips files shorter than the given time.
+Kürzt auf eine Höchstlänge in Sekunden oder Prozent.	Cuts to a maximum length in seconds or percent.
+Lässt nur Frequenzen unterhalb der Grenze durch.	Lets only frequencies below the limit through.
+Lässt nur Frequenzen oberhalb der Grenze durch, etwa gegen Rumpeln.	Lets only frequencies above the limit through, e.g. against rumble.
+Lässt nur den Bereich zwischen zwei Frequenzen durch, etwa für Telefonklang.	Lets only the range between two frequencies through, e.g. for a telephone sound.
+Hebt oder senkt neun Frequenzbänder.	Raises or lowers nine frequency bands.
+Entfernt die Stimme aus der Mitte oder behält nur sie; nur bei Stereo.	Removes the voice from the centre or keeps only it; stereo only.
+Gleicht die Höhenanhebung alter CDs mit Pre-Emphasis aus.	Undoes the treble boost of old CDs with pre-emphasis.
+Erkennt HDCDs und macht aus ihnen 24-Bit-Audio.	Detects HDCDs and turns them into 24-bit audio.
+Löscht die Quelldatei, wenn ihre Umwandlung geklappt hat.	Deletes the source file when its conversion succeeded.
+Gibt der neuen Datei das Änderungsdatum der Quelle.	Gives the new file the source's modification date.
+Kopiert folder.jpg oder cover.jpg aus dem Quellordner in den Zielordner.	Copies folder.jpg or cover.jpg from the source folder to the target folder.
+Schreibt eine Wiedergabeliste (M3U8, M3U oder PLS) mit den neuen Dateien.	Writes a playlist (M3U8, M3U or PLS) with the new files.
+Legt neben jede neue Datei eine .txt mit ihren Tags.	Puts a .txt with its tags next to every new file.
+Startet nach jeder Datei ein Programm, etwa zum Nachbearbeiten.	Starts a program after each file, e.g. for post-processing.
+Überspringt oder kopiert Quellen mit einer bestimmten Endung, statt sie umzuwandeln.	Skips or copies sources with a given extension instead of converting them.
+Löscht eine halbfertige Zieldatei, wenn ein Fehler auftritt.	Deletes a half-written target file when an error occurs.
+Verschiebt die Zieldatei bei einem Fehler in einen eigenen Ordner.	Moves the target file to its own folder when an error occurs.
+Setzt, ergänzt oder entfernt ein Tag-Feld in allen Dateien.	Sets, fills in or removes a tag field in all files.
+Spielt einen Ton, wenn alle Dateien fertig sind.	Plays a sound when all files are done.
+Wandelt mit niedriger Priorität um, damit der Rechner bedienbar bleibt.	Converts at low priority so the computer stays usable.
+{0} Effekte	{0} effects
+Umwandeln …	Converting …
+Fortschritt	Progress
+ · {0} Kern	 · {0} core
+ · {0} Kerne	 · {0} cores
+Es läuft schon ein Rip – erst abwarten oder abbrechen	A rip is already running – wait or cancel it first
+Keine passenden Dateien in diesem Ordner.	No matching files in this folder.
+Im Zielordner entstehen die Unterordner des Quellordners neu, mit denselben Dateinamen.	The source folder's subfolders are rebuilt in the target folder, with the same file names.
+Programm auswählen	Choose program
+{0} von {1} gefunden	{0} of {1} found
+{0} gleichzeitig	{0} at a time
+Gleichzeitige Umwandlungen	Simultaneous conversions
+Dieser Rechner hat {0}; mehr gleichzeitige Umwandlungen bringen selten etwas.	This computer has {0}; more simultaneous conversions rarely help.
+Standard	Default
+Hier entstehen Zwischendateien, etwa für Monkey's Audio, Musepack und DSD.	Intermediate files go here, e.g. for Monkey's Audio, Musepack and DSD.
+Kontextmenü	Context menu
+Alle Einstellungen außer den Profilen gehen auf Standard zurück, auch Sprache und Thema.	All settings except the profiles go back to their defaults, language and theme too.
+Jetzt zurücksetzen	Reset now
+{0} Kern	{0} core
+{0} Kerne	{0} cores
+Zuerst eine CD lesen	Read a CD first
+Keine Titel ausgewählt	No tracks selected
+CD rippen	Ripping CD
+{0} Titel rippen	Rip {0} tracks
+1 Titel rippen	Rip 1 track
+Titel {0} von {1}	Track {0} of {1}
+etwa {0} min übrig	about {0} min left
+Protokoll anzeigen	Show log
+Protokoll	Log
+{0} Titel · {1}	{0} tracks · {1}
+1 Titel · {1}	1 track · {1}
+Sicher · bis {0} Neu-Lesungen	Secure · up to {0} re-reads
+CD wird gelesen …	Reading the CD …
+Laufwerk	Drive
+Cover	Cover
+Disc-Nummer	Disc number
+Anzahl Discs	Number of discs
+MusicBrainz nicht erreichbar	MusicBrainz not reachable
+MusicBrainz: kein Treffer	MusicBrainz: no match
+MusicBrainz: 1 Treffer	MusicBrainz: 1 match
+MusicBrainz-Treffer	MusicBrainz matches
+MusicBrainz: {0} Treffer	MusicBrainz: {0} matches
+Neu-Lesungen bei Fehlern	Re-reads on errors
+{0} Versuche	{0} tries
+{0} Versuch	{0} try
+So oft liest PsyAudio eine fehlerhafte Stelle neu, bevor sie als unsicher gilt.	How often PsyAudio re-reads a faulty spot before it counts as insecure.
+Liest sichere Titel weitere Male, bis genug Durchgänge gleich ausfallen.	Reads secure tracks more times until enough passes agree.
+Abbrechen nach unlesbaren Sektoren	Abort after unreadable sectors
+nie	never
+0 heißt nie; sonst endet ein Titel nach so vielen Sektoren, die sich nicht lesen ließen.	0 means never; otherwise a track ends after this many sectors that could not be read.
+Füllt Stellen, die sich nie lesen ließen, aus ihren Nachbarn, statt sie stumm zu lassen.	Fills spots that could never be read from their neighbours instead of leaving them silent.
+Ein markierter Titel zählt in der Liste und im Protokoll als Fehler.	A marked track counts as an error in the list and the log.
+Hört nach dem ersten unsicheren Titel mit der ganzen CD auf.	Stops the whole CD after the first insecure track.
+Vergleicht jeden Titel mit den Prüfsummen anderer Rips derselben CD.	Compares each track with the checksums of other rips of the same CD.
+Bitrate usw. gelten auch im Konverter.	Bit rate etc. apply to the converter too.
+Effekte vom Konverter laufen mit ({0} aktiv).	The converter's effects run along ({0} active).
+Legt ein Protokoll mit Prüfsummen und CTDB-Ergebnis in den Album-Ordner.	Puts a log with checksums and the CTDB result into the album folder.
+Legt eine CUE-Datei mit der Titelfolge in den Album-Ordner.	Puts a CUE file with the track order into the album folder.
+Bettet das Cover von MusicBrainz in jede Datei ein.	Embeds the cover from MusicBrainz in every file.
+Speichert das Cover zusätzlich als folder.jpg im Album-Ordner.	Also saves the cover as folder.jpg in the album folder.
+Alle Titel	All tracks
+Titel {0} rippen	Rip track {0}
+Interpret von Titel {0}	Artist of track {0}
+Mehrere Formate	Several formats
+Diese CD kennt CTDB nicht – bitte eine andere CD versuchen	CTDB does not know this CD – please try another CD
+Kein Versatz gefunden – bitte eine andere CD versuchen	No offset found – please try another CD
+nicht gemessen	not measured
+von Hand	by hand
+übernommen	taken over
+CTDB nicht bestätigt	CTDB not confirmed
+Eintrag der CD in der CUETools-Datenbank öffnen	Open the disc's entry in the CUETools database
+Laufwerk lieferte zu wenig Daten	The drive returned too little data
+Laufwerkspuffer {0}, vor dem Neulesen werden {1} KB gelesen	Drive buffer {0}, {1} KB are read before a re-read
+unbekannt	unknown
+Diese CD kennt CTDB nicht – PsyAudio misst den Versatz mit der nächsten CD	CTDB does not know this CD – PsyAudio measures the offset with the next CD
+Laufwerk noch nicht vermessen – PsyAudio misst den Versatz mit dieser CD	Drive not measured yet – PsyAudio measures the offset with this CD
+In den Einstellungen ändern	Change in Settings
+Misst … {0} %	Measuring … {0} %
+noch nicht gemessen	not measured yet
+Kontroll-Durchgänge, Abbruch	Check passes, abort
+mit CTDB am {0}	with CTDB on {0}
+von Hand am {0}	by hand on {0}
+übernommen am {0}	taken over on {0}
+Versatz	Offset
+Gemessen	Measured
+Puffer	Buffer
+Versatz noch nicht gemessen	Offset not measured yet
+Liest die CD und vergleicht mit CTDB … {0} %	Reading the CD and comparing with CTDB … {0} %
+Neu messen	Measure again
+Messen	Measure
+Gemessen: {0} Samples. Ihren Wert {1} ersetzen?	Measured: {0} samples. Replace your value {1}?
+Ersetzen	Replace
+Behalten	Keep
+kein Laufwerk	no drive
+CD-Laufwerke	CD drives
+Kein CD-Laufwerk gefunden.	No CD drive found.
+Versatz von Hand, Cache	Offset by hand, cache
+Versatz von Hand ({0})	Offset by hand ({0})
+Versatz von Hand	Offset by hand
+Nur nötig, wenn keine Ihrer CDs in der CUETools-Datenbank steht. Ein späteres Messen fragt, bevor es Ihren Wert ersetzt.	Only needed if none of your CDs is in the CUETools database. A later measurement asks before it replaces your value.
+Cache vor dem Neulesen leeren	Clear the cache before re-reading
+automatisch · {0} KB	automatic · {0} KB
+Bevor PsyAudio eine Stelle neu liest, liest es so viel woanders, dass das Laufwerk die Stelle wirklich von der CD holt. Automatisch: Puffer des Laufwerks plus die Hälfte.	Before PsyAudio re-reads a spot, it reads this much elsewhere, so the drive really fetches the spot from the CD. Automatic: the drive's buffer plus half of it.
+Willkommen	Welcome
+Programme	Programs
+FFmpeg gefunden	FFmpeg found
+FFmpeg fehlt	FFmpeg missing
+Rechtsklick	Right-click
+nicht nötig	not needed
+freiwillig	optional
+Rips	Rips
+kein Ordner	no folder
+CD-Laufwerk	CD drive
+wird gemessen …	measuring …
+Einrichtung	Setup
+Schritt {0} von {1}	Step {0} of {1}
+Willkommen bei PsyAudio. PsyAudio wandelt Audiodateien um und rippt CDs bitgenau. In fünf kurzen Schritten ist alles eingerichtet; jeden Schritt können Sie überspringen und später unter „Einstellungen“ ändern.	Welcome to PsyAudio. PsyAudio converts audio files and rips CDs bit-exactly. Five short steps set everything up; you can skip any step and change it later under “Settings”.
+Sprache und Aussehen	Language and look
+Auf dem Mac gibt es diesen Schritt nicht.	This step does not exist on the Mac.
+Format und Ordner der Rips	Format and folder of rips
+Jedes CD-Laufwerk liest ein winziges Stück versetzt. PsyAudio misst das einmal mit einer gekauften Audio-CD und gleicht es bei jedem Rip aus. Ob ein Rip bitgenau ist, prüft die offene CUETools-Datenbank (CTDB).	Every CD drive reads a tiny bit shifted. PsyAudio measures this once with a bought audio CD and corrects it in every rip. Whether a rip is bit-exact is checked by the open CUETools database (CTDB).
+Dauert etwa eine Viertelminute. Die CD muss eine gekaufte Audio-CD sein, die in der CUETools-Datenbank steht – fast jede ist es.	Takes about fifteen seconds. The CD must be a bought audio CD that is in the CUETools database – almost every one is.
+Ohne CD einfach weiter: PsyAudio misst dann beim ersten Einlesen einer CD automatisch.	No CD at hand? Just go on: PsyAudio then measures automatically the first time it reads a CD.
+Alles lässt sich später unter „Einstellungen“ ändern.	Everything can be changed later under “Settings”.
+Zurück	Back
+Weiter	Next
