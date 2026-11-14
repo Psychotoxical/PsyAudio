@@ -104,11 +104,13 @@ nicht erreichbar (Zeitüberschreitung)	not reachable (timed out)
 nicht erreichbar (Server meldet {c})	not reachable (server reports {c})
 nicht erreichbar	not reachable
 Keine Treffer bei MusicBrainz	No matches on MusicBrainz
+Laufwerk {0}	Drive {0}
+Zeitüberschreitung	timed out
 Laufwerk {0} kann nicht geöffnet werden	Cannot open drive {0}
 Laufwerksbefehl fehlgeschlagen (Fehler {0})	Drive command failed (error {0})
 Keine Audio-CD im Laufwerk	No audio CD in the drive
 Keine Titel auf der CD	No tracks on the CD
-CD-Lesen gibt es nur unter Windows	CD reading is only available on Windows
+CD-Lesen ist auf diesem System nicht verfügbar	CD reading is not available on this system
 nicht unterstützt	not supported
 Titel nicht gefunden	Track not found
 abgebrochen nach {insecure} nicht lesbaren Sektoren	stopped after {insecure} unreadable sectors
@@ -534,7 +536,7 @@ Kontextmenü eingerichtet	Context menu set up
 Kontextmenü konnte nicht eingerichtet werden	Context menu could not be set up
 Kontextmenü entfernt	Context menu removed
 Kein Kontextmenü vorhanden	No context menu present
-Nur unter Windows verfügbar	Only available on Windows
+Auf diesem System nicht verfügbar	Not available on this system
 Klicken, um einen Ordner im Explorer auszuwählen	Click to choose a folder in Explorer
 Ändern	Change
 Sprache	Language
@@ -620,6 +622,8 @@ Thema	Theme
 Verlustfrei	Lossless
 Komprimiert	Compressed
 Dolphin-Integration	Dolphin integration
+Finder-Integration	Finder integration
+Fügt im Finder-Rechtsklickmenü von Audiodateien die Schnellaktion „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).	Adds the quick action “Convert with PsyAudio” to the Finder right-click menu of audio files (for your user account only).
 Fügt im Dolphin-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).	Adds “Convert with PsyAudio” to the Dolphin right-click menu of audio files (for your user account only).
 Seitenleiste einklappen	Collapse sidebar
 Seitenleiste ausklappen	Expand sidebar
@@ -874,7 +878,6 @@ Programme	Programs
 FFmpeg gefunden	FFmpeg found
 FFmpeg fehlt	FFmpeg missing
 Rechtsklick	Right-click
-nicht nötig	not needed
 freiwillig	optional
 Rips	Rips
 kein Ordner	no folder
@@ -884,7 +887,6 @@ Einrichtung	Setup
 Schritt {0} von {1}	Step {0} of {1}
 Willkommen bei PsyAudio. PsyAudio wandelt Audiodateien um und rippt CDs bitgenau. In fünf kurzen Schritten ist alles eingerichtet; jeden Schritt können Sie überspringen und später unter „Einstellungen“ ändern.	Welcome to PsyAudio. PsyAudio converts audio files and rips CDs bit-exactly. Five short steps set everything up; you can skip any step and change it later under “Settings”.
 Sprache und Aussehen	Language and look
-Auf dem Mac gibt es diesen Schritt nicht.	This step does not exist on the Mac.
 Format und Ordner der Rips	Format and folder of rips
 Jedes CD-Laufwerk liest ein winziges Stück versetzt. PsyAudio misst das einmal mit einer gekauften Audio-CD und gleicht es bei jedem Rip aus. Ob ein Rip bitgenau ist, prüft die offene CUETools-Datenbank (CTDB).	Every CD drive reads a tiny bit shifted. PsyAudio measures this once with a bought audio CD and corrects it in every rip. Whether a rip is bit-exact is checked by the open CUETools database (CTDB).
 Dauert etwa eine Viertelminute. Die CD muss eine gekaufte Audio-CD sein, die in der CUETools-Datenbank steht – fast jede ist es.	Takes about fifteen seconds. The CD must be a bought audio CD that is in the CUETools database – almost every one is.

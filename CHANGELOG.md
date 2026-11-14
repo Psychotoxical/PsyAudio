@@ -8,6 +8,11 @@ Every version has its own section. The section of a version becomes the text of 
 
 The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch converter in one window.
 
+### Changed
+
+- The README opens with the PsyAudio wordmark, white on GitHub's dark theme and black on the light one.
+- The README shows what PsyAudio does on Windows, Linux and macOS in one table, lists the downloads, and keeps the developer notes in fold-out sections.
+
 ### Added
 
 - **Bit-perfect CD rips**, every track checked against the CUETools database (CTDB). A confirmed track is identical, sample for sample, to other people's rips of the same disc.
@@ -18,5 +23,14 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 - **"Convert with PsyAudio"** in the right-click menu of the Explorer (Windows) and Dolphin (Linux).
 - **Setup on first start** in five steps: look, programs, file manager menu, rips and CD drive.
 - Catppuccin Mocha (dark) and Latte (light), English and German.
-- Packages for Windows (installer), Linux (AppImage, deb, rpm) and macOS (disk image for Apple Silicon and Intel; no CD ripping on macOS yet).
+- Downloads for Windows (installer), Linux (AppImage, deb, rpm) and macOS (disk image for Apple Silicon and Intel).
+- **CD ripping on macOS**, with the same database check, drive offset and buffer measurement as on Windows and Linux.
+- **Finder integration on macOS**: a "Convert with PsyAudio" quick action (switched on in the settings), Open With and dropping files on the Dock icon. Audio formats macOS does not know, like Opus, APE and WavPack, count as audio files.
+- **The macOS disk image is signed and notarized**, so it opens without a Gatekeeper warning.
+- **On macOS, ripping and converting keep the Mac awake**, ⌘Q asks like the close button while work runs, and FFmpeg and the other programs are also found when PsyAudio is started from the Finder.
+
+### Fixed
+
+- The AppImage shows its own icon in the Wayland taskbar; it no longer took the entry it carries inside for an installed package.
+- The Dolphin menu follows PsyAudio when its AppImage is moved, for example by Gear Lever; it is set to the program's current file on every start.
 

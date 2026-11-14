@@ -1,6 +1,6 @@
 //! Measures a drive's read offset with the disc in it and the CUETools database.
 //!   cargo run -p psyaudio-core --example measure_offset -- G      (Windows drive letter)
-//!   cargo run -p psyaudio-core --example measure_offset -- 0      (Linux /dev/sr0)
+//!   cargo run -p psyaudio-core --example measure_offset -- 0      (Linux /dev/sr0, macOS first drive)
 
 use psyaudio_core::{cdrip, ctdb};
 use std::sync::atomic::AtomicBool;

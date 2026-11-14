@@ -7,6 +7,8 @@ mod commands;
 mod effects_cmd;
 mod files_cmd;
 mod jobs;
+#[cfg(target_os = "macos")]
+mod mac_menu;
 mod naming_cmd;
 mod run_cmd;
 mod settings_cmd;
@@ -35,6 +37,11 @@ pub fn file_args(args: impl IntoIterator<Item = OsString>, cwd: &Path) -> Vec<Pa
             }
         })
         .collect()
+}
+
+/// The files among the URLs the Finder hands over ("Open With", the Dock icon, `open -a`).
+pub fn paths_from_urls(urls: &[tauri::Url]) -> Vec<PathBuf> {
+    urls.iter().filter(|u| u.scheme() == "file").filter_map(|u| u.to_file_path().ok()).collect()
 }
 
 #[derive(Clone, Serialize)]
@@ -87,6 +94,11 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }));
+    }
+    // macOS: ⌘Q asks like the close button (the system's Quit item would end PsyAudio at once)
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.menu(mac_menu::build).on_menu_event(mac_menu::on_event);
     }
     builder
         .plugin(tauri_plugin_dialog::init())
@@ -167,8 +179,25 @@ pub fn run() {
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("failed to start PsyAudio");
+        .build(tauri::generate_context!())
+        .expect("failed to start PsyAudio")
+        .run(|app, event| {
+            // an exit request without a code (the last window gone) asks like the close button;
+            // ⌘Q on macOS comes through the menu (mac_menu)
+            if let tauri::RunEvent::ExitRequested { code, api, .. } = &event {
+                close::on_exit_requested(app, *code, api);
+            }
+            // macOS hands files over as an event: "Open With", the Dock icon, the Finder quick action
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = event {
+                send_files(app, paths_from_urls(&urls), "instance");
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.unminimize();
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }
+        });
 }
 
 #[cfg(test)]
@@ -176,6 +205,35 @@ mod tests {
     use super::*;
     use std::ffi::OsString;
     use std::path::Path;
+
+    /// Finder hands over file URLs; percent-encoded names come back intact, other schemes are left out.
+    #[test]
+    fn paths_from_urls_keeps_files_only() {
+        let abs = std::env::temp_dir().join("Ä [live] b.mp3");
+        let file = tauri::Url::from_file_path(&abs).unwrap();
+        let web = tauri::Url::parse("https://example.org/a.mp3").unwrap();
+        assert_eq!(paths_from_urls(&[file, web]), vec![abs]);
+    }
+
+    /// Every extension PsyAudio reads can be opened from the Finder: macOS knows it as audio, or
+    /// Info.plist declares it (as audio or as a document type of its own).
+    #[test]
+    fn info_plist_covers_every_input_extension() {
+        // measured with UTType on macOS 15: these conform to public.audio already
+        const KNOWN_AUDIO: &[&str] =
+            &["mp3", "mp2", "flac", "wav", "wave", "aif", "aiff", "aifc", "m4a", "m4b", "aac", "ogg", "oga", "wma", "caf", "ac3", "amr", "au", "snd", "w64"];
+        // macOS types these as video; PsyAudio offers itself for those types too
+        const OTHER_TYPES: &[(&str, &str)] = &[("mp4", "public.mpeg-4"), ("webm", "org.webmproject.webm")];
+        // .spx belongs to System Information reports on macOS: not offered, drop it into the window
+        const LEFT_OUT: &[&str] = &["spx"];
+        let plist = include_str!("../Info.plist");
+        assert!(plist.contains("<string>public.audio</string>"));
+        for ext in psyaudio_core::audio::INPUT_EXTENSIONS {
+            let declared = plist.contains(&format!("<string>{ext}</string>"));
+            let other = OTHER_TYPES.iter().any(|(e, uti)| e == ext && plist.contains(&format!("<string>{uti}</string>")));
+            assert!(KNOWN_AUDIO.contains(ext) || declared || other || LEFT_OUT.contains(ext), "{ext} is not covered");
+        }
+    }
 
     fn os(list: &[&str]) -> Vec<OsString> {
         list.iter().map(OsString::from).collect()

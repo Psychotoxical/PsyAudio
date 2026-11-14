@@ -61,7 +61,8 @@ pub fn is_audio_file(p: &Path) -> bool {
     p.extension().and_then(|e| e.to_str()).map(|e| INPUT_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str())).unwrap_or(false)
 }
 
-/// Where FFmpeg can be found: settings first, then PATH.
+/// Where FFmpeg can be found: settings first, then PATH, then the usual folders on macOS,
+/// then next to PsyAudio.
 pub fn find_tool(configured: &str, name: &str) -> Option<PathBuf> {
     if !configured.trim().is_empty() {
         let p = PathBuf::from(configured.trim());
@@ -78,6 +79,12 @@ pub fn find_tool(configured: &str, name: &str) -> Option<PathBuf> {
             }
         }
     }
+    for dir in extra_tool_dirs() {
+        let c = dir.join(&exe);
+        if c.exists() {
+            return Some(c);
+        }
+    }
     // Next to our own program
     if let Ok(me) = std::env::current_exe() {
         if let Some(d) = me.parent() {
@@ -88,6 +95,19 @@ pub fn find_tool(configured: &str, name: &str) -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// Where programs live beside `PATH`: a Mac app started from the Finder sees only
+/// `/usr/bin:/bin:/usr/sbin:/sbin`, so Homebrew, MacPorts and `~/.local/bin` are searched too.
+fn extra_tool_dirs() -> Vec<PathBuf> {
+    if !cfg!(target_os = "macos") {
+        return Vec::new();
+    }
+    let mut dirs: Vec<PathBuf> = ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"].iter().map(PathBuf::from).collect();
+    if let Some(home) = dirs::home_dir() {
+        dirs.push(home.join(".local/bin"));
+    }
+    dirs
 }
 
 pub fn ffprobe_beside(ffmpeg: &Path) -> Option<PathBuf> {
@@ -263,6 +283,27 @@ fn decode_builtin(path: &Path, cancel: &AtomicBool, progress: Progress) -> Resul
         )));
     }
     Ok(audio)
+}
+
+#[cfg(test)]
+mod tool_dir_tests {
+    use super::*;
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn extra_dirs_cover_homebrew_macports_and_local() {
+        let dirs = extra_tool_dirs();
+        for d in ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"] {
+            assert!(dirs.iter().any(|p| p == Path::new(d)), "{d}");
+        }
+        assert!(dirs.iter().any(|p| p.ends_with(".local/bin")));
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn no_extra_dirs_elsewhere() {
+        assert!(extra_tool_dirs().is_empty());
+    }
 }
 
 #[cfg(test)]
