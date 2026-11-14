@@ -1,4 +1,4 @@
-//! CD ripper: reading audio CDs (Windows and Linux raw read), disc IDs and MusicBrainz metadata.
+//! CD ripper: reading audio CDs (Windows, Linux and macOS raw read), disc IDs and MusicBrainz metadata.
 
 use crate::audio::Audio;
 use crate::tags::Tags;
@@ -52,6 +52,38 @@ impl Toc {
     }
 }
 
+/// The table of contents from a READ TOC answer in format 0 with LBA addresses: a 4-byte header
+/// (length, first and last track), then 8 bytes per entry (byte 1 ADR/control, byte 2 track,
+/// bytes 4–7 address); track 0xAA is the lead-out, control bit 4 marks a data track.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub fn parse_formatted_toc(buf: &[u8]) -> Result<Toc, String> {
+    let no_tracks = || crate::i18n::t("Keine Titel auf der CD").to_string();
+    let len = buf.get(0..2).map(|b| u16::from_be_bytes([b[0], b[1]]) as usize + 2).ok_or_else(no_tracks)?;
+    let body = buf.get(4..len.min(buf.len())).ok_or_else(no_tracks)?;
+    let mut toc = Toc::default();
+    let mut leadout = None;
+    for e in body.as_chunks::<8>().0 {
+        let lba = u32::from_be_bytes([e[4], e[5], e[6], e[7]]);
+        match e[2] {
+            0xAA => leadout = Some(lba),
+            n => toc.tracks.push(TocTrack { number: n, lba, audio: e[1] & 0x04 == 0 }),
+        }
+    }
+    toc.leadout = leadout.ok_or_else(no_tracks)?;
+    if toc.tracks.is_empty() {
+        return Err(no_tracks());
+    }
+    Ok(toc)
+}
+
+/// A disc with only data tracks is no audio CD (same message as an empty drive).
+pub fn require_audio(toc: &Toc) -> Result<(), String> {
+    if toc.audio_tracks().is_empty() {
+        return Err(crate::i18n::t("Keine Audio-CD im Laufwerk").into());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod toc_tests {
     use super::*;
@@ -77,6 +109,44 @@ mod toc_tests {
         t.tracks[2].lba = 25000;
         let (start, end) = t.span(2).unwrap();
         assert!(end >= start);
+    }
+
+    /// A READ TOC answer (format 0, LBA): header, then (track, ctrl, lba) entries.
+    fn toc_bytes(entries: &[(u8, u8, u32)]) -> Vec<u8> {
+        let mut out = vec![0u8; 4];
+        out[0..2].copy_from_slice(&((2 + entries.len() * 8) as u16).to_be_bytes());
+        out[2] = entries.first().map(|e| e.0).unwrap_or(0);
+        out[3] = entries.iter().rev().find(|e| e.0 != 0xAA).map(|e| e.0).unwrap_or(0);
+        for &(track, ctrl, lba) in entries {
+            out.extend([0, 0x10 | ctrl, track, 0]);
+            out.extend(lba.to_be_bytes());
+        }
+        out
+    }
+    #[test]
+    fn parse_toc_reads_audio_data_and_leadout() {
+        let toc = parse_formatted_toc(&toc_bytes(&[(1, 0, 0), (2, 0, 13937), (3, 4, 351163), (0xAA, 4, 356210)])).unwrap();
+        assert_eq!(toc.tracks.len(), 3);
+        assert_eq!(toc.tracks[1].lba, 13937);
+        assert!(toc.tracks[0].audio && !toc.tracks[2].audio);
+        assert_eq!(toc.leadout, 356210);
+    }
+    #[test]
+    fn parse_toc_rejects_short_or_empty() {
+        assert!(parse_formatted_toc(&[0, 2, 1, 1]).is_err());
+        assert!(parse_formatted_toc(&[]).is_err());
+        assert!(parse_formatted_toc(&toc_bytes(&[(1, 0, 0)])).is_err(), "no lead-out");
+    }
+    #[test]
+    fn a_disc_without_audio_tracks_is_no_audio_cd() {
+        let data = parse_formatted_toc(&toc_bytes(&[(1, 4, 0), (0xAA, 4, 1000)])).unwrap();
+        assert!(require_audio(&data).is_err());
+        assert!(require_audio(&enhanced()).is_ok());
+    }
+    #[test]
+    fn parse_toc_rejects_data_only() {
+        let toc = parse_formatted_toc(&toc_bytes(&[(1, 4, 0), (0xAA, 4, 1000)])).unwrap();
+        assert!(toc.audio_tracks().is_empty());
     }
 }
 
@@ -495,13 +565,113 @@ mod lin {
 #[cfg(target_os = "linux")]
 pub use lin::{drives, Drive};
 
-/// How a drive is shown: `D:` on Windows, `/dev/sr0` on Linux.
+/// macOS: drives are numbered in the order the I/O Registry lists them ('0', '1', …); the disc in
+/// one is `/dev/rdiskN`, looked up on every open because the number changes with each disc.
+#[cfg(target_os = "macos")]
+mod mac {
+    use super::*;
+    use crate::macos::{self, CdRead, CdReadToc, OpticalDrive};
+    use std::os::fd::{AsRawFd, OwnedFd};
+    use std::os::unix::fs::OpenOptionsExt;
+
+    pub fn drive(d: char) -> Option<OpticalDrive> {
+        let i = d.to_digit(36)? as usize;
+        macos::optical_drives().into_iter().nth(i)
+    }
+
+    pub fn drives() -> Vec<char> {
+        (0..macos::optical_drives().len().min(36)).filter_map(|i| char::from_digit(i as u32, 36)).collect()
+    }
+
+    /// `/dev/diskN` with a disc in it, else "Drive N".
+    pub fn name(d: char) -> String {
+        match drive(d).and_then(|o| o.bsd) {
+            Some(bsd) => format!("/dev/{bsd}"),
+            None => crate::i18n::tf(crate::i18n::t("Laufwerk {0}"), &[("0", (d.to_digit(36).unwrap_or(0) + 1).to_string())]),
+        }
+    }
+
+    pub fn model(d: char) -> Option<String> {
+        drive(d).and_then(|o| normalize_model(&o.vendor, &o.product))
+    }
+
+    pub struct Drive {
+        /// Closed before ejecting: an open handle keeps the disc busy.
+        fd: std::sync::Mutex<Option<OwnedFd>>,
+        bsd: String,
+    }
+
+    impl Drive {
+        pub fn open(d: char) -> Result<Drive, String> {
+            let no_disc = || crate::i18n::t("Keine Audio-CD im Laufwerk").to_string();
+            let bsd = drive(d).and_then(|o| o.bsd).ok_or_else(no_disc)?;
+            let path = format!("/dev/r{bsd}");
+            std::fs::OpenOptions::new()
+                .read(true)
+                .custom_flags(libc::O_NONBLOCK)
+                .open(&path)
+                .map(|f| Drive { fd: std::sync::Mutex::new(Some(f.into())), bsd })
+                .map_err(|_| crate::i18n::tf(crate::i18n::t("Laufwerk {0} kann nicht geöffnet werden"), &[("0", path)]))
+        }
+
+        fn ioctl<T>(&self, code: u64, arg: &mut T) -> Result<(), String> {
+            let fd = self.fd.lock().unwrap_or_else(|e| e.into_inner());
+            let raw = fd.as_ref().map(|f| f.as_raw_fd()).unwrap_or(-1);
+            if unsafe { libc::ioctl(raw, code as libc::c_ulong, arg as *mut T) } < 0 {
+                Err(crate::i18n::tf(crate::i18n::t("Laufwerksbefehl fehlgeschlagen (Fehler {0})"), &[("0", format!("{}", std::io::Error::last_os_error()))]))
+            } else {
+                Ok(())
+            }
+        }
+
+        pub fn toc(&self) -> Result<Toc, String> {
+            let mut buf = vec![0u8; 4 + 100 * 8];
+            let mut req = CdReadToc { format: 0, format_as_time: 0, buffer_length: buf.len() as u16, buffer: buf.as_mut_ptr() as usize, ..Default::default() };
+            self.ioctl(macos::DKIOCCDREADTOC, &mut req).map_err(|_| crate::i18n::t("Keine Audio-CD im Laufwerk").to_string())?;
+            parse_formatted_toc(&buf)
+        }
+
+        /// Read `count` raw audio sectors starting at `lba`.
+        pub fn read(&self, lba: u32, count: u32) -> Result<Vec<u8>, String> {
+            let mut out = vec![0u8; count as usize * SECTOR];
+            let mut req = CdRead {
+                offset: lba as u64 * SECTOR as u64,
+                sector_area: macos::CD_SECTOR_AREA_USER,
+                sector_type: macos::CD_SECTOR_TYPE_CDDA,
+                buffer_length: out.len() as u32,
+                buffer: out.as_mut_ptr() as usize,
+                ..Default::default()
+            };
+            self.ioctl(macos::DKIOCCDREAD, &mut req)?;
+            out.truncate(req.buffer_length as usize);
+            if out.len() < count as usize * SECTOR {
+                return Err(crate::i18n::tf(crate::i18n::t("Laufwerksbefehl fehlgeschlagen (Fehler {0})"), &[("0", "short read".into())]));
+            }
+            Ok(out)
+        }
+
+        pub fn eject(&self) -> Result<(), String> {
+            drop(self.fd.lock().unwrap_or_else(|e| e.into_inner()).take());
+            macos::eject(&self.bsd)
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub use mac::{drives, Drive};
+
+/// How a drive is shown: `D:` on Windows, `/dev/sr0` on Linux, `/dev/disk2` (or "Drive 1"
+/// without a disc) on macOS.
 pub fn drive_name(d: char) -> String {
     #[cfg(target_os = "linux")]
     {
         lin::path(d)
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    {
+        mac::name(d)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
         format!("{d}:")
     }
@@ -543,7 +713,11 @@ pub fn drive_model(d: char) -> Option<String> {
         let read = |f: &str| std::fs::read_to_string(format!("/sys/block/sr{d}/device/{f}")).unwrap_or_default();
         normalize_model(&read("vendor"), &read("model"))
     }
-    #[cfg(not(any(windows, target_os = "linux")))]
+    #[cfg(target_os = "macos")]
+    {
+        mac::model(d)
+    }
+    #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
     {
         let _ = d;
         None
@@ -555,17 +729,17 @@ pub fn drive_key(d: char) -> String {
     key_from(drive_model(d), &drive_name(d))
 }
 
-#[cfg(not(any(windows, target_os = "linux")))]
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 pub fn drives() -> Vec<char> {
     Vec::new()
 }
 
-#[cfg(not(any(windows, target_os = "linux")))]
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 pub struct Drive;
-#[cfg(not(any(windows, target_os = "linux")))]
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 impl Drive {
     pub fn open(_l: char) -> Result<Drive, String> {
-        Err(crate::i18n::t("CD-Lesen gibt es nur unter Windows").into())
+        Err(crate::i18n::t("CD-Lesen ist auf diesem System nicht verfügbar").into())
     }
     pub fn toc(&self) -> Result<Toc, String> {
         Err(crate::i18n::t("nicht unterstützt").into())

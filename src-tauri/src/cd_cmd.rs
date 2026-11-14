@@ -209,6 +209,7 @@ fn disc_info(toc: &Toc) -> DiscInfo {
 pub async fn read_disc(state: State<'_, AppState>, drive: String) -> Result<DiscInfo, String> {
     let d = drive_char(&drive)?;
     let toc = tauri::async_runtime::spawn_blocking(move || cdrip::Drive::open(d).and_then(|dr| dr.toc())).await.map_err(|e| e.to_string())??;
+    cdrip::require_audio(&toc)?;
     let info = disc_info(&toc);
     state.cd.lock().unwrap_or_else(|e| e.into_inner()).new_disc(Some(d), Some(toc));
     Ok(info)
@@ -400,6 +401,8 @@ pub fn measure_drive(app: AppHandle, drive: String, on: Channel<MeasureEvent>) -
             let toc = dr.toc()?;
             let entries = ctdb::lookup(&toc).map_err(|why| ctdb::unavailable_text(&why))?;
             let found = ctdb::find_offset(&dr, &toc, &entries, &handle.cancel, &progress);
+            // our own handle would keep the disc busy (macOS unmounts it for the buffer query)
+            drop(dr);
             // the drive would keep spinning at full speed for a while: let it rest
             let _ = psyaudio_core::scsi::stop_disc(d);
             let (offset, agreeing) = found?;

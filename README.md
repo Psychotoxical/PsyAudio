@@ -7,7 +7,7 @@
 
 ![PsyAudio: CD ripper, first-start setup, converter and batch converter, in Mocha and Latte](assets/screenshots.webp)
 
-Audio toolbox for Windows and Linux: a **bit-perfect CD ripper**, a converter and a batch converter, in one window. The converters also run on macOS.
+Audio toolbox for Windows, Linux and macOS: a **bit-perfect CD ripper**, a converter and a batch converter, in one window.
 
 ## Download
 
@@ -45,7 +45,7 @@ The CUETools database is open: its data is public domain, and lookups need no ac
 
 `cargo test` includes a real conversion into several formats and needs FFmpeg on the `PATH`. It also writes the TypeScript types of the settings into `src/ipc/bindings` (ts-rs); CI fails when they differ from the committed files.
 
-Settings are stored in `%APPDATA%\PsyAudio\settings.json` (Linux: `~/.config/PsyAudio/settings.json`).
+Settings are stored in `%APPDATA%\PsyAudio\settings.json` (Linux: `~/.config/PsyAudio/settings.json`, macOS: `~/Library/Application Support/PsyAudio/settings.json`).
 
 ## Sample mode and screenshots
 
@@ -86,10 +86,10 @@ Settings are stored in `%APPDATA%\PsyAudio\settings.json` (Linux: `~/.config/Psy
 | `tags.rs` | Reading and writing tags with `lofty` |
 | `files.rs` | Adding files and folders, existing targets |
 | `rip.rs` | The rip worker: statuses (`TrackStatus`, `CtdbResult`, `RipPhase`, `RipSummary`) as codes, log, CUE, folder.jpg |
-| `cdrip.rs` | CD: TOC (Windows IOCTL, Linux CD-ROM ioctls), drive model, freedb and MusicBrainz disc IDs, MusicBrainz and Cover Art Archive lookups, eject |
+| `cdrip.rs` | CD: TOC (Windows IOCTL, Linux CD-ROM ioctls, macOS CD-DA ioctls), drive model, freedb and MusicBrainz disc IDs, MusicBrainz and Cover Art Archive lookups, eject |
 | `ctdb.rs` | CUETools database (CTDB): lookup, track checksums, disc page, rolling CRC32 and the drive offset search |
 | `cdrip_read.rs` | Secure reading: passes, re-reads, cache flushing, interpolation |
-| `scsi.rs` | Raw SCSI commands to the drive (Windows pass-through, Linux SG_IO): buffer size, cache flush size, stopping the disc |
+| `scsi.rs` | Raw SCSI commands to the drive (Windows pass-through, Linux SG_IO, macOS SCSITaskLib through `macos_scsi.c`): buffer size, cache flush size, stopping the disc (not on macOS) |
 | `integration.rs` | Explorer (per extension) and Dolphin context menu, keeping the computer awake |
 | `i18n.rs` / `i18n_dict.rs` | Translation; `i18n_dict.rs` is generated |
 | `timefmt.rs` | Durations and encoding speed in words |

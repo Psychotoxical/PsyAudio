@@ -15,6 +15,9 @@ sha1 = "0.10"
 base64 = "0.22"
 dirs = "6"
 
+[build-dependencies]
+cc = "1"
+
 [dev-dependencies]
 ts-rs = { version = "12.0.1", features = ["no-serde-warnings"] }
 
@@ -33,3 +36,8 @@ windows-sys = { version = "0.59", features = [
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+core-foundation = "0.10"
+io-kit-sys = "0.4"
