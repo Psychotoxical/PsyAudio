@@ -180,6 +180,7 @@
 }
 .top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 16px 24px;
@@ -191,7 +192,10 @@
 }
 .top-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
+  margin-left: auto;
 }
 .content {
   flex: 1;
@@ -219,6 +223,7 @@
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
 }
 .btn:hover {
@@ -316,7 +321,10 @@
 }
 .step-text strong {
   display: block;
+  overflow: hidden;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .step-text small {
   /* one line: a longer summary would make every tile taller and push the list down */
@@ -332,13 +340,18 @@
 /* footer bar */
 .bar-foot {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
-  gap: 16px;
+  gap: 8px 16px;
   padding: 12px 24px;
   border-top: 1px solid var(--border-subtle);
   background: var(--bg-sidebar);
 }
 .bar-sum {
+  /* takes what the buttons leave; the buttons move to a second row only below 8em */
+  flex: 1 1 0;
+  min-width: 8em;
   margin: 0 auto 0 0;
   color: var(--text-secondary);
 }
@@ -389,6 +402,38 @@
   background: var(--bg-card);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
   z-index: 10;
+}
+
+/* Narrow window, down to the minimum of 1280 px: tighter tiles, marked buttons show only their icon. */
+@media (max-width: 1339px) {
+  .steps {
+    gap: 8px;
+  }
+  .step {
+    gap: 6px;
+    padding: 10px 8px;
+  }
+  .btn.narrow-icon {
+    padding: 0 9px;
+  }
+  .narrow-hide {
+    display: none;
+  }
+}
+/* Low window, down to the minimum of 640 px: less air above and below the lists. */
+@media (max-height: 719px) {
+  .top {
+    padding-block: 10px;
+  }
+  .steps {
+    padding-block: 10px;
+  }
+  .step {
+    padding-block: 8px;
+  }
+  .bar-foot {
+    padding-block: 8px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

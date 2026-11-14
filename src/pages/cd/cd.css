@@ -217,6 +217,12 @@
 .prog.wide {
   width: 180px;
 }
+/* in the footer the bar gives way before the buttons move to a second row */
+.bar-foot .prog.wide {
+  flex: 1 1 0;
+  min-width: 60px;
+  max-width: 180px;
+}
 .wait {
   color: var(--text-disabled);
   font-size: 12px;

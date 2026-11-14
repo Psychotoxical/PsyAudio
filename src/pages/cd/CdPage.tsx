@@ -281,12 +281,14 @@ export function CdPage() {
           </button>
           <button
             type="button"
-            className="btn"
+            className="btn narrow-icon"
+            aria-label={t("Auswerfen")}
+            title={t("Auswerfen")}
             disabled={!drive || busy}
             onClick={() => void ejectCd()}
           >
             <Eject size={16} />
-            {t("Auswerfen")}
+            <span className="narrow-hide">{t("Auswerfen")}</span>
           </button>
         </PageHeader>
         <StepTiles page="cd" tiles={tiles} />
