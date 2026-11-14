@@ -106,6 +106,10 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertEqual(text, "## Added\n\n- new\n\n## Download\n\n`app-1.2.0.zip`")
         self.assertEqual(release_notes.notes(MAIN, "1.2.0"), "## Added\n\n- new")
 
+    def test_a_release_candidate_names_its_files_after_the_tag(self):
+        text = release_notes.notes(MAIN, "1.2.0", "`app-{version}.zip`\n", "1.2.0-rc.1")
+        self.assertEqual(text, "## Added\n\n- new\n\n`app-1.2.0-rc.1.zip`")
+
     def test_missing_section_is_an_error(self):
         with self.assertRaises(ValueError):
             release_notes.notes(MAIN, "1.3.0")
