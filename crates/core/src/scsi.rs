@@ -49,6 +49,7 @@ pub fn stop_disc(d: char) -> Result<(), String> {
     command_in(d, &STOP_UNIT, 0).map(|_| ())
 }
 
+#[cfg(any(windows, target_os = "linux"))]
 fn failed(e: impl std::fmt::Display) -> String {
     crate::i18n::tf(crate::i18n::t("Laufwerksbefehl fehlgeschlagen (Fehler {0})"), &[("0", e.to_string())])
 }
