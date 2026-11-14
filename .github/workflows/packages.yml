@@ -1,0 +1,114 @@
+name: Packages
+
+# Builds every package once. Called by the CI when a pull request changes the packaging, by
+# the channel workflow for a release candidate or a release, and by hand. Every job uploads its
+# files as an artifact whose name starts with "pkg-"; the channel workflow puts all files of
+# those artifacts into the draft. The file names match .github/release/downloads.md.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Branch, tag or commit to build
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to build (empty = the chosen branch)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # the oldest supported Ubuntu, so the AppImage runs on older systems too
+          - { name: linux, runner: ubuntu-22.04, bundles: "appimage,deb,rpm", target: "" }
+          - { name: windows, runner: windows-latest, bundles: nsis, target: "" }
+          # one disk image for Apple Silicon and Intel
+          - { name: macos, runner: macos-15, bundles: dmg, target: universal-apple-darwin }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential file libxdo-dev \
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: packages
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build
+        shell: bash
+        env:
+          BUNDLES: ${{ matrix.bundles }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          args=(--bundles "$BUNDLES")
+          if [ -n "$TARGET" ]; then
+            args+=(--target "$TARGET")
+          fi
+          npx tauri build "${args[@]}"
+
+      - name: Collect the files
+        shell: bash
+        env:
+          NAME: ${{ matrix.name }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          bundle="target/${TARGET:+$TARGET/}release/bundle"
+          mkdir out
+          shopt -s nullglob
+          one() {
+            local files=("$1"/*"$2")
+            if [ ${#files[@]} != 1 ]; then
+              echo "::error::expected one $2 in $1, found ${#files[@]}"
+              exit 1
+            fi
+            cp "${files[0]}" "out/$3"
+          }
+          case "$NAME" in
+            linux)
+              one "$bundle/appimage" .AppImage "PsyAudio-$version-x86_64.AppImage"
+              one "$bundle/deb" .deb "psyaudio_${version}_amd64.deb"
+              one "$bundle/rpm" .rpm "psyaudio-$version-1.x86_64.rpm"
+              ;;
+            windows)
+              one "$bundle/nsis" -setup.exe "PsyAudio-Setup-$version.exe"
+              ;;
+            macos)
+              one "$bundle/dmg" .dmg "PsyAudio-$version-macOS.dmg"
+              ;;
+          esac
+          ls -l out
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pkg-${{ matrix.name }}
+          path: out/*
+          if-no-files-found: error

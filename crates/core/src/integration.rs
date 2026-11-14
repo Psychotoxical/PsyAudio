@@ -139,7 +139,7 @@ pub fn file_manager_menu(add: bool) -> String {
                 crate::i18n::t("Kein Kontextmenü vorhanden").into()
             };
         }
-        let Ok(exe) = std::env::current_exe() else { return crate::i18n::t("Programmpfad unbekannt").into() };
+        let Some(exe) = own_launch_path() else { return crate::i18n::t("Programmpfad unbekannt").into() };
         match write_service_menu(&menu, &icon, &exe) {
             Ok(()) => crate::i18n::t("Kontextmenü eingerichtet").into(),
             Err(_) => crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden").into(),
@@ -185,12 +185,21 @@ fn exec_quoted(exe: &std::path::Path) -> String {
 /// Wayland shows a window's icon only through a `.desktop` file named after its app id
 /// (`PsyAudio`); a hidden entry gives the taskbar the real icon without a second menu item.
 /// Written only when it changed, so a new build path is picked up on the next start.
+/// A deb or rpm package brings its own `PsyAudio.desktop` with the icon; the hidden entry is then
+/// not needed, and under the same name in the user's folder it would hide the menu item.
 #[cfg(target_os = "linux")]
 pub fn register_window_icon() {
     let Some(data) = dirs::data_dir() else { return };
-    let Ok(exe) = std::env::current_exe() else { return };
     let icon = data.join("PsyAudio/PsyAudio.png");
     let entry = data.join("applications/PsyAudio.desktop");
+    if package_entry_exists(&system_data_dirs(&std::env::var("XDG_DATA_DIRS").unwrap_or_default())) {
+        // only the entry PsyAudio wrote itself goes, never one the person made
+        if std::fs::read_to_string(&entry).is_ok_and(|t| t.contains("NoDisplay=true\n") && t.contains("StartupWMClass=PsyAudio\n")) {
+            let _ = std::fs::remove_file(&entry);
+        }
+        return;
+    }
+    let Some(exe) = own_launch_path() else { return };
     let text = window_entry_text(&exe, &icon);
     if std::fs::read_to_string(&entry).is_ok_and(|t| t == text) && icon.exists() {
         return;
@@ -200,6 +209,31 @@ pub fn register_window_icon() {
     }
     let _ = std::fs::write(&icon, crate::APP_ICON_PNG);
     let _ = std::fs::write(&entry, text);
+}
+
+/// The system data folders after the XDG base directory spec (`XDG_DATA_DIRS`, `:`-separated).
+#[cfg(any(test, target_os = "linux"))]
+fn system_data_dirs(var: &str) -> Vec<std::path::PathBuf> {
+    let var = if var.is_empty() { "/usr/local/share:/usr/share" } else { var };
+    var.split(':').filter(|d| !d.is_empty()).map(std::path::PathBuf::from).collect()
+}
+
+/// Whether a package installed the application entry `PsyAudio.desktop` in one of `dirs`.
+#[cfg(any(test, target_os = "linux"))]
+fn package_entry_exists(dirs: &[std::path::PathBuf]) -> bool {
+    dirs.iter().any(|d| d.join("applications/PsyAudio.desktop").is_file())
+}
+
+/// The path other programs start PsyAudio with: an AppImage runs from a new mount point on
+/// every start, so its own file (`$APPIMAGE`) is the path that stays.
+#[cfg(any(test, target_os = "linux"))]
+fn launch_path(appimage: Option<std::ffi::OsString>, exe: std::path::PathBuf) -> std::path::PathBuf {
+    appimage.filter(|a| !a.is_empty()).map(std::path::PathBuf::from).unwrap_or(exe)
+}
+
+#[cfg(target_os = "linux")]
+fn own_launch_path() -> Option<std::path::PathBuf> {
+    Some(launch_path(std::env::var_os("APPIMAGE"), std::env::current_exe().ok()?))
 }
 
 /// The hidden application entry that ties the app id `PsyAudio` to the icon.
@@ -241,6 +275,37 @@ mod explorer_menu_tests {
     #[test]
     fn the_old_group_entry_is_known_for_cleanup() {
         assert_eq!(OLD_EXPLORER_MENU_KEY, r"Software\Classes\SystemFileAssociations\audio\shell\PsyAudio");
+    }
+}
+
+#[cfg(test)]
+mod linux_entry_tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn data_dirs_follow_xdg() {
+        assert_eq!(system_data_dirs(""), vec![PathBuf::from("/usr/local/share"), PathBuf::from("/usr/share")]);
+        assert_eq!(system_data_dirs("/a::/b"), vec![PathBuf::from("/a"), PathBuf::from("/b")]);
+    }
+
+    #[test]
+    fn a_package_entry_is_found() {
+        let dir = std::env::temp_dir().join(format!("psyaudio-entry-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("applications")).unwrap();
+        assert!(!package_entry_exists(std::slice::from_ref(&dir)));
+        std::fs::write(dir.join("applications/PsyAudio.desktop"), "[Desktop Entry]\n").unwrap();
+        assert!(package_entry_exists(&[PathBuf::from("/nowhere"), dir.clone()]));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_appimage_is_started_from_its_own_file() {
+        let exe = PathBuf::from("/tmp/.mount_PsyAu1/PsyAudio");
+        assert_eq!(launch_path(Some("/home/u/PsyAudio.AppImage".into()), exe.clone()), PathBuf::from("/home/u/PsyAudio.AppImage"));
+        assert_eq!(launch_path(None, exe.clone()), exe);
+        assert_eq!(launch_path(Some("".into()), exe.clone()), exe);
     }
 }
 
