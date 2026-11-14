@@ -4,6 +4,8 @@ Every version has its own section. The section of a version becomes the text of 
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-14
+
 The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch converter in one window.
 
 ### Added
@@ -17,3 +19,4 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 - **Setup on first start** in five steps: look, programs, file manager menu, rips and CD drive.
 - Catppuccin Mocha (dark) and Latte (light), English and German.
 - Packages for Windows (installer), Linux (AppImage, deb, rpm) and macOS (disk image for Apple Silicon and Intel; no CD ripping on macOS yet).
+
