@@ -95,7 +95,8 @@ mod reg {
     }
 }
 
-/// Add or remove the Explorer right-click entry for audio files (current user only).
+/// Add or remove the file manager's right-click entry for audio files (current user only): Explorer,
+/// Dolphin, or a Finder quick action.
 pub fn file_manager_menu(add: bool) -> String {
     #[cfg(windows)]
     {
@@ -145,10 +146,34 @@ pub fn file_manager_menu(add: bool) -> String {
             Err(_) => crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden").into(),
         }
     }
-    #[cfg(not(any(windows, target_os = "linux")))]
+    #[cfg(target_os = "macos")]
+    {
+        let Some(services) = dirs::home_dir().map(|h| h.join("Library/Services")) else {
+            return crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden").into();
+        };
+        // one entry, in the current language: an earlier one (other language) goes first
+        let removed = remove_quick_actions(&services);
+        let result = if !add {
+            if removed {
+                crate::i18n::t("Kontextmenü entfernt")
+            } else {
+                crate::i18n::t("Kein Kontextmenü vorhanden")
+            }
+        } else {
+            let label = crate::i18n::t("Mit PsyAudio konvertieren");
+            match write_quick_action(&services.join(format!("{label}.workflow")), label) {
+                Ok(()) => crate::i18n::t("Kontextmenü eingerichtet"),
+                Err(_) => crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden"),
+            }
+        };
+        // the Finder reads the services again
+        let _ = std::process::Command::new("/System/Library/CoreServices/pbs").arg("-update").status();
+        result.into()
+    }
+    #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
     {
         let _ = add;
-        crate::i18n::t("Nur unter Windows verfügbar").into()
+        crate::i18n::t("Auf diesem System nicht verfügbar").into()
     }
 }
 
@@ -274,8 +299,298 @@ pub fn window_entry_text(exe: &std::path::Path, icon: &std::path::Path) -> Strin
     format!("[Desktop Entry]\nType=Application\nName=PsyAudio\nIcon={}\nExec=\"{quoted}\" %F\nStartupWMClass=PsyAudio\nNoDisplay=true\n", icon.display())
 }
 
+/// macOS: the Finder entry is a quick action in `~/Library/Services` that opens PsyAudio by its
+/// bundle id with the chosen files. Audio types macOS does not know are declared as audio by
+/// PsyAudio's own Info.plist, so `public.audio` covers every extension PsyAudio reads.
+#[cfg(target_os = "macos")]
+fn write_quick_action(dir: &std::path::Path, label: &str) -> std::io::Result<()> {
+    let contents = dir.join("Contents");
+    std::fs::create_dir_all(&contents)?;
+    std::fs::write(contents.join("Info.plist"), QUICK_ACTION_INFO.replace("{label}", &xml_escape(label)))?;
+    std::fs::write(contents.join("document.wflow"), QUICK_ACTION_WFLOW)
+}
+
+/// Removes every quick action in `services` that opens PsyAudio (in any language); whether one was there.
+#[cfg(target_os = "macos")]
+fn remove_quick_actions(services: &std::path::Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(services) else { return false };
+    let mut removed = false;
+    for e in entries.flatten() {
+        let p = e.path();
+        let ours = p.extension().is_some_and(|x| x == "workflow")
+            && std::fs::read_to_string(p.join("Contents/document.wflow")).is_ok_and(|w| w.contains(QUICK_ACTION_COMMAND));
+        if ours && std::fs::remove_dir_all(&p).is_ok() {
+            removed = true;
+        }
+    }
+    removed
+}
+
+#[cfg(target_os = "macos")]
+fn xml_escape(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+}
+
+#[cfg(target_os = "macos")]
+const QUICK_ACTION_COMMAND: &str = "open -b app.psyaudio \"$@\"";
+
+#[cfg(target_os = "macos")]
+const QUICK_ACTION_INFO: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>{label}</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>runWorkflowAsService</string>
+			<key>NSRequiredContext</key>
+			<dict>
+				<key>NSApplicationIdentifier</key>
+				<string>com.apple.finder</string>
+			</dict>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.audio</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
+"#;
+
+/// An Automator "Run Shell Script" action that gets the files as arguments.
+#[cfg(target_os = "macos")]
+const QUICK_ACTION_WFLOW: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AMApplicationBuild</key>
+	<string>534</string>
+	<key>AMApplicationVersion</key>
+	<string>2.10</string>
+	<key>AMDocumentVersion</key>
+	<string>2</string>
+	<key>actions</key>
+	<array>
+		<dict>
+			<key>action</key>
+			<dict>
+				<key>AMAccepts</key>
+				<dict>
+					<key>Container</key>
+					<string>List</string>
+					<key>Optional</key>
+					<true/>
+					<key>Types</key>
+					<array>
+						<string>com.apple.cocoa.path</string>
+					</array>
+				</dict>
+				<key>AMActionVersion</key>
+				<string>2.0.3</string>
+				<key>AMApplication</key>
+				<array>
+					<string>Automator</string>
+				</array>
+				<key>AMParameterProperties</key>
+				<dict>
+					<key>COMMAND_STRING</key>
+					<dict/>
+					<key>CheckedForUserDefaultShell</key>
+					<dict/>
+					<key>inputMethod</key>
+					<dict/>
+					<key>shell</key>
+					<dict/>
+					<key>source</key>
+					<dict/>
+				</dict>
+				<key>AMProvides</key>
+				<dict>
+					<key>Container</key>
+					<string>List</string>
+					<key>Types</key>
+					<array>
+						<string>com.apple.cocoa.string</string>
+					</array>
+				</dict>
+				<key>ActionBundlePath</key>
+				<string>/System/Library/Automator/Run Shell Script.action</string>
+				<key>ActionName</key>
+				<string>Run Shell Script</string>
+				<key>ActionParameters</key>
+				<dict>
+					<key>COMMAND_STRING</key>
+					<string>open -b app.psyaudio "$@"</string>
+					<key>CheckedForUserDefaultShell</key>
+					<true/>
+					<key>inputMethod</key>
+					<integer>1</integer>
+					<key>shell</key>
+					<string>/bin/zsh</string>
+					<key>source</key>
+					<string></string>
+				</dict>
+				<key>BundleIdentifier</key>
+				<string>com.apple.RunShellScript</string>
+				<key>CFBundleVersion</key>
+				<string>2.0.3</string>
+				<key>CanShowSelectedItemsWhenRun</key>
+				<false/>
+				<key>CanShowWhenRun</key>
+				<true/>
+				<key>Category</key>
+				<array>
+					<string>AMCategoryUtilities</string>
+				</array>
+				<key>Class Name</key>
+				<string>RunShellScriptAction</string>
+				<key>InputUUID</key>
+				<string>5B0E6A4E-2C41-4F7A-9E0B-0E7B5C1A9A01</string>
+				<key>OutputUUID</key>
+				<string>5B0E6A4E-2C41-4F7A-9E0B-0E7B5C1A9A02</string>
+				<key>UUID</key>
+				<string>5B0E6A4E-2C41-4F7A-9E0B-0E7B5C1A9A03</string>
+				<key>UnlocalizedApplications</key>
+				<array>
+					<string>Automator</string>
+				</array>
+				<key>arguments</key>
+				<dict>
+					<key>0</key>
+					<dict>
+						<key>default value</key>
+						<integer>0</integer>
+						<key>name</key>
+						<string>inputMethod</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>0</string>
+					</dict>
+					<key>1</key>
+					<dict>
+						<key>default value</key>
+						<false/>
+						<key>name</key>
+						<string>CheckedForUserDefaultShell</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>1</string>
+					</dict>
+					<key>2</key>
+					<dict>
+						<key>default value</key>
+						<string></string>
+						<key>name</key>
+						<string>source</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>2</string>
+					</dict>
+					<key>3</key>
+					<dict>
+						<key>default value</key>
+						<string></string>
+						<key>name</key>
+						<string>COMMAND_STRING</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>3</string>
+					</dict>
+					<key>4</key>
+					<dict>
+						<key>default value</key>
+						<string>/bin/sh</string>
+						<key>name</key>
+						<string>shell</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>4</string>
+					</dict>
+				</dict>
+				<key>conversionLabel</key>
+				<integer>0</integer>
+				<key>isViewVisible</key>
+				<integer>1</integer>
+				<key>location</key>
+				<string>309.000000:305.000000</string>
+				<key>nibPath</key>
+				<string>/System/Library/Automator/Run Shell Script.action/Contents/Resources/Base.lproj/main.nib</string>
+			</dict>
+			<key>isViewVisible</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>connectors</key>
+	<dict/>
+	<key>workflowMetaData</key>
+	<dict>
+		<key>applicationBundleID</key>
+		<string>com.apple.finder</string>
+		<key>applicationBundleIDsByPath</key>
+		<dict>
+			<key>/System/Library/CoreServices/Finder.app</key>
+			<string>com.apple.finder</string>
+		</dict>
+		<key>applicationPath</key>
+		<string>/System/Library/CoreServices/Finder.app</string>
+		<key>applicationPaths</key>
+		<array>
+			<string>/System/Library/CoreServices/Finder.app</string>
+		</array>
+		<key>inputTypeIdentifier</key>
+		<string>com.apple.Automator.fileSystemObject</string>
+		<key>outputTypeIdentifier</key>
+		<string>com.apple.Automator.nothing</string>
+		<key>presentationMode</key>
+		<integer>15</integer>
+		<key>processesInput</key>
+		<false/>
+		<key>serviceApplicationBundleID</key>
+		<string>com.apple.finder</string>
+		<key>serviceApplicationPath</key>
+		<string>/System/Library/CoreServices/Finder.app</string>
+		<key>serviceInputTypeIdentifier</key>
+		<string>com.apple.Automator.fileSystemObject</string>
+		<key>serviceOutputTypeIdentifier</key>
+		<string>com.apple.Automator.nothing</string>
+		<key>serviceProcessesInput</key>
+		<false/>
+		<key>systemImageName</key>
+		<string>NSActionTemplate</string>
+		<key>useAutomaticInputType</key>
+		<false/>
+		<key>workflowTypeIdentifier</key>
+		<string>com.apple.Automator.servicesMenu</string>
+	</dict>
+</dict>
+</plist>
+"#;
+
 /// SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED) = 0x80000001 while converting
 /// or ripping, so the PC doesn't go to standby; ES_CONTINUOUS alone (0x80000000) lets it sleep again.
+/// macOS: an IOPM assertion against idle sleep (`macos::power_assertion`).
 pub const KEEP_AWAKE_FLAGS: u32 = 0x8000_0001;
 
 pub fn keep_awake(on: bool) {
@@ -283,7 +598,9 @@ pub fn keep_awake(on: bool) {
     unsafe {
         windows_sys::Win32::System::Power::SetThreadExecutionState(if on { KEEP_AWAKE_FLAGS } else { 0x8000_0000 });
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    crate::macos::power_assertion(on);
+    #[cfg(not(any(windows, target_os = "macos")))]
     let _ = on;
 }
 
@@ -383,5 +700,51 @@ mod service_menu_tests {
     fn special_characters_in_the_path_are_escaped() {
         let t = service_menu_text(Path::new("/a$b/50%\"x"), Path::new("/i.png"), "C");
         assert!(t.contains(r#"Exec="/a\\$b/50%%\\"x" %F"#), "{t}");
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod quick_action_tests {
+    use super::*;
+
+    fn temp(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("psyaudio-qa-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
+    /// The quick action starts PsyAudio by its bundle id, so it keeps working after the app moved,
+    /// and hands over the files (an already running PsyAudio gets them too).
+    #[test]
+    fn workflow_uses_bundle_id() {
+        let dir = temp("write").join("Mit PsyAudio konvertieren.workflow");
+        write_quick_action(&dir, "Mit PsyAudio konvertieren").unwrap();
+        let wflow = std::fs::read_to_string(dir.join("Contents/document.wflow")).unwrap();
+        assert!(wflow.contains("open -b app.psyaudio \"$@\""));
+        assert!(!wflow.contains(".app/Contents/MacOS"));
+        let plist = std::fs::read_to_string(dir.join("Contents/Info.plist")).unwrap();
+        assert!(plist.contains("NSServices") && plist.contains("public.audio"));
+        assert!(plist.contains("<string>Mit PsyAudio konvertieren</string>"));
+        let _ = std::fs::remove_dir_all(dir.parent().unwrap());
+    }
+
+    #[test]
+    fn removing_the_quick_action_deletes_the_bundle() {
+        let base = temp("remove");
+        let dir = base.join("Convert with PsyAudio.workflow");
+        write_quick_action(&dir, "Convert with PsyAudio").unwrap();
+        assert!(remove_quick_actions(&base));
+        assert!(!dir.exists());
+        assert!(!remove_quick_actions(&base), "nothing left to remove");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn the_label_is_escaped_for_the_plist() {
+        let dir = temp("escape").join("x.workflow");
+        write_quick_action(&dir, "A & <B>").unwrap();
+        let plist = std::fs::read_to_string(dir.join("Contents/Info.plist")).unwrap();
+        assert!(plist.contains("A &amp; &lt;B&gt;"));
+        let _ = std::fs::remove_dir_all(dir.parent().unwrap());
     }
 }

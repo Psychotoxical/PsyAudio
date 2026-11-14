@@ -22,6 +22,8 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 - Catppuccin Mocha (dark) and Latte (light), English and German.
 - Downloads for Windows (installer), Linux (AppImage, deb, rpm) and macOS (disk image for Apple Silicon and Intel).
 - **CD ripping on macOS**, with the same database check, drive offset and buffer measurement as on Windows and Linux.
+- **Finder integration on macOS**: a "Convert with PsyAudio" quick action (switched on in the settings), Open With and dropping files on the Dock icon. Audio formats macOS does not know, like Opus, APE and WavPack, count as audio files.
+- **On macOS, ripping and converting keep the Mac awake**, ⌘Q asks like the close button while work runs, and FFmpeg and the other programs are also found when PsyAudio is started from the Finder.
 
 ### Fixed
 
