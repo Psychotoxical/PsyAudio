@@ -16,4 +16,4 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 - **"Convert with PsyAudio"** in the right-click menu of the Explorer (Windows) and Dolphin (Linux).
 - **Setup on first start** in five steps: look, programs, file manager menu, rips and CD drive.
 - Catppuccin Mocha (dark) and Latte (light), English and German.
-- Packages for Windows (installer), Linux (AppImage, deb, rpm) and macOS (disk image for Apple Silicon and Intel; no CD ripping on macOS yet).
+- Downloads for Windows (installer), Linux (AppImage, deb, rpm) and macOS (disk image for Apple Silicon and Intel; no CD ripping on macOS yet).
