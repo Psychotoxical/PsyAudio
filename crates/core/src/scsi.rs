@@ -1,5 +1,5 @@
-//! SCSI commands to the CD drive (Windows SCSI pass-through, Linux SG_IO): the drive's buffer size
-//! now; subchannel, ISRC and CD-Text later (step B).
+//! SCSI commands to the CD drive (Windows SCSI pass-through, Linux SG_IO, macOS SCSITaskLib):
+//! the drive's buffer size now; subchannel, ISRC and CD-Text later (step B).
 
 /// The mode page in a MODE SENSE(10) answer: after the 8-byte header and any block descriptors.
 pub fn page_of_mode_sense10(resp: &[u8]) -> Option<&[u8]> {
@@ -44,8 +44,13 @@ pub fn buffer_kb(d: char) -> Option<u32> {
 /// START STOP UNIT with Start = 0 and LoEj = 0: the disc stops spinning, the tray stays shut.
 pub const STOP_UNIT: [u8; 6] = [0x1B, 0, 0, 0, 0x00, 0];
 
-/// Let the disc spin down (it starts again by itself on the next read).
+/// Let the disc spin down (it starts again by itself on the next read). Not on macOS: the drive
+/// is only handed out with the disc unmounted, and mounting it again after every rip would show it
+/// to the Finder and the system's CD action anew.
 pub fn stop_disc(d: char) -> Result<(), String> {
+    if cfg!(target_os = "macos") {
+        return Ok(());
+    }
     command_in(d, &STOP_UNIT, 0).map(|_| ())
 }
 
@@ -208,7 +213,13 @@ fn command_in(d: char, cdb: &[u8], len: usize) -> Result<Vec<u8>, String> {
     Ok(data)
 }
 
-#[cfg(not(any(windows, target_os = "linux")))]
+#[cfg(target_os = "macos")]
+fn command_in(d: char, cdb: &[u8], len: usize) -> Result<Vec<u8>, String> {
+    let index = d.to_digit(36).ok_or_else(|| crate::i18n::t("nicht unterstützt").to_string())? as usize;
+    crate::macos::scsi_command_in(index, cdb, len)
+}
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 fn command_in(_d: char, _cdb: &[u8], _len: usize) -> Result<Vec<u8>, String> {
     Err(crate::i18n::t("nicht unterstützt").into())
 }

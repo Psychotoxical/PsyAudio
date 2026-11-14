@@ -214,6 +214,16 @@ pub struct RipContext {
     pub meta: DiscMeta,
 }
 
+/// The drive's buffer for a rip: the stored one, else asked from the drive. Not asked on macOS:
+/// the drive is handed out only with the disc unmounted, and mounting it again would start the
+/// system's CD action while the rip begins; the buffer there comes from measuring the drive.
+pub(crate) fn rip_buffer(stored: Option<u32>, ask: impl FnOnce() -> Option<u32>) -> Option<u32> {
+    if stored.is_some() || cfg!(target_os = "macos") {
+        return stored;
+    }
+    ask()
+}
+
 /// Rip the chosen tracks one after another, check them against the CUETools database and encode each.
 pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<AtomicBool>, tx: Sender<RipMsg>) {
     let RipContext { letter, toc, plan, rs, ctdb: db, cover, first_audio, last_audio, meta } = c;
@@ -222,7 +232,7 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
     let profile = rs.drive(&key);
     let offset = profile.map(|p| p.offset).unwrap_or(rs.drive_offset);
     // a re-read must come from the disc: read more elsewhere than the drive's buffer holds
-    let buffer = profile.and_then(|p| p.buffer_kb).or_else(|| crate::scsi::buffer_kb(letter));
+    let buffer = rip_buffer(profile.and_then(|p| p.buffer_kb), || crate::scsi::buffer_kb(letter));
     let flush = crate::scsi::flush_kb(rs.cache_kb, buffer);
     let drive = match cdrip::Drive::open(letter) {
         Ok(d) => d,
@@ -405,6 +415,17 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
 #[cfg(test)]
 mod rip_status_tests {
     use super::*;
+
+    #[test]
+    fn rip_start_asks_the_drive_for_its_buffer_only_where_that_is_harmless() {
+        assert_eq!(rip_buffer(Some(2048), || panic!("asked")), Some(2048));
+        if cfg!(target_os = "macos") {
+            // macOS hands out the drive only with the disc unmounted: never at rip start
+            assert_eq!(rip_buffer(None, || panic!("asked")), None);
+        } else {
+            assert_eq!(rip_buffer(None, || Some(4096)), Some(4096));
+        }
+    }
 
     fn entry(confidence: u32, crcs: &[u32]) -> Entry {
         Entry { confidence, track_crcs: crcs.to_vec() }

@@ -11,6 +11,8 @@ pub mod files;
 pub mod i18n;
 pub mod integration;
 pub mod loudness;
+#[cfg(target_os = "macos")]
+pub mod macos;
 pub mod naming;
 pub mod rip;
 pub mod scsi;
