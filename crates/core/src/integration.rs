@@ -174,6 +174,27 @@ pub fn service_menu_text(exe: &std::path::Path, icon: &std::path::Path, label: &
     )
 }
 
+/// An AppImage that was moved after the menu was set up (Gear Lever, AppImageLauncher) would leave
+/// the Dolphin menu pointing at the old file; on every start an existing menu follows the program.
+#[cfg(target_os = "linux")]
+fn follow_launch_path(menu: &std::path::Path, exe: &std::path::Path) {
+    if let Some(text) = std::fs::read_to_string(menu).ok().and_then(|t| menu_with_launch_path(&t, exe)) {
+        let _ = std::fs::write(menu, text);
+    }
+}
+
+/// The menu text with its `Exec` line set to `exe`, or `None` when it already points there.
+/// Only that line changes: the label keeps the language it was set up in.
+#[cfg(target_os = "linux")]
+fn menu_with_launch_path(text: &str, exe: &std::path::Path) -> Option<String> {
+    let exec = format!("Exec=\"{}\" %F", exec_quoted(exe));
+    if text.lines().any(|l| l == exec) {
+        return None;
+    }
+    let lines: Vec<&str> = text.lines().map(|l| if l.starts_with("Exec=") { exec.as_str() } else { l }).collect();
+    Some(lines.join("\n") + "\n")
+}
+
 /// A path for a `.desktop` `Exec` line: inside double quotes, `"`, `` ` ``, `$` and `\\` need a
 /// backslash; then the string escape doubles every backslash once more, and `%` is written `%%`.
 #[cfg(target_os = "linux")]
@@ -192,14 +213,16 @@ pub fn register_window_icon() {
     let Some(data) = dirs::data_dir() else { return };
     let icon = data.join("PsyAudio/PsyAudio.png");
     let entry = data.join("applications/PsyAudio.desktop");
-    if package_entry_exists(&system_data_dirs(&std::env::var("XDG_DATA_DIRS").unwrap_or_default())) {
+    let Some(exe) = own_launch_path() else { return };
+    follow_launch_path(&data.join("kio/servicemenus/psyaudio.desktop"), &exe);
+    let dirs = package_data_dirs(&std::env::var("XDG_DATA_DIRS").unwrap_or_default(), std::env::var_os("APPDIR"));
+    if package_entry_exists(&dirs) {
         // only the entry PsyAudio wrote itself goes, never one the person made
         if std::fs::read_to_string(&entry).is_ok_and(|t| t.contains("NoDisplay=true\n") && t.contains("StartupWMClass=PsyAudio\n")) {
             let _ = std::fs::remove_file(&entry);
         }
         return;
     }
-    let Some(exe) = own_launch_path() else { return };
     let text = window_entry_text(&exe, &icon);
     if std::fs::read_to_string(&entry).is_ok_and(|t| t == text) && icon.exists() {
         return;
@@ -216,6 +239,14 @@ pub fn register_window_icon() {
 fn system_data_dirs(var: &str) -> Vec<std::path::PathBuf> {
     let var = if var.is_empty() { "/usr/local/share:/usr/share" } else { var };
     var.split(':').filter(|d| !d.is_empty()).map(std::path::PathBuf::from).collect()
+}
+
+/// The data folders a deb or rpm package could have installed into. An AppImage puts its own
+/// mounted folder (`$APPDIR`) in front of `XDG_DATA_DIRS`, and the entry it carries there is no package.
+#[cfg(any(test, target_os = "linux"))]
+fn package_data_dirs(var: &str, appdir: Option<std::ffi::OsString>) -> Vec<std::path::PathBuf> {
+    let appdir = appdir.filter(|a| !a.is_empty()).map(std::path::PathBuf::from);
+    system_data_dirs(var).into_iter().filter(|d| appdir.as_ref().is_none_or(|a| !d.starts_with(a))).collect()
 }
 
 /// Whether a package installed the application entry `PsyAudio.desktop` in one of `dirs`.
@@ -290,6 +321,15 @@ mod linux_entry_tests {
     }
 
     #[test]
+    fn an_appimage_does_not_count_its_own_folder_as_a_package() {
+        let var = "/tmp/.mount_PsyAu1/usr/share/:/tmp/.mount_PsyAu1/usr/share:/usr/share";
+        let appdir = std::ffi::OsString::from("/tmp/.mount_PsyAu1");
+        assert_eq!(package_data_dirs(var, Some(appdir)), vec![PathBuf::from("/usr/share")]);
+        assert_eq!(package_data_dirs("/a:/b", None), vec![PathBuf::from("/a"), PathBuf::from("/b")]);
+        assert_eq!(package_data_dirs("/a", Some("".into())), vec![PathBuf::from("/a")]);
+    }
+
+    #[test]
     fn a_package_entry_is_found() {
         let dir = std::env::temp_dir().join(format!("psyaudio-entry-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -313,6 +353,14 @@ mod linux_entry_tests {
 mod service_menu_tests {
     use super::service_menu_text;
     use std::path::Path;
+
+    #[test]
+    fn a_moved_appimage_is_followed_by_the_menu() {
+        let old = service_menu_text(Path::new("/home/u/Downloads/PsyAudio.AppImage"), Path::new("/tmp/i.png"), "Mit PsyAudio konvertieren");
+        let new = super::menu_with_launch_path(&old, Path::new("/home/u/AppImages/psyaudio.appimage")).unwrap();
+        assert_eq!(new, service_menu_text(Path::new("/home/u/AppImages/psyaudio.appimage"), Path::new("/tmp/i.png"), "Mit PsyAudio konvertieren"));
+        assert!(super::menu_with_launch_path(&new, Path::new("/home/u/AppImages/psyaudio.appimage")).is_none());
+    }
 
     #[test]
     fn the_window_entry_ties_the_app_id_to_the_icon() {

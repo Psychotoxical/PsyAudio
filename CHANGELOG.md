@@ -17,3 +17,8 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 - **Setup on first start** in five steps: look, programs, file manager menu, rips and CD drive.
 - Catppuccin Mocha (dark) and Latte (light), English and German.
 - Downloads for Windows (installer), Linux (AppImage, deb, rpm) and macOS (disk image for Apple Silicon and Intel; no CD ripping on macOS yet).
+
+### Fixed
+
+- The AppImage shows its own icon in the Wayland taskbar; it no longer took the entry it carries inside for an installed package.
+- The Dolphin menu follows PsyAudio when its AppImage is moved, for example by Gear Lever; it is set to the program's current file on every start.
