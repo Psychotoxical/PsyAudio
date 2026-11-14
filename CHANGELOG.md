@@ -9,6 +9,7 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 ### Changed
 
 - The README opens with the PsyAudio wordmark, white on GitHub's dark theme and black on the light one.
+- The README shows what PsyAudio does on Windows, Linux and macOS in one table, lists the downloads, and keeps the developer notes in fold-out sections.
 
 ### Added
 
