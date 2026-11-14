@@ -519,6 +519,7 @@ pub(crate) fn key_from(model: Option<String>, name: &str) -> String {
 }
 
 /// The model in a Windows STORAGE_DEVICE_DESCRIPTOR: vendor and product, the firmware left out.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn model_from_descriptor(buf: &[u8]) -> Option<String> {
     let offset = |at: usize| buf.get(at..at + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize);
     let text = |off: usize| -> String {

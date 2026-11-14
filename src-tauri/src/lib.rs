@@ -70,6 +70,11 @@ pub fn run() {
         *f = file_args(args, &std::env::current_dir().unwrap_or_default());
     }
 
+    #[cfg(target_os = "linux")]
+    if demo.is_none() {
+        psyaudio_core::integration::register_window_icon();
+    }
+
     let mut builder = tauri::Builder::default();
     // first, so a second start hands its files over before anything else runs; the sample mode
     // runs on its own, next to a PsyAudio that is already open

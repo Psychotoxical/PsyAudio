@@ -167,14 +167,46 @@ fn write_service_menu(menu: &std::path::Path, icon: &std::path::Path, exe: &std:
 /// The `.desktop` text: one entry for audio files that hands the whole selection to PsyAudio.
 #[cfg(target_os = "linux")]
 pub fn service_menu_text(exe: &std::path::Path, icon: &std::path::Path, label: &str) -> String {
-    // Exec quoting: inside double quotes, `"`, `` ` ``, `$` and `\` need a backslash; then the
-    // string escape doubles every backslash once more, and `%` is written `%%`
-    let quoted: String = exe.to_string_lossy().chars().flat_map(|c| if matches!(c, '"' | '`' | '$' | '\\') { vec!['\\', c] } else { vec![c] }).collect();
-    let quoted = quoted.replace('\\', "\\\\").replace('%', "%%");
+    let quoted = exec_quoted(exe);
     format!(
         "[Desktop Entry]\nType=Service\nMimeType=audio/*;\nActions=psyaudio;\nX-KDE-Priority=TopLevel\n\n[Desktop Action psyaudio]\nName={label}\nIcon={}\nExec=\"{quoted}\" %F\n",
         icon.display()
     )
+}
+
+/// A path for a `.desktop` `Exec` line: inside double quotes, `"`, `` ` ``, `$` and `\\` need a
+/// backslash; then the string escape doubles every backslash once more, and `%` is written `%%`.
+#[cfg(target_os = "linux")]
+fn exec_quoted(exe: &std::path::Path) -> String {
+    let quoted: String = exe.to_string_lossy().chars().flat_map(|c| if matches!(c, '"' | '`' | '$' | '\\') { vec!['\\', c] } else { vec![c] }).collect();
+    quoted.replace('\\', "\\\\").replace('%', "%%")
+}
+
+/// Wayland shows a window's icon only through a `.desktop` file named after its app id
+/// (`PsyAudio`); a hidden entry gives the taskbar the real icon without a second menu item.
+/// Written only when it changed, so a new build path is picked up on the next start.
+#[cfg(target_os = "linux")]
+pub fn register_window_icon() {
+    let Some(data) = dirs::data_dir() else { return };
+    let Ok(exe) = std::env::current_exe() else { return };
+    let icon = data.join("PsyAudio/PsyAudio.png");
+    let entry = data.join("applications/PsyAudio.desktop");
+    let text = window_entry_text(&exe, &icon);
+    if std::fs::read_to_string(&entry).is_ok_and(|t| t == text) && icon.exists() {
+        return;
+    }
+    for dir in [entry.parent(), icon.parent()].into_iter().flatten() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let _ = std::fs::write(&icon, crate::APP_ICON_PNG);
+    let _ = std::fs::write(&entry, text);
+}
+
+/// The hidden application entry that ties the app id `PsyAudio` to the icon.
+#[cfg(target_os = "linux")]
+pub fn window_entry_text(exe: &std::path::Path, icon: &std::path::Path) -> String {
+    let quoted = exec_quoted(exe);
+    format!("[Desktop Entry]\nType=Application\nName=PsyAudio\nIcon={}\nExec=\"{quoted}\" %F\nStartupWMClass=PsyAudio\nNoDisplay=true\n", icon.display())
 }
 
 /// SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED) = 0x80000001 while converting
@@ -216,6 +248,15 @@ mod explorer_menu_tests {
 mod service_menu_tests {
     use super::service_menu_text;
     use std::path::Path;
+
+    #[test]
+    fn the_window_entry_ties_the_app_id_to_the_icon() {
+        let t = super::window_entry_text(Path::new("/opt/Psy Audio/PsyAudio"), Path::new("/tmp/i.png"));
+        assert!(t.contains("StartupWMClass=PsyAudio\n"));
+        assert!(t.contains("Icon=/tmp/i.png\n"));
+        assert!(t.contains("NoDisplay=true\n"));
+        assert!(t.contains("Exec=\"/opt/Psy Audio/PsyAudio\" %F\n"));
+    }
 
     #[test]
     fn hands_the_selection_to_psyaudio() {
