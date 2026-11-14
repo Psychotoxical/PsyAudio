@@ -7,6 +7,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   SlidersHorizontal,
+  Wand2,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -83,6 +84,7 @@ export function Sidebar({ counts = {}, ffmpeg, jobs = [] }: Props) {
       ))}
       <p className="grp">System</p>
       {item("settings", <SlidersHorizontal size={17} />, t("Einstellungen"))}
+      {item("setup", <Wand2 size={17} />, t("Einrichtung"))}
       <div className="side-foot">
         {ffmpeg !== undefined && (
           <span className={ffmpeg ? "status ok" : "status warn"}>

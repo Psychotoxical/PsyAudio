@@ -1,9 +1,10 @@
 //! Ripping a CD: the worker thread, its messages and the per-track verdicts.
 
-use crate::cdrip::{self, DiscMeta, Pressing, Toc};
+use crate::cdrip::{self, DiscMeta, Toc};
 use crate::convert::{self, Job, Msg, Plan};
+use crate::ctdb::{self, Entry};
 use crate::naming;
-use crate::settings::{RipMode, RipSettings};
+use crate::settings::{DriveProfile, OffsetMethod, RipMode, RipSettings};
 use crate::tags::Tags;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -15,7 +16,7 @@ use std::sync::Arc;
 pub enum RipMsg {
     /// Row, share of the row done (0..1), what it is doing.
     Progress(usize, f32, RipPhase),
-    TrackDone(usize, TrackStatus, Option<ArResult>),
+    TrackDone(usize, TrackStatus, Option<CtdbResult>),
     Log(String),
     Finished(RipSummary),
 }
@@ -45,7 +46,7 @@ impl RipPhase {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "kind")]
 pub enum TrackStatus {
-    /// Passes agreed (or AccurateRip confirmed the first one); `rereads` blocks were read again.
+    /// Passes agreed (or the CUETools database confirmed the first one); `rereads` blocks were read again.
     Secure {
         passes: u32,
         rereads: u32,
@@ -56,7 +57,7 @@ pub enum TrackStatus {
     Insecure {
         sectors: u32,
     },
-    /// "Titel als Fehler markieren": insecure, or (`unconfirmed`) not confirmed by AccurateRip.
+    /// "Titel als Fehler markieren": insecure, or (`unconfirmed`) not confirmed by the CUETools database.
     Marked {
         unconfirmed: bool,
         was: Box<TrackStatus>,
@@ -74,7 +75,7 @@ impl TrackStatus {
     pub fn text(&self) -> String {
         use crate::i18n::{plural, t, tf};
         match self {
-            TrackStatus::Secure { verified_first_pass: true, .. } => t("Sicher (1 Durchgang, von AccurateRip bestätigt)").to_string(),
+            TrackStatus::Secure { verified_first_pass: true, .. } => t("Sicher (1 Durchgang, von CTDB bestätigt)").to_string(),
             TrackStatus::Secure { passes, rereads, .. } if *rereads > 0 => {
                 let text = plural(
                     *rereads as u64,
@@ -89,7 +90,7 @@ impl TrackStatus {
                 tf(t(plural(*sectors as u64, "Unsicher ({0} Sektor)", "Unsicher ({0} Sektoren)")), &[("0", sectors.to_string())])
             }
             TrackStatus::Marked { unconfirmed: false, was } => tf(t("Fehler – {status}"), &[("status", was.text())]),
-            TrackStatus::Marked { unconfirmed: true, was } => tf(t("Fehler – nicht von AccurateRip bestätigt ({status})"), &[("status", was.text())]),
+            TrackStatus::Marked { unconfirmed: true, was } => tf(t("Fehler – nicht von CTDB bestätigt ({status})"), &[("status", was.text())]),
             TrackStatus::Failed { reason, encoding: false } => tf(t("Fehler: {e}"), &[("e", reason.clone())]),
             TrackStatus::Failed { reason, encoding: true } => tf(t("Fehler beim Kodieren: {e}"), &[("e", reason.clone())]),
             TrackStatus::Cancelled => t("Abgebrochen").to_string(),
@@ -97,73 +98,62 @@ impl TrackStatus {
     }
 }
 
-/// What AccurateRip says about one ripped track.
+/// What the CUETools database (CTDB) says about one ripped track.
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct ArResult {
+pub struct CtdbResult {
     pub confirmed: bool,
-    /// Of the matching entry; without a match, of the disc's first entry for this track.
-    pub confidence: u8,
-    /// 1 or 2 for the CRC version that matched, else 0.
-    pub version: u8,
-    /// The track has an entry in the database.
+    /// Rips in the database with the same checksum for this track.
+    pub confidence: u32,
+    /// Rips of the disc the database knows.
+    pub total: u32,
+    /// The database knows the disc.
     pub in_db: bool,
-    /// Why there is no AccurateRip data for the disc at all.
+    /// Why there is no answer from the database at all.
     pub unavailable: Option<String>,
 }
 
-impl ArResult {
+impl CtdbResult {
     pub fn text(&self) -> String {
         use crate::i18n::{t, tf};
         if let Some(why) = &self.unavailable {
-            return format!("AccurateRip: {why}");
+            return crate::ctdb::unavailable_text(why);
         }
         if self.confirmed {
-            tf(t("AccurateRip: Genau (Vertrauen {c}, {v})"), &[("c", self.confidence.to_string()), ("v", format!("v{}", self.version))])
+            tf(t("CTDB: bestätigt ({c} von {total})"), &[("c", self.confidence.to_string()), ("total", self.total.to_string())])
         } else if self.in_db {
-            tf(t("AccurateRip: Ungenau (Vertrauen {c}) – oder andere Pressung"), &[("c", self.confidence.to_string())])
+            t("CTDB: nicht bestätigt").to_string()
         } else {
-            t("AccurateRip: Titel nicht in der Datenbank").to_string()
+            t("CTDB: CD nicht in der Datenbank").to_string()
         }
     }
 }
 
-/// AccurateRip's answer for one track: the best matching pressing (any confidence confirms).
-pub fn ar_result(db: &Result<Vec<Pressing>, String>, idx: usize, v1: u32, v2: u32) -> ArResult {
-    let db = match db {
-        Ok(db) => db,
-        Err(why) => return ArResult { confirmed: false, confidence: 0, version: 0, in_db: false, unavailable: Some(why.clone()) },
-    };
-    let mut best: Option<(u8, u8)> = None;
-    for pressing in db {
-        if let Some((conf, crc)) = pressing.get(idx) {
-            let ver = if *crc == v2 {
-                Some(2)
-            } else if *crc == v1 {
-                Some(1)
-            } else {
-                None
+/// The database's answer for track `idx` (among `audio_tracks` audio tracks) with checksum `crc`.
+pub fn ctdb_result(db: &Result<Vec<Entry>, String>, idx: usize, crc: u32, audio_tracks: usize) -> CtdbResult {
+    match db {
+        Err(why) => CtdbResult { confirmed: false, confidence: 0, total: 0, in_db: false, unavailable: Some(why.clone()) },
+        Ok(entries) => {
+            let total = ctdb::disc_confidence(entries, audio_tracks);
+            let confidence = ctdb::track_confidence(entries, idx, crc, audio_tracks);
+            CtdbResult { confirmed: confidence > 0, confidence, total, in_db: total > 0, unavailable: None }
+        }
+    }
+}
+
+/// How the drive's offset was found, for the log: method and date, or that it was never measured.
+pub fn offset_note(p: Option<&DriveProfile>) -> String {
+    use crate::i18n::t;
+    match p {
+        None => t("nicht gemessen").to_string(),
+        Some(p) => {
+            let how = match p.method {
+                OffsetMethod::Ctdb => "CTDB",
+                OffsetMethod::Manual => t("von Hand"),
+                OffsetMethod::Adopted => t("übernommen"),
             };
-            if let Some(v) = ver {
-                if best.map(|b| *conf > b.0).unwrap_or(true) {
-                    best = Some((*conf, v));
-                }
-            }
+            format!("{how}, {}", p.measured)
         }
     }
-    match best {
-        Some((confidence, version)) => ArResult { confirmed: true, confidence, version, in_db: true, unavailable: None },
-        // nothing matches: report the confidence of the first entry
-        None => match db.first().and_then(|p| p.get(idx)).filter(|(_, crc)| *crc != 0) {
-            Some((c, _)) => ArResult { confirmed: false, confidence: *c, version: 0, in_db: true, unavailable: None },
-            None => ArResult { confirmed: false, confidence: 0, version: 0, in_db: false, unavailable: None },
-        },
-    }
-}
-
-/// Text and verdict in one, as the egui version used them.
-pub fn ar_verdict(db: &Result<Vec<Pressing>, String>, idx: usize, v1: u32, v2: u32) -> (String, bool) {
-    let r = ar_result(db, idx, v1, v2);
-    (r.text(), r.confirmed)
 }
 
 /// The status of a track; `mark_error` 1 marks insecure tracks, 2 unconfirmed ones as failed.
@@ -197,11 +187,7 @@ impl RipSummary {
         use crate::i18n::{plural, t, tf};
         match self {
             RipSummary::Done { files, accurate, .. } => {
-                let text = plural(
-                    *files as u64,
-                    "Fertig: {0} Datei, {accurate} von AccurateRip bestätigt",
-                    "Fertig: {0} Dateien, {accurate} von AccurateRip bestätigt",
-                );
+                let text = plural(*files as u64, "Fertig: {0} Datei, {accurate} von CTDB bestätigt", "Fertig: {0} Dateien, {accurate} von CTDB bestätigt");
                 tf(t(text), &[("0", files.to_string()), ("accurate", accurate.to_string())])
             }
             RipSummary::Cancelled => t("Abgebrochen").to_string(),
@@ -220,17 +206,24 @@ pub struct RipContext {
     pub toc: Toc,
     pub plan: Plan,
     pub rs: RipSettings,
-    /// The disc's AccurateRip data, or why there is none.
-    pub ar_db: Result<Vec<Pressing>, String>,
+    /// The disc's entries in the CUETools database, or why there are none.
+    pub ctdb: Result<Vec<Entry>, String>,
     pub cover: Option<Vec<u8>>,
     pub first_audio: u8,
     pub last_audio: u8,
     pub meta: DiscMeta,
 }
 
-/// Rip the chosen tracks one after another, check them against AccurateRip and encode each.
+/// Rip the chosen tracks one after another, check them against the CUETools database and encode each.
 pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<AtomicBool>, tx: Sender<RipMsg>) {
-    let RipContext { letter, toc, plan, rs, ar_db, cover, first_audio, last_audio, meta } = c;
+    let RipContext { letter, toc, plan, rs, ctdb: db, cover, first_audio, last_audio, meta } = c;
+    // the drive's measured offset; until it has one, the single offset of earlier versions
+    let key = cdrip::drive_key(letter);
+    let profile = rs.drive(&key);
+    let offset = profile.map(|p| p.offset).unwrap_or(rs.drive_offset);
+    // a re-read must come from the disc: read more elsewhere than the drive's buffer holds
+    let buffer = profile.and_then(|p| p.buffer_kb).or_else(|| crate::scsi::buffer_kb(letter));
+    let flush = crate::scsi::flush_kb(rs.cache_kb, buffer);
     let drive = match cdrip::Drive::open(letter) {
         Ok(d) => d,
         Err(e) => {
@@ -243,12 +236,18 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
         crate::i18n::t("PsyAudio – Protokoll der Audio-Extraktion").to_string(),
         crate::i18n::tf(crate::i18n::t("Album: {0} – {1}"), &[("0", meta.artist.to_string()), ("1", meta.album.to_string())]),
         crate::i18n::tf(
-            crate::i18n::t("Laufwerk {letter}  Versatz {0} Samples  Modus: {1}"),
+            crate::i18n::t("Laufwerk {letter} ({model})  Versatz {0} Samples ({how})  Modus: {1}"),
             &[
                 ("letter", cdrip::drive_name(letter)),
-                ("0", format!("{:+}", rs.drive_offset)),
+                ("model", key.clone()),
+                ("0", format!("{offset:+}")),
+                ("how", offset_note(profile)),
                 ("1", (if rs.mode == RipMode::Secure { crate::i18n::t("Sicher") } else { "Burst" }).to_string()),
             ],
+        ),
+        crate::i18n::tf(
+            crate::i18n::t("Laufwerkspuffer {0}, vor dem Neulesen werden {1} KB gelesen"),
+            &[("0", buffer.map(|kb| format!("{kb} KB")).unwrap_or_else(|| crate::i18n::t("unbekannt").into())), ("1", flush.to_string())],
         ),
         format!("MusicBrainz Disc-ID: {}   freedb: {:08x}", cdrip::musicbrainz_id(&toc), cdrip::freedb_id(&toc)),
         String::new(),
@@ -258,6 +257,8 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
     let mut accurate = 0;
     let mut insecure_tracks = 0;
     let audio_numbers: Vec<u8> = toc.audio_tracks().iter().map(|t| t.number).collect();
+    let disc_samples = ctdb::disc_samples(&toc);
+    let ctdb_crc = |raw: &[u8], number: u8| ctdb::track_crc(raw, number == first_audio, number == last_audio, disc_samples);
     for (row, number, tg) in tracks {
         if cancel.load(Ordering::Relaxed) {
             break;
@@ -267,14 +268,13 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
         let prog = move |f: f32| {
             let _ = txp.send(RipMsg::Progress(row, f * 0.8, RipPhase::Reading { done: f }));
         };
-        // a first pass that AccurateRip confirms needs no second pass
+        // a first pass that the database confirms needs no second pass
         let idx = audio_numbers.iter().position(|n| *n == number).unwrap_or(0);
-        let ar_check = |raw: &[u8]| -> bool {
-            let Ok(db) = ar_db.as_ref().map_err(|_| ()).and_then(|d| if rs.accuraterip { Ok(d) } else { Err(()) }) else { return false };
-            // the 2940-sample edge applies to track 1 and the last track
-            let (v1, v2) = cdrip::accuraterip_crc(raw, number == first_audio, number == last_audio);
-            // any matching CRC counts, whatever its confidence
-            db.iter().any(|p| p.get(idx).map(|(_, crc)| *crc != 0 && (*crc == v1 || *crc == v2)).unwrap_or(false))
+        let confirms = |raw: &[u8]| -> bool {
+            match db.as_ref() {
+                Ok(entries) if rs.ctdb => ctdb::track_confidence(entries, idx, ctdb_crc(raw, number), audio_numbers.len()) > 0,
+                _ => false,
+            }
         };
         let rp = crate::cdrip_read::ReadParams {
             secure: rs.mode == RipMode::Secure,
@@ -283,11 +283,11 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
             extra_min: rs.extra_min,
             extra_max: rs.extra_max,
             extra_clean: rs.extra_clean,
-            cache_kb: rs.cache_kb,
+            cache_kb: flush,
             abort_unrecoverable: rs.abort_unrecoverable,
             interpolate: rs.interpolate,
         };
-        let r = crate::cdrip_read::rip_track(&drive, &toc, number, rs.drive_offset, rp, &cancel, &prog, &ar_check);
+        let r = crate::cdrip_read::rip_track(&drive, &toc, number, offset, rp, &cancel, &prog, &confirms);
         let rip = match r {
             Ok(r) => r,
             Err(e) => {
@@ -306,24 +306,20 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
         } else {
             TrackStatus::Secure { passes: rip.passes, rereads: rip.rereads, verified_first_pass: rip.verified_first_pass }
         };
-        let (v1, v2) = cdrip::accuraterip_crc(&rip.raw, number == first_audio, number == last_audio);
-        let idx = audio_numbers.iter().position(|n| *n == number).unwrap_or(0);
-        let ar = rs.accuraterip.then(|| ar_result(&ar_db, idx, v1, v2));
-        let confirmed = ar.as_ref().is_some_and(|a| a.confirmed);
+        let check = rs.ctdb.then(|| ctdb_result(&db, idx, ctdb_crc(&rip.raw, number), audio_numbers.len()));
+        let confirmed = check.as_ref().is_some_and(|c| c.confirmed);
         if confirmed {
             accurate += 1;
         }
         let status = rip_status(rs.mark_error, status, rip.insecure_sectors > 0, confirmed);
         log.push(crate::i18n::tf(
-            crate::i18n::t("Titel {number}  {0}  CRC32 {1}  AR v1 {v1} v2 {v2}  {status}  {ar}"),
+            crate::i18n::t("Titel {number}  {0}  CRC32 {1}  {status}  {ctdb}"),
             &[
                 ("number", format!("{number:02}")),
                 ("0", tg.get("title").to_string()),
                 ("1", format!("{:08X}", rip.crc)),
-                ("v1", format!("{v1:08X}")),
-                ("v2", format!("{v2:08X}")),
                 ("status", status.text()),
-                ("ar", ar.as_ref().map(ArResult::text).unwrap_or_default()),
+                ("ctdb", check.as_ref().map(CtdbResult::text).unwrap_or_default()),
             ],
         ));
         let _ = tx.send(RipMsg::Progress(row, 0.85, RipPhase::Encoding));
@@ -334,10 +330,10 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
                 for o in outs {
                     outputs.push((number, o));
                 }
-                let _ = tx.send(RipMsg::TrackDone(row, status.clone(), ar));
+                let _ = tx.send(RipMsg::TrackDone(row, status.clone(), check));
             }
             Err(e) => {
-                let _ = tx.send(RipMsg::TrackDone(row, TrackStatus::Failed { reason: e.clone(), encoding: true }, ar));
+                let _ = tx.send(RipMsg::TrackDone(row, TrackStatus::Failed { reason: e.clone(), encoding: true }, check));
                 log.push(crate::i18n::tf(crate::i18n::t("   Kodierfehler: {e}"), &[("e", e.to_string())]));
             }
         }
@@ -361,11 +357,15 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
             log.push(crate::i18n::tf(
                 crate::i18n::t(crate::i18n::plural(
                     accurate as u64,
-                    "1 Titel von AccurateRip bestätigt, {insecure_tracks} unsicher",
-                    "{accurate} Titel von AccurateRip bestätigt, {insecure_tracks} unsicher",
+                    "1 Titel von CTDB bestätigt, {insecure_tracks} unsicher",
+                    "{accurate} Titel von CTDB bestätigt, {insecure_tracks} unsicher",
                 )),
                 &[("accurate", format!("{accurate}")), ("insecure_tracks", format!("{insecure_tracks}"))],
             ));
+            // anyone can check the result on the disc's public page
+            if rs.ctdb {
+                log.push(format!("CTDB: {}", ctdb::disc_url(&toc)));
+            }
             let _ = std::fs::write(folder.join(format!("{base}.log")), log.join("\r\n"));
         }
         if rs.write_cue {
@@ -386,13 +386,16 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
     }
     if rs.eject_after && !cancel.load(Ordering::Relaxed) {
         let _ = drive.eject();
+    } else {
+        // the drive would keep spinning at full speed for a while: let it rest
+        let _ = crate::scsi::stop_disc(letter);
     }
     let summary = if cancel.load(Ordering::Relaxed) {
         RipSummary::Cancelled
     } else {
         RipSummary::Done { files: outputs.len(), accurate, insecure: insecure_tracks, folder: folder.map(|f| f.to_string_lossy().into_owned()) }
     };
-    // the extraction log (CRC32 and AccurateRip per track) for the window, also when no file is written
+    // the extraction log (CRC32 and CTDB per track) for the window, also when no file is written
     for line in &log {
         let _ = tx.send(RipMsg::Log(line.clone()));
     }
@@ -403,20 +406,33 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
 mod rip_status_tests {
     use super::*;
 
-    #[test]
-    fn missing_accuraterip_data_says_why() {
-        let (text, ok) = ar_verdict(&Err("nicht abgefragt".into()), 0, 1, 2);
-        assert_eq!(text, "AccurateRip: nicht abgefragt");
-        assert!(!ok);
+    fn entry(confidence: u32, crcs: &[u32]) -> Entry {
+        Entry { confidence, track_crcs: crcs.to_vec() }
     }
 
     #[test]
-    fn a_matching_crc_confirms_in_any_language() {
-        let db: Vec<Pressing> = vec![vec![(12, 0xAAAA)], vec![(70, 0xBBBB)]];
-        let (_, ok) = ar_verdict(&Ok(db.clone()), 0, 0x1111, 0xBBBB);
-        assert!(ok);
-        let (_, ok) = ar_verdict(&Ok(db), 0, 0x1111, 0x2222);
-        assert!(!ok);
+    fn ctdb_result_counts_and_explains() {
+        let db = vec![entry(29, &[0xA, 0xB]), entry(1039, &[0xA, 0xB]), entry(1, &[0xA, 0xC])];
+        let r = ctdb_result(&Ok(db.clone()), 1, 0xB, 2);
+        assert_eq!((r.confirmed, r.confidence, r.total, r.in_db), (true, 1068, 1069, true));
+        assert_eq!(r.text(), "CTDB: bestätigt (1068 von 1069)");
+        let r = ctdb_result(&Ok(db), 1, 0xD, 2);
+        assert_eq!((r.confirmed, r.in_db), (false, true));
+        assert_eq!(r.text(), "CTDB: nicht bestätigt");
+        let r = ctdb_result(&Ok(Vec::new()), 0, 0xA, 2);
+        assert_eq!(r.text(), "CTDB: CD nicht in der Datenbank");
+        let r = ctdb_result(&Err("nicht abgefragt".into()), 0, 1, 2);
+        assert!(!r.confirmed);
+        assert_eq!(r.unavailable.as_deref(), Some("nicht abgefragt"));
+        assert_eq!(r.text(), "CTDB: nicht abgefragt");
+    }
+
+    #[test]
+    fn mark_error_two_uses_ctdb_wording() {
+        let secure = TrackStatus::Secure { passes: 2, rereads: 0, verified_first_pass: false };
+        assert!(rip_status(2, secure, false, false).text().contains("nicht von CTDB bestätigt"));
+        let first = TrackStatus::Secure { passes: 1, rereads: 0, verified_first_pass: true };
+        assert_eq!(first.text(), "Sicher (1 Durchgang, von CTDB bestätigt)");
     }
 
     #[test]
@@ -436,7 +452,7 @@ mod rip_status_tests {
         let warned = TrackStatus::Secure { passes: 2, rereads: 1, verified_first_pass: false };
         assert_eq!(warned.text(), "Sicher (Warnung: 2 Durchgänge, 1 Block neu gelesen)");
         let done = RipSummary::Done { files: 1, accurate: 1, insecure: 0, folder: None };
-        assert_eq!(done.text(), "Fertig: 1 Datei, 1 von AccurateRip bestätigt");
+        assert_eq!(done.text(), "Fertig: 1 Datei, 1 von CTDB bestätigt");
     }
 
     #[test]
@@ -454,15 +470,15 @@ mod rip_status_tests {
     }
 
     #[test]
-    fn ar_result_from_verdict() {
-        let db: Vec<Pressing> = vec![vec![(12, 0xAAAA)], vec![(70, 0xBBBB)]];
-        let r = ar_result(&Ok(db.clone()), 0, 0x1111, 0xBBBB);
-        assert!(r.confirmed);
-        assert_eq!((r.confidence, r.version), (70, 2));
-        let r = ar_result(&Ok(db), 0, 0x1111, 0x2222);
-        assert!(!r.confirmed && r.in_db);
-        assert_eq!(r.confidence, 12);
-        let r = ar_result(&Err("nicht abgefragt".into()), 0, 1, 2);
-        assert_eq!(r.unavailable.as_deref(), Some("nicht abgefragt"));
+    fn offset_note_names_method_and_date() {
+        let p = crate::settings::DriveProfile {
+            model: "Band Drive X".into(),
+            offset: 667,
+            method: crate::settings::OffsetMethod::Ctdb,
+            measured: "2026-11-14".into(),
+            buffer_kb: None,
+        };
+        assert_eq!(offset_note(Some(&p)), "CTDB, 2026-11-14");
+        assert_eq!(offset_note(None), "nicht gemessen");
     }
 }

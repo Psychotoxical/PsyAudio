@@ -8,6 +8,10 @@ vi.mock("../../ipc/system", () => ({
   systemInfo: vi.fn(() => Promise.resolve({ cores: 12, temp_default: "C:\\Temp", os: "windows" })),
   resetSettings: vi.fn((s: Settings) => Promise.resolve(s)),
 }));
+vi.mock("../../ipc/cd", async (original) => ({
+  ...(await original<typeof import("../../ipc/cd")>()),
+  listDrives: vi.fn(() => Promise.resolve([])),
+}));
 
 import { i18n } from "../../i18n";
 import { resetSettings } from "../../ipc/system";
@@ -25,6 +29,7 @@ function settings(): Settings {
     temp_folder: "",
     tools: { ffmpeg: "", mac: "", mpcenc: "", sox: "" },
     profiles: [],
+    rip: { drives: [], drive_offset: 0, cache_kb: 0, ctdb: true },
     ui: {
       panel_open: {},
       tile: {},
@@ -39,6 +44,20 @@ describe("settings page", () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     await act(() => i18n.changeLanguage("de"));
+  });
+
+  it("boxes_in_two_columns_for_wide_windows", async () => {
+    render(<SettingsPage />);
+    await screen.findByRole("region", { name: "Windows-Integration" });
+    // one under the other in narrow windows, side by side in wide ones (settings.css)
+    const cols = [...document.querySelectorAll(".settings-grid > .settings-col")];
+    const names = cols.map((c) =>
+      [...c.querySelectorAll(":scope > section")].map((s) => s.getAttribute("aria-label")),
+    );
+    expect(names).toEqual([
+      ["Encoder-Programme", "Leistung"],
+      ["CD-Laufwerke", "Aussehen", "Windows-Integration", "Zurücksetzen"],
+    ]);
   });
 
   it("reset_needs_confirmation", async () => {

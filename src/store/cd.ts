@@ -1,6 +1,7 @@
 import { create } from "zustand";
+import type { DriveProfile } from "../ipc/bindings/DriveProfile";
 import type {
-  ArResult,
+  CtdbResult,
   DiscInfo,
   DiscMetaView,
   DriveInfo,
@@ -15,7 +16,7 @@ export interface TrackRow {
   fraction: number;
   phase: RipPhase | null;
   status: TrackStatus | null;
-  ar: ArResult | null;
+  ctdb: CtdbResult | null;
 }
 
 export interface RipState {
@@ -42,11 +43,14 @@ export interface CdState {
   cover: string | null;
   lookup: LookupState;
   lookupError: string | null;
-  ar: { state: LookupState; pressings: number; reason: string | null };
+  /** The CUETools database: how many rips of the disc it knows, and the disc's page. */
+  ctdb: { state: LookupState; total: number; url: string | null; reason: string | null };
   selected: boolean[];
   rows: TrackRow[];
   rip: RipState | null;
   offset: { busy: boolean; fraction: number };
+  /** A measurement that would replace an offset entered by hand: waits for "Ersetzen" or "Behalten". */
+  pendingProfile: { profile: DriveProfile; agreeing: number } | null;
 }
 
 export const emptyMeta = (): DiscMetaView => ({
@@ -61,7 +65,7 @@ export const emptyMeta = (): DiscMetaView => ({
   tracks: [],
 });
 
-export const emptyRow = (): TrackRow => ({ fraction: 0, phase: null, status: null, ar: null });
+export const emptyRow = (): TrackRow => ({ fraction: 0, phase: null, status: null, ctdb: null });
 
 export const useCd = create<CdState>(() => ({
   drives: [],
@@ -75,11 +79,12 @@ export const useCd = create<CdState>(() => ({
   cover: null,
   lookup: "idle",
   lookupError: null,
-  ar: { state: "idle", pressings: 0, reason: null },
+  ctdb: { state: "idle", total: 0, url: null, reason: null },
   selected: [],
   rows: [],
   rip: null,
   offset: { busy: false, fraction: 0 },
+  pendingProfile: null,
 }));
 
 /** Share of the ticked tracks done, for the footer and the sidebar. */

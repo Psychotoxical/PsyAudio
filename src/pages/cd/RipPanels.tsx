@@ -27,6 +27,54 @@ export function RipFormatPanel() {
   );
 }
 
+/** Where rips go: the folder, "Ändern" and a button that opens it. */
+export function RipFolderField() {
+  const { t } = useTranslation();
+  const folder = useSettings((x) => x.settings?.rip_folder ?? "");
+  const update = useSettings((x) => x.update);
+  const choose = async () => {
+    const picked = await open({ directory: true, defaultPath: folder || undefined });
+    if (typeof picked === "string")
+      update((x) => {
+        x.rip_folder = picked;
+      });
+  };
+  return (
+    <div className="field">
+      <label className="lbl" htmlFor="rip-folder">
+        {t("Zielordner")}
+      </label>
+      <div className="row">
+        <input
+          id="rip-folder"
+          className="text-field path-field"
+          type="text"
+          readOnly
+          value={folder}
+          placeholder={t("Ordner wählen …")}
+          title={folder}
+          onClick={() => void choose()}
+        />
+        <button type="button" className="btn" onClick={() => void choose()}>
+          {t("Ändern")}
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={t("Ordner im Explorer öffnen")}
+          title={t("Ordner im Explorer öffnen")}
+          disabled={!folder}
+          onClick={() =>
+            openFolder(folder).catch((e: unknown) => useUi.getState().notify(String(e)))
+          }
+        >
+          <FolderOpen size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Where rips go and what comes with them. */
 export function RipSavePanel() {
   const { t } = useTranslation();
@@ -37,18 +85,11 @@ export function RipSavePanel() {
     update((x) => {
       Object.assign(x.rip, patch);
     });
-  const choose = async () => {
-    const picked = await open({ directory: true, defaultPath: s.rip_folder || undefined });
-    if (typeof picked === "string")
-      update((x) => {
-        x.rip_folder = picked;
-      });
-  };
   const checks: [keyof RipSettings, string, string][] = [
     [
       "write_log",
       t("Protokoll (.log) schreiben"),
-      t("Legt ein Protokoll mit Prüfsummen und AccurateRip-Ergebnis in den Album-Ordner."),
+      t("Legt ein Protokoll mit Prüfsummen und CTDB-Ergebnis in den Album-Ordner."),
     ],
     [
       "write_cue",
@@ -68,38 +109,7 @@ export function RipSavePanel() {
   ];
   return (
     <>
-      <div className="field">
-        <label className="lbl" htmlFor="rip-folder">
-          {t("Zielordner")}
-        </label>
-        <div className="row">
-          <input
-            id="rip-folder"
-            className="text-field path-field"
-            type="text"
-            readOnly
-            value={s.rip_folder}
-            placeholder={t("Ordner wählen …")}
-            title={s.rip_folder}
-            onClick={() => void choose()}
-          />
-          <button type="button" className="btn" onClick={() => void choose()}>
-            {t("Ändern")}
-          </button>
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label={t("Ordner im Explorer öffnen")}
-            title={t("Ordner im Explorer öffnen")}
-            disabled={!s.rip_folder}
-            onClick={() =>
-              openFolder(s.rip_folder).catch((e: unknown) => useUi.getState().notify(String(e)))
-            }
-          >
-            <FolderOpen size={16} />
-          </button>
-        </div>
-      </div>
+      <RipFolderField />
       {checks.map(([key, label, hint]) => (
         <div className="field" key={key}>
           <Check label={label} checked={Boolean(s.rip[key])} onChange={(v) => set({ [key]: v })} />

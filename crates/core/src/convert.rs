@@ -1525,3 +1525,58 @@ mod copy_tests {
         assert!(!dir.join("c.bin.tmp").exists() && !dir.join("c.bin").exists());
     }
 }
+
+#[cfg(test)]
+mod year_tests {
+    use super::*;
+    use lofty::prelude::*;
+
+    /// FFmpeg writes the year from `-metadata date=`, the tag library writes the tags again
+    /// afterwards: the file must still hold the year once (other programs show two keys as "2001\2001").
+    #[test]
+    fn the_year_is_stored_once() {
+        let Some(ff) = audio::find_tool("", "ffmpeg") else { return };
+        let dir = std::env::temp_dir().join(format!("psyaudio-year-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let a = Audio { rate: 44100, channels: 2, bits: 16, float: false, lossless: true, data: vec![0.0; 44100 * 2] };
+        let mut t = Tags::default();
+        t.set("title", "Lied");
+        t.set("year", "2001");
+        let encoders = audio::ffmpeg_encoders(&ff);
+        let enc = EncSettings { multi: vec![Codec::Opus, Codec::Flac, Codec::Vorbis, Codec::Mp3, Codec::AacM4a, Codec::WavPack], ..Default::default() };
+        let plan = Plan {
+            codec: Codec::Multi,
+            enc,
+            effects: Vec::new(),
+            output_mode: OutputMode::SingleFolder,
+            output_folder: dir.clone(),
+            scheme: vec!["title".to_string()],
+            keep_structure: false,
+            overwrite: true,
+            overwrite_list: Vec::new(),
+            copy_tags: true,
+            copy_art: false,
+            threads: 1,
+            low_priority: false,
+            ffmpeg: Some(ff),
+            ffmpeg_encoders: encoders,
+            tools: Tools::default(),
+            temp: std::env::temp_dir(),
+            tag_scheme: Vec::new(),
+        };
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let job = Job { id: 0, src: PathBuf::from("Track01.wav"), root: None, tags: Some(t), audio: Some(Arc::new(a)) };
+        let outs = Batch::new().run(&plan, &job, &AtomicBool::new(false), &tx).expect("conversion");
+        assert_eq!(outs.len(), 6, "{outs:?}");
+        for o in &outs {
+            let file = lofty::read_from_path(o).unwrap();
+            let tag = file.primary_tag().unwrap();
+            let years: Vec<String> =
+                tag.items().filter(|i| matches!(i.key(), ItemKey::Year | ItemKey::RecordingDate)).filter_map(|i| i.value().text().map(String::from)).collect();
+            assert_eq!(years, vec!["2001".to_string()], "{}", o.display());
+            assert_eq!(tags::read(o).0.get("year"), "2001", "{}", o.display());
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

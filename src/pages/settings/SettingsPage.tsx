@@ -20,6 +20,7 @@ import { useUi } from "../../store/ui";
 import { CollapsibleBox } from "../../ui/CollapsibleBox";
 import { Check, Hint, Segmented } from "../../ui/controls";
 import { SliderField } from "../../ui/SliderField";
+import { DrivesBox } from "./DrivesBox";
 import "./settings.css";
 
 const PROGRAM_LABELS: Record<Program["key"], string> = {
@@ -89,11 +90,9 @@ function ProgramRow({ program }: { program: Program }) {
   );
 }
 
-function ProgramsBox() {
-  const { t } = useTranslation();
+/** The encoder programs with where they were found; `again` searches anew. */
+export function usePrograms(): { list: Program[]; again: () => Promise<void> } {
   const settings = useSettings((s) => s.settings);
-  const ffmpeg = useEncode((s) => s.ffmpeg);
-  const encoders = useEncode((s) => s.encoders);
   const [list, setList] = useState<Program[]>([]);
   const tools = settings ? JSON.stringify(settings.tools) : "";
   // biome-ignore lint/correctness/useExhaustiveDependencies: tools stands for settings.tools
@@ -104,22 +103,41 @@ function ProgramsBox() {
       .then(setList)
       .catch(() => setList([]));
   }, [tools]);
-  if (!settings) return null;
-  const found = list.filter((p) => p.found).length;
   const again = async () => {
+    const s = useSettings.getState().settings;
+    if (!s) return;
     try {
-      setList(await programs(settings, true));
-      await refreshEncode(settings, true);
+      setList(await programs(s, true));
+      await refreshEncode(s, true);
     } catch (e) {
       useUi.getState().notify(String(e));
     }
   };
+  return { list, again };
+}
+
+function ProgramsBox() {
+  const { t } = useTranslation();
+  const progs = usePrograms();
+  const found = progs.list.filter((p) => p.found).length;
   return (
     <CollapsibleBox
       id="programs"
       title={t("Encoder-Programme")}
-      summary={t("{0} von {1} gefunden", { 0: String(found), 1: String(list.length) })}
+      summary={t("{0} von {1} gefunden", { 0: String(found), 1: String(progs.list.length) })}
     >
+      <ProgramsFields {...progs} />
+    </CollapsibleBox>
+  );
+}
+
+/** What each program is for, one row per program, and "Erneut suchen". */
+export function ProgramsFields({ list, again }: ReturnType<typeof usePrograms>) {
+  const { t } = useTranslation();
+  const ffmpeg = useEncode((s) => s.ffmpeg);
+  const encoders = useEncode((s) => s.encoders);
+  return (
+    <>
       <Hint>
         {t(
           "WAV und AIFF schreibt PsyAudio selbst. MP3, FLAC, AAC, ALAC, Opus, Vorbis, WavPack, WMA und Speex laufen über FFmpeg; Monkey's Audio, Musepack und DSD über ihre eigenen Programme.",
@@ -137,7 +155,7 @@ function ProgramsBox() {
         <RefreshCw size={15} />
         {t("Erneut suchen")}
       </button>
-    </CollapsibleBox>
+    </>
   );
 }
 
@@ -234,18 +252,31 @@ function PerformanceBox({ info }: { info: SystemInfo | null }) {
   );
 }
 
+/** "Deutsch · Mocha": language and theme in one line. */
+export function lookSummary(lang: string, dark: boolean): string {
+  return `${lang === "de" ? "Deutsch" : "English"} · ${dark ? "Mocha" : "Latte"}`;
+}
+
 function LookBox() {
+  const { t } = useTranslation();
+  const s = useSettings((x) => x.settings);
+  if (!s) return null;
+  return (
+    <CollapsibleBox id="look" title={t("Aussehen")} summary={lookSummary(s.lang, s.dark)}>
+      <LookFields />
+    </CollapsibleBox>
+  );
+}
+
+/** Language and theme; both change the window at once. */
+export function LookFields() {
   const { t } = useTranslation();
   const s = useSettings((x) => x.settings);
   const update = useSettings((x) => x.update);
   if (!s) return null;
   const lang = s.lang === "de" ? "de" : "en";
   return (
-    <CollapsibleBox
-      id="look"
-      title={t("Aussehen")}
-      summary={`${lang === "de" ? "Deutsch" : "English"} · ${s.dark ? "Mocha" : "Latte"}`}
-    >
+    <>
       <Segmented<"en" | "de">
         label={t("Sprache")}
         value={lang}
@@ -274,24 +305,43 @@ function LookBox() {
           })
         }
       />
-    </CollapsibleBox>
+    </>
   );
 }
 
 function IntegrationBox({ info }: { info: SystemInfo | null }) {
   const { t } = useTranslation();
   if (!info || info.os === "macos") return null;
-  const linux = info.os === "linux";
-  const menu = (add: boolean) =>
-    fileManagerMenu(add)
-      .then((msg) => useUi.getState().notify(msg))
-      .catch((e: unknown) => useUi.getState().notify(String(e)));
   return (
     <CollapsibleBox
       id="integration"
-      title={linux ? t("Dolphin-Integration") : t("Windows-Integration")}
+      title={info.os === "linux" ? t("Dolphin-Integration") : t("Windows-Integration")}
       summary={t("Kontextmenü")}
     >
+      <IntegrationFields info={info} />
+    </CollapsibleBox>
+  );
+}
+
+/** Adds or removes "Mit PsyAudio konvertieren" in the file manager; `onDone` hears which worked. */
+export function IntegrationFields({
+  info,
+  onDone,
+}: {
+  info: SystemInfo;
+  onDone?: (added: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  const linux = info.os === "linux";
+  const menu = (add: boolean) =>
+    fileManagerMenu(add)
+      .then((msg) => {
+        useUi.getState().notify(msg);
+        onDone?.(add);
+      })
+      .catch((e: unknown) => useUi.getState().notify(String(e)));
+  return (
+    <>
       <Hint>
         {linux
           ? t(
@@ -309,7 +359,7 @@ function IntegrationBox({ info }: { info: SystemInfo | null }) {
           {t("Kontextmenü entfernen")}
         </button>
       </div>
-    </CollapsibleBox>
+    </>
   );
 }
 
@@ -362,26 +412,38 @@ function ResetBox() {
   );
 }
 
-/** Programs, performance, look, file manager menu and reset, each in a folding box. */
-export function SettingsPage() {
-  const { t } = useTranslation();
+/** This computer's cores, temp folder and system, once loaded. */
+export function useSystemInfo(): SystemInfo | null {
   const [info, setInfo] = useState<SystemInfo | null>(null);
   useEffect(() => {
     systemInfo()
       .then(setInfo)
       .catch(() => setInfo(null));
   }, []);
+  return info;
+}
+
+/** Programs, performance, drives, look, file manager menu and reset, each in a folding box. */
+export function SettingsPage() {
+  const { t } = useTranslation();
+  const info = useSystemInfo();
   return (
     <div className="page">
       <div className="page-main">
         <PageHeader title={t("Einstellungen")} />
+        {/* two groups: one under the other, side by side once the window is wide (settings.css) */}
         <div className="content settings">
-          <div className="settings-col">
-            <ProgramsBox />
-            <PerformanceBox info={info} />
-            <LookBox />
-            <IntegrationBox info={info} />
-            <ResetBox />
+          <div className="settings-grid">
+            <div className="settings-col">
+              <ProgramsBox />
+              <PerformanceBox info={info} />
+            </div>
+            <div className="settings-col">
+              <DrivesBox />
+              <LookBox />
+              <IntegrationBox info={info} />
+              <ResetBox />
+            </div>
           </div>
         </div>
       </div>

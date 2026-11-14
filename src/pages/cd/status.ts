@@ -1,5 +1,5 @@
 import { plural } from "../../i18n";
-import type { ArResult, RipPhase, RipSummary, TrackStatus } from "../../ipc/cd";
+import type { CtdbResult, RipPhase, RipSummary, TrackStatus } from "../../ipc/cd";
 
 type T = (key: string, values?: Record<string, string>) => string;
 
@@ -7,7 +7,7 @@ type T = (key: string, values?: Record<string, string>) => string;
 export function statusText(s: TrackStatus, t: T): string {
   switch (s.kind) {
     case "Secure":
-      if (s.verified_first_pass) return t("Sicher (1 Durchgang, von AccurateRip bestätigt)");
+      if (s.verified_first_pass) return t("Sicher (1 Durchgang, von CTDB bestätigt)");
       if (s.rereads > 0)
         return t(
           plural(
@@ -29,7 +29,7 @@ export function statusText(s: TrackStatus, t: T): string {
       });
     case "Marked":
       return s.unconfirmed
-        ? t("Fehler – nicht von AccurateRip bestätigt ({status})", { status: statusText(s.was, t) })
+        ? t("Fehler – nicht von CTDB bestätigt ({status})", { status: statusText(s.was, t) })
         : t("Fehler – {status}", { status: statusText(s.was, t) });
     case "Failed":
       return s.encoding
@@ -47,8 +47,8 @@ export function summaryText(s: RipSummary, t: T): string {
       return t(
         plural(
           s.files,
-          "Fertig: {0} Datei, {accurate} von AccurateRip bestätigt",
-          "Fertig: {0} Dateien, {accurate} von AccurateRip bestätigt",
+          "Fertig: {0} Datei, {accurate} von CTDB bestätigt",
+          "Fertig: {0} Dateien, {accurate} von CTDB bestätigt",
         ),
         { 0: String(s.files), accurate: String(s.accurate) },
       );
@@ -59,27 +59,24 @@ export function summaryText(s: RipSummary, t: T): string {
   }
 }
 
-/** AccurateRip's answer in words, as rip::ArResult::text. */
-export function arText(ar: ArResult, t: T): string {
-  if (ar.unavailable) return `AccurateRip: ${ar.unavailable}`;
-  if (ar.confirmed)
-    return t("AccurateRip: Genau (Vertrauen {c}, {v})", {
-      c: String(ar.confidence),
-      v: `v${ar.version}`,
+/** The CUETools database's answer in words, as rip::CtdbResult::text. */
+export function ctdbText(c: CtdbResult, t: T): string {
+  if (c.unavailable) return `CTDB: ${c.unavailable}`;
+  if (c.confirmed)
+    return t("CTDB: bestätigt ({c} von {total})", {
+      c: String(c.confidence),
+      total: String(c.total),
     });
-  if (ar.in_db)
-    return t("AccurateRip: Ungenau (Vertrauen {c}) – oder andere Pressung", {
-      c: String(ar.confidence),
-    });
-  return t("AccurateRip: Titel nicht in der Datenbank");
+  if (c.in_db) return t("CTDB: nicht bestätigt");
+  return t("CTDB: CD nicht in der Datenbank");
 }
 
 export type Tone = "ok" | "warn" | "bad" | "muted";
 
-/** The short chip of the status column: "Sicher · AR 200" in green, "Unsicher (3 Sektoren)" in yellow. */
+/** The short chip of the status column: "Sicher · CTDB 1085" in green, "Unsicher (3 Sektoren)" in yellow. */
 export function statusChip(
   s: TrackStatus,
-  ar: ArResult | null,
+  ctdb: CtdbResult | null,
   t: T,
 ): { text: string; tone: Tone } {
   let text: string;
@@ -101,9 +98,9 @@ export function statusChip(
     case "Cancelled":
       return { text: t("Abgebrochen"), tone: "muted" };
   }
-  if (ar?.confirmed) return { text: `${text} · AR ${ar.confidence}`, tone };
-  if (ar && !ar.unavailable && ar.in_db)
-    return { text: `${text} · ${t("AR ungenau")}`, tone: "warn" };
+  if (ctdb?.confirmed) return { text: `${text} · CTDB ${ctdb.confidence}`, tone };
+  if (ctdb && !ctdb.unavailable && ctdb.in_db)
+    return { text: `${text} · ${t("CTDB nicht bestätigt")}`, tone: "warn" };
   return { text, tone };
 }
 

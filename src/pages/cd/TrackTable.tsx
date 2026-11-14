@@ -1,17 +1,18 @@
 import { Check, Minus, TriangleAlert, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { fmtLen } from "../../format";
-import type { ArResult, TrackStatus } from "../../ipc/cd";
+import type { CtdbResult, TrackStatus } from "../../ipc/cd";
 import { useCd } from "../../store/cd";
 import { InlineText } from "../../ui/InlineText";
+import { Tip } from "../../ui/Tip";
 import { setMeta } from "./cdFlow";
-import { arText, phaseText, statusChip, statusText } from "./status";
+import { ctdbText, phaseText, statusChip, statusText } from "./status";
 
 /** The status column of a ripped track: short chip, full wording on hover. */
-export function StatusChip({ status, ar }: { status: TrackStatus; ar: ArResult | null }) {
+export function StatusChip({ status, ctdb }: { status: TrackStatus; ctdb: CtdbResult | null }) {
   const { t } = useTranslation();
-  const chip = statusChip(status, ar, t);
-  const title = [statusText(status, t), ar ? arText(ar, t) : ""].filter(Boolean).join(" · ");
+  const chip = statusChip(status, ctdb, t);
+  const title = [statusText(status, t), ctdb ? ctdbText(ctdb, t) : ""].filter(Boolean).join(" · ");
   const icon = {
     ok: <Check size={12} />,
     warn: <TriangleAlert size={12} />,
@@ -19,10 +20,10 @@ export function StatusChip({ status, ar }: { status: TrackStatus; ar: ArResult |
     muted: <Minus size={12} />,
   }[chip.tone];
   return (
-    <span className={`chip ${chip.tone}`} title={title}>
+    <Tip className={`chip ${chip.tone}`} text={title}>
       {icon}
       <span>{chip.text}</span>
-    </span>
+    </Tip>
   );
 }
 
@@ -75,7 +76,7 @@ export function TrackTable() {
             const on = selected[i] ?? false;
             const n = String(tr.number).padStart(2, "0");
             let state = null;
-            if (row?.status) state = <StatusChip status={row.status} ar={row.ar} />;
+            if (row?.status) state = <StatusChip status={row.status} ctdb={row.ctdb} />;
             else if (row?.phase)
               state = (
                 <span className="reading">

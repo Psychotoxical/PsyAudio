@@ -15,33 +15,38 @@ mod tests {
 
     #[test]
     fn demo_args_are_read() {
-        assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=cd", "--light"])), Some(Demo { page: "cd".into(), light: true }));
+        assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=cd", "--light"])), Some(Demo { page: "cd".into(), light: true, en: false }));
         assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=konverter"])).map(|d| d.light), Some(false));
+        assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=cd", "--en"])).map(|d| d.en), Some(true));
         assert_eq!(Demo::from_args(&os(&["PsyAudio", "a.flac"])), None);
     }
 }
 
-/// `--demo=<page>` (with `--light` for Latte): sample content for screenshots; nothing is saved
-/// and no other PsyAudio window is asked.
+/// `--demo=<page>` (with `--light` for Latte, `--en` for English): sample content for screenshots;
+/// nothing is saved and no other PsyAudio window is asked.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct Demo {
     pub page: String,
     pub light: bool,
+    pub en: bool,
 }
 
 impl Demo {
     pub fn from_args(args: &[std::ffi::OsString]) -> Option<Demo> {
         let mut page = None;
         let mut light = false;
+        let mut en = false;
         for a in args.iter().skip(1) {
             let a = a.to_string_lossy();
             if let Some(p) = a.strip_prefix("--demo=") {
                 page = Some(p.to_string());
             } else if a == "--light" {
                 light = true;
+            } else if a == "--en" {
+                en = true;
             }
         }
-        page.map(|page| Demo { page, light })
+        page.map(|page| Demo { page, light, en })
     }
 }
 

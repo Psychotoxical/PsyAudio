@@ -1,4 +1,4 @@
-//! CD ripper: reading audio CDs (Windows raw read), disc IDs, AccurateRip checking and MusicBrainz metadata.
+//! CD ripper: reading audio CDs (Windows and Linux raw read), disc IDs and MusicBrainz metadata.
 
 use crate::audio::Audio;
 use crate::tags::Tags;
@@ -108,97 +108,6 @@ pub fn musicbrainz_id(toc: &Toc) -> String {
     }
     let hash = Sha1::digest(s.as_bytes());
     base64::engine::general_purpose::STANDARD.encode(hash).replace('+', ".").replace('/', "_").replace('=', "-")
-}
-
-/// AccurateRip disc IDs: the audio tracks' start
-/// sectors plus the disc's lead-out from the TOC (not shortened before a data session);
-/// id2 weights each start by its position (a start of 0 counts as 1).
-pub fn accuraterip_ids(toc: &Toc) -> (u32, u32, u32) {
-    let audio = toc.audio_tracks();
-    let lo = toc.leadout;
-    let mut id1: u32 = 0;
-    let mut id2: u32 = 0;
-    for (i, t) in audio.iter().enumerate() {
-        id1 = id1.wrapping_add(t.lba);
-        id2 = id2.wrapping_add(t.lba.max(1).wrapping_mul(i as u32 + 1));
-    }
-    id1 = id1.wrapping_add(lo);
-    id2 = id2.wrapping_add(lo.wrapping_mul(audio.len() as u32 + 1));
-    (id1, id2, freedb_id(toc))
-}
-
-pub fn accuraterip_url(toc: &Toc) -> String {
-    let (id1, id2, cddb) = accuraterip_ids(toc);
-    format!(
-        "http://www.accuraterip.com/accuraterip/{:x}/{:x}/{:x}/dBAR-{:03}-{:08x}-{:08x}-{:08x}.bin",
-        id1 & 0xF,
-        (id1 >> 4) & 0xF,
-        (id1 >> 8) & 0xF,
-        toc.audio_tracks().len(),
-        id1,
-        id2,
-        cddb
-    )
-}
-
-/// AccurateRip checksums (v1, v2) of one track's 16-bit stereo samples.
-pub fn accuraterip_crc(raw: &[u8], first: bool, last: bool) -> (u32, u32) {
-    let n = raw.len() / 4;
-    let skip = 5 * SAMPLES_PER_SECTOR;
-    let (mut v1, mut v2) = (0u32, 0u32);
-    for i in 0..n {
-        if first && i < skip - 1 {
-            continue;
-        }
-        if last && i >= n.saturating_sub(skip) {
-            break;
-        }
-        let s = u32::from_le_bytes([raw[i * 4], raw[i * 4 + 1], raw[i * 4 + 2], raw[i * 4 + 3]]);
-        let mult = (i + 1) as u32;
-        v1 = v1.wrapping_add(s.wrapping_mul(mult));
-        let p = s as u64 * mult as u64;
-        v2 = v2.wrapping_add((p & 0xFFFF_FFFF) as u32).wrapping_add((p >> 32) as u32);
-    }
-    (v1, v2)
-}
-
-/// One pressing in the AccurateRip database: (confidence, crc) per track.
-pub type Pressing = Vec<(u8, u32)>;
-
-pub fn accuraterip_lookup(toc: &Toc) -> Result<Vec<Pressing>, String> {
-    Ok(accuraterip_lookup_full(toc)?.into_iter().map(|p| p.into_iter().map(|(c, crc, _)| (c, crc)).collect()).collect())
-}
-
-/// One pressing per track: (confidence, track CRC, offset-finding CRC of the 588 samples at sector 450).
-pub type FullPressing = Vec<(u8, u32, u32)>;
-
-/// Every pressing of the disc with the CRCs the offset search needs.
-pub fn accuraterip_lookup_full(toc: &Toc) -> Result<Vec<FullPressing>, String> {
-    let url = accuraterip_url(toc);
-    let mut resp = ureq::get(&url).header("User-Agent", "PsyAudio/1.0").call().map_err(|e| match e {
-        ureq::Error::StatusCode(404) => crate::i18n::t("CD ist nicht in der AccurateRip-Datenbank").to_string(),
-        e => crate::i18n::tf(crate::i18n::t("AccurateRip nicht erreichbar: {e}"), &[("e", format!("{e}"))]),
-    })?;
-    let data = resp.body_mut().read_to_vec().map_err(|e| e.to_string())?;
-    let mut out = Vec::new();
-    let mut p = 0;
-    while p + 13 <= data.len() {
-        let count = data[p] as usize;
-        p += 13;
-        let mut pressing = Vec::new();
-        for _ in 0..count {
-            if p + 9 > data.len() {
-                break;
-            }
-            let conf = data[p];
-            let crc = u32::from_le_bytes([data[p + 1], data[p + 2], data[p + 3], data[p + 4]]);
-            let crc450 = u32::from_le_bytes([data[p + 5], data[p + 6], data[p + 7], data[p + 8]]);
-            pressing.push((conf, crc, crc450));
-            p += 9;
-        }
-        out.push(pressing);
-    }
-    Ok(out)
 }
 
 #[derive(Clone, Debug, Default)]
@@ -334,6 +243,7 @@ mod win {
     const IOCTL_CDROM_READ_TOC: u32 = 0x0002_4000;
     const IOCTL_CDROM_RAW_READ: u32 = 0x0002_403E;
     const IOCTL_STORAGE_EJECT_MEDIA: u32 = 0x002D_4808;
+    const IOCTL_STORAGE_QUERY_PROPERTY: u32 = 0x002D_1400;
     const DRIVE_CDROM: u32 = 5;
 
     fn wide(s: &str) -> Vec<u16> {
@@ -394,6 +304,15 @@ mod win {
             } else {
                 Ok(ret)
             }
+        }
+
+        /// Vendor and product from the storage device descriptor.
+        pub fn model(&self) -> Option<String> {
+            // STORAGE_PROPERTY_QUERY: StorageDeviceProperty (0), PropertyStandardQuery (0)
+            let query = [0u8; 12];
+            let mut out = vec![0u8; 1024];
+            let n = self.ioctl(IOCTL_STORAGE_QUERY_PROPERTY, &query, &mut out).ok()? as usize;
+            model_from_descriptor(&out[..n.min(out.len())])
         }
 
         pub fn toc(&self) -> Result<Toc, String> {
@@ -588,6 +507,54 @@ pub fn drive_name(d: char) -> String {
     }
 }
 
+/// Vendor and product as one model name ("VENDOR CD-RW X1"), blanks collapsed; `None` when empty.
+pub fn normalize_model(vendor: &str, product: &str) -> Option<String> {
+    let s = format!("{vendor} {product}").split_whitespace().collect::<Vec<_>>().join(" ");
+    (!s.is_empty()).then_some(s)
+}
+
+/// What a drive's measurements are stored under: its model, else its name.
+pub(crate) fn key_from(model: Option<String>, name: &str) -> String {
+    model.unwrap_or_else(|| name.to_string())
+}
+
+/// The model in a Windows STORAGE_DEVICE_DESCRIPTOR: vendor and product, the firmware left out.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn model_from_descriptor(buf: &[u8]) -> Option<String> {
+    let offset = |at: usize| buf.get(at..at + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize);
+    let text = |off: usize| -> String {
+        if off == 0 || off >= buf.len() {
+            return String::new();
+        }
+        let end = buf[off..].iter().position(|b| *b == 0).map(|p| off + p).unwrap_or(buf.len());
+        String::from_utf8_lossy(&buf[off..end]).to_string()
+    };
+    normalize_model(&text(offset(12)?), &text(offset(16)?))
+}
+
+/// The drive's model ("VENDOR CD-RW X1"), if the system tells it.
+pub fn drive_model(d: char) -> Option<String> {
+    #[cfg(windows)]
+    {
+        Drive::open(d).ok()?.model()
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let read = |f: &str| std::fs::read_to_string(format!("/sys/block/sr{d}/device/{f}")).unwrap_or_default();
+        normalize_model(&read("vendor"), &read("model"))
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
+    {
+        let _ = d;
+        None
+    }
+}
+
+/// The key a drive's offset and buffer size are stored under.
+pub fn drive_key(d: char) -> String {
+    key_from(drive_model(d), &drive_name(d))
+}
+
 #[cfg(not(any(windows, target_os = "linux")))]
 pub fn drives() -> Vec<char> {
     Vec::new()
@@ -619,7 +586,7 @@ pub struct TrackRip {
     pub rereads: u32,
     pub insecure_sectors: u32,
     pub crc: u32,
-    /// Passes over the whole track (1 = AccurateRip already confirmed the first pass).
+    /// Passes over the whole track (1 = the CUETools database already confirmed the first pass).
     pub passes: u32,
     pub verified_first_pass: bool,
 }
@@ -689,6 +656,8 @@ pub(crate) fn read_block_lenient(drive: &dyn SectorRead, lba: i64, n: i64, max_l
     Ok((out, bad))
 }
 
+/// Read `n` sectors from `lba`; sectors before the disc or past `max_lba` are silence. An answer
+/// that stays too short after retries is a read error, never filled up with silence.
 pub(crate) fn read_block(drive: &dyn SectorRead, lba: i64, n: i64, max_lba: i64) -> Result<Vec<u8>, String> {
     let lo = lba.max(0);
     let hi = (lba + n).min(max_lba);
@@ -701,10 +670,7 @@ pub(crate) fn read_block(drive: &dyn SectorRead, lba: i64, n: i64, max_lba: i64)
             match drive.read(lo as u32, (hi - lo) as u32) {
                 Ok(d) if d.len() == want => break d,
                 Ok(_) | Err(_) if tries < 3 => tries += 1,
-                Ok(mut d) => {
-                    d.resize(want, 0);
-                    break d;
-                }
+                Ok(_) => return Err(crate::i18n::t("Laufwerk lieferte zu wenig Daten").into()),
                 Err(e) => return Err(e),
             }
         };
@@ -730,6 +696,62 @@ mod tests {
         };
         assert_eq!(freedb_id(&toc) & 0xFF, 3);
         assert_eq!(musicbrainz_id(&toc).len(), 28);
-        assert!(accuraterip_url(&toc).contains("dBAR-003-"));
+    }
+
+    /// A drive that answers with one sector too few, `short` times (then in full).
+    struct Short {
+        short: std::cell::Cell<u32>,
+    }
+    impl SectorRead for Short {
+        fn read(&self, _lba: u32, count: u32) -> Result<Vec<u8>, String> {
+            let n = if self.short.get() > 0 {
+                self.short.set(self.short.get() - 1);
+                count - 1
+            } else {
+                count
+            };
+            Ok(vec![1u8; n as usize * SECTOR])
+        }
+    }
+
+    #[test]
+    fn short_reads_become_an_error() {
+        let d = Short { short: std::cell::Cell::new(u32::MAX) };
+        assert!(read_block(&d, 0, 4, 100).is_err(), "no silent zeros for missing data");
+        let (data, bad) = read_block_lenient(&d, 0, 4, 100, &AtomicBool::new(false)).unwrap();
+        assert_eq!(bad, vec![0, 1, 2, 3], "every sector counts as unread");
+        assert_eq!(data.len(), 4 * SECTOR);
+    }
+
+    #[test]
+    fn one_short_read_is_retried() {
+        let d = Short { short: std::cell::Cell::new(1) };
+        assert_eq!(read_block(&d, 0, 4, 100), Ok(vec![1u8; 4 * SECTOR]));
+    }
+
+    #[test]
+    fn normalize_model_joins_and_trims() {
+        assert_eq!(normalize_model("VENDOR", "CD-RW  X1 "), Some("VENDOR CD-RW X1".to_string()));
+        assert_eq!(normalize_model("  ", ""), None);
+    }
+
+    #[test]
+    fn drive_key_falls_back_to_the_name() {
+        assert_eq!(key_from(Some("Vendor Model X".into()), "G:"), "Vendor Model X");
+        assert_eq!(key_from(None, "G:"), "G:");
+    }
+
+    #[test]
+    fn storage_descriptor_gives_vendor_and_product() {
+        // STORAGE_DEVICE_DESCRIPTOR: vendor offset at 12, product at 16, revision at 20
+        let mut buf = vec![0u8; 64];
+        buf[12..16].copy_from_slice(&40u32.to_le_bytes());
+        buf[16..20].copy_from_slice(&48u32.to_le_bytes());
+        buf[20..24].copy_from_slice(&58u32.to_le_bytes());
+        buf[40..47].copy_from_slice(b"VENDOR ");
+        buf[48..56].copy_from_slice(b"DRIVE X ");
+        buf[58..62].copy_from_slice(b"1.01");
+        assert_eq!(model_from_descriptor(&buf), Some("VENDOR DRIVE X".to_string()));
+        assert_eq!(model_from_descriptor(&[0u8; 8]), None);
     }
 }

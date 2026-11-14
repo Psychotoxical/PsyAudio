@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type Page = "convert" | "batch" | "cd" | "settings";
+export type Page = "convert" | "batch" | "cd" | "settings" | "setup";
 
 interface Toast {
   id: number;

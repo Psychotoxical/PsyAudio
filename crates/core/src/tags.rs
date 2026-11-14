@@ -246,6 +246,10 @@ pub fn write(path: &Path, tags: &Tags, replace_art: bool) -> Result<(), String> 
     }
     let tag = file.primary_tag_mut().ok_or(crate::i18n::t("Format unterstützt keine Tags"))?;
     for name in ALL_KEYS {
+        if *name == "year" {
+            write_year(tag, tags.get("year"));
+            continue;
+        }
         if let Some(k) = key_of(name) {
             tag.remove_key(k);
             if let Some(v) = tags.fields.get(*name) {
@@ -276,6 +280,20 @@ pub fn write(path: &Path, tags: &Tags, replace_art: bool) -> Result<(), String> 
         }
     }
     tag.save_to_path(path, WriteOptions::default()).map_err(|e| crate::i18n::tf(crate::i18n::t("Tags speichern: {e}"), &[("e", format!("{e}"))]))
+}
+
+/// The year goes into the recording date, the key every format and other programs read
+/// (Vorbis DATE, ID3v2 TDRC, MP4 ©day); FFmpeg has already written it there from
+/// `-metadata date=`. A separate year key next to it shows up as a doubled year elsewhere.
+/// A full date that starts with the year stays as it is.
+fn write_year(tag: &mut Tag, year: &str) {
+    tag.remove_key(ItemKey::Year);
+    let year = year.trim();
+    if year.is_empty() {
+        tag.remove_key(ItemKey::RecordingDate);
+    } else if !tag.get_string(ItemKey::RecordingDate).is_some_and(|d| d.trim().starts_with(year)) {
+        tag.insert_text(ItemKey::RecordingDate, year.to_string());
+    }
 }
 
 /// FFmpeg -metadata arguments (for formats the tag library can't write, e.g. WMA).
@@ -354,6 +372,34 @@ mod art_tests {
         let tag = file.primary_tag().unwrap();
         assert_eq!(tag.get_strings(ItemKey::TrackArtist).count(), 2, "stored as two values");
         assert_eq!(read(&p).0.get("artist"), "Band A; Band B");
+        let _ = std::fs::remove_file(&p);
+    }
+
+    fn dates(p: &std::path::Path) -> Vec<String> {
+        let file = lofty::read_from_path(p).unwrap();
+        let tag = file.primary_tag().unwrap();
+        tag.items().filter(|i| matches!(i.key(), ItemKey::Year | ItemKey::RecordingDate)).filter_map(|i| i.value().text().map(String::from)).collect()
+    }
+
+    #[test]
+    fn the_recording_date_follows_the_year() {
+        let p = wav("date");
+        let mut t = Tags::default();
+        t.set("title", "Lied");
+        write(&p, &t, false).unwrap();
+        let mut file = lofty::read_from_path(&p).unwrap();
+        file.primary_tag_mut().unwrap().insert_text(ItemKey::RecordingDate, "2001-05-12".into());
+        file.save_to_path(&p, WriteOptions::default()).unwrap();
+        let (mut back, _) = read(&p);
+        assert_eq!(back.get("year"), "2001");
+        write(&p, &back, false).unwrap();
+        assert_eq!(dates(&p), vec!["2001-05-12".to_string()], "a full date with the same year stays");
+        back.set("year", "1999");
+        write(&p, &back, false).unwrap();
+        assert_eq!(dates(&p), vec!["1999".to_string()]);
+        back.set("year", "");
+        write(&p, &back, false).unwrap();
+        assert!(dates(&p).is_empty(), "{:?}", dates(&p));
         let _ = std::fs::remove_file(&p);
     }
 

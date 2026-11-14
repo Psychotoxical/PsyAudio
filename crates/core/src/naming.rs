@@ -7,14 +7,22 @@ use std::path::Path;
 const CHAR_REPLACE: &[(char, &str)] = &[('\\', "-"), ('/', ""), (':', "-"), ('*', ""), ('?', ""), ('"', "''"), ('<', ""), ('>', ""), ('|', "")];
 
 /// Characters Windows doesn't allow in names are replaced by the table above;
-/// control characters are dropped.
+/// control characters are dropped. A dropped character between two spaces leaves one
+/// space ("A / B" → "A B"); spaces of the value itself stay as they are.
 pub fn clean_value(v: &str) -> String {
     let mut out = String::with_capacity(v.len());
+    let mut dropped = false;
     for c in v.chars().filter(|c| (*c as u32) >= 32) {
         match CHAR_REPLACE.iter().find(|(from, _)| *from == c) {
+            Some((_, "")) => {
+                dropped = true;
+                continue;
+            }
             Some((_, to)) => out.push_str(to),
+            None if c == ' ' && dropped && out.ends_with(' ') => {}
             None => out.push(c),
         }
+        dropped = false;
     }
     out
 }
@@ -242,6 +250,17 @@ mod scheme_tests {
     fn invalid_chars_replaced() {
         let t = tags(&[("title", "What? A: \"B\"*<>|\\/")]);
         assert_eq!(segments(&s(&["title"]), &t, &src()), s(&["What A- ''B''-"]));
+    }
+
+    #[test]
+    fn removed_slash_leaves_one_space() {
+        let t = tags(&[("title", "Lied / Pause / Ende")]);
+        assert_eq!(segments(&s(&["title"]), &t, &src()), s(&["Lied Pause Ende"]));
+    }
+
+    #[test]
+    fn spaces_of_the_value_itself_stay() {
+        assert_eq!(clean_value("Band  Lied"), "Band  Lied");
     }
 
     #[test]
