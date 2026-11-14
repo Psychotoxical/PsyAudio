@@ -73,14 +73,30 @@ pub fn parse(xml: &str) -> Vec<Entry> {
         .collect()
 }
 
-/// Ask the database about a disc; an empty list means it does not know the disc. The server
-/// has no HTTPS.
+/// Why the database gave no answer, short and in the interface's language: the system's own
+/// message (on Windows in the system's language) stays out.
+fn why_unreachable(e: &ureq::Error) -> String {
+    use crate::i18n::{t, tf};
+    match e {
+        ureq::Error::Io(_) | ureq::Error::HostNotFound | ureq::Error::ConnectionFailed => t("nicht erreichbar (keine Verbindung)").to_string(),
+        ureq::Error::Timeout(_) | ureq::Error::BodyStalled => t("nicht erreichbar (Zeitüberschreitung)").to_string(),
+        ureq::Error::StatusCode(code) => tf(t("nicht erreichbar (Server meldet {c})"), &[("c", code.to_string())]),
+        _ => t("nicht erreichbar").to_string(),
+    }
+}
+
+/// The notice for a disc without an answer from the database: "CTDB: " and the reason.
+pub fn unavailable_text(why: &str) -> String {
+    format!("CTDB: {why}")
+}
+
+/// Ask the database about a disc; an empty list means it does not know the disc. The error is
+/// the reason alone, without "CTDB" (see `unavailable_text`). The server has no HTTPS.
 pub fn lookup(toc: &Toc) -> Result<Vec<Entry>, String> {
     let url = format!("http://db.cuetools.net/lookup2.php?version=3&ctdb=1&fuzzy=1&toc={}", toc_string(toc));
     let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(std::time::Duration::from_secs(10))).build().into();
-    let unreachable = |e: String| crate::i18n::tf(crate::i18n::t("CTDB nicht erreichbar: {e}"), &[("e", e)]);
-    let mut resp = agent.get(&url).header("User-Agent", "PsyAudio/1.0").call().map_err(|e| unreachable(e.to_string()))?;
-    let text = resp.body_mut().read_to_string().map_err(|e| unreachable(e.to_string()))?;
+    let mut resp = agent.get(&url).header("User-Agent", "PsyAudio/1.0").call().map_err(|e| why_unreachable(&e))?;
+    let text = resp.body_mut().read_to_string().map_err(|e| why_unreachable(&e))?;
     Ok(parse(&text))
 }
 
@@ -335,6 +351,26 @@ mod tests {
             tracks.push(TocTrack { number: tracks.len() as u8 + 1, lba, audio: false });
         }
         Toc { tracks, leadout }
+    }
+
+    #[test]
+    fn no_connection_hides_the_system_message() {
+        let os = ureq::Error::Io(std::io::Error::other("Der angegebene Host ist unbekannt. (os error 11001)"));
+        assert_eq!(why_unreachable(&os), "nicht erreichbar (keine Verbindung)");
+        assert_eq!(why_unreachable(&ureq::Error::HostNotFound), "nicht erreichbar (keine Verbindung)");
+        assert_eq!(why_unreachable(&ureq::Error::ConnectionFailed), "nicht erreichbar (keine Verbindung)");
+    }
+
+    #[test]
+    fn timeout_and_server_errors_are_named() {
+        assert_eq!(why_unreachable(&ureq::Error::Timeout(ureq::Timeout::Global)), "nicht erreichbar (Zeitüberschreitung)");
+        assert_eq!(why_unreachable(&ureq::Error::StatusCode(503)), "nicht erreichbar (Server meldet 503)");
+        assert_eq!(why_unreachable(&ureq::Error::TooManyRedirects), "nicht erreichbar");
+    }
+
+    #[test]
+    fn the_reason_is_named_once() {
+        assert_eq!(unavailable_text("nicht erreichbar (keine Verbindung)"), "CTDB: nicht erreichbar (keine Verbindung)");
     }
 
     // test vectors from the `cdtoc` crate (src/ctdb.rs, t_ctdb), LBA = hex value - 150

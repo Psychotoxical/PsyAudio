@@ -116,7 +116,7 @@ impl CtdbResult {
     pub fn text(&self) -> String {
         use crate::i18n::{t, tf};
         if let Some(why) = &self.unavailable {
-            return format!("CTDB: {why}");
+            return crate::ctdb::unavailable_text(why);
         }
         if self.confirmed {
             tf(t("CTDB: bestätigt ({c} von {total})"), &[("c", self.confidence.to_string()), ("total", self.total.to_string())])

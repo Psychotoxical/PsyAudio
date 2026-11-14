@@ -398,7 +398,7 @@ pub fn measure_drive(app: AppHandle, drive: String, on: Channel<MeasureEvent>) -
         let r = (|| {
             let dr = cdrip::Drive::open(d)?;
             let toc = dr.toc()?;
-            let entries = ctdb::lookup(&toc)?;
+            let entries = ctdb::lookup(&toc).map_err(|why| ctdb::unavailable_text(&why))?;
             let found = ctdb::find_offset(&dr, &toc, &entries, &handle.cancel, &progress);
             // the drive would keep spinning at full speed for a while: let it rest
             let _ = psyaudio_core::scsi::stop_disc(d);
