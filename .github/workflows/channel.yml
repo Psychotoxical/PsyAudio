@@ -156,13 +156,13 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           pattern: pkg-*
-          path: assets
+          path: ${{ runner.temp }}/packages  # not the repo's own assets/ folder
           merge-multiple: true
       - name: Create or update the draft
         run: |
           python3 .github/release/release_notes.py "$VERSION" > notes.md
           shopt -s nullglob
-          files=(assets/*)
+          files=("$RUNNER_TEMP"/packages/*)
           if [ ${#files[@]} = 0 ]; then
             echo "::error::no package files"
             exit 1
