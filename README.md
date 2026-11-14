@@ -2,7 +2,11 @@
 
 ![PsyAudio: CD ripper, first-start setup, converter and batch converter, in Mocha and Latte](assets/screenshots.webp)
 
-Audio toolbox for Windows and Linux: a **bit-perfect CD ripper**, a converter and a batch converter, in one window.
+Audio toolbox for Windows and Linux: a **bit-perfect CD ripper**, a converter and a batch converter, in one window. The converters also run on macOS.
+
+## Download
+
+Installer for Windows, AppImage, deb and rpm for Linux and a disk image for macOS are on the [releases page](https://github.com/Psychotoxical/PsyAudio/releases). What changed in each version is in the [changelog](CHANGELOG.md).
 
 ## Bit-perfect CD rips
 
