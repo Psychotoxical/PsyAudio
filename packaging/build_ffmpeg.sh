@@ -89,7 +89,10 @@ lib "libogg-$OGG"
 # libvorbis' configure adds a flag current Apple compilers reject
 perl -pi -e 's/-force_cpusubtype_ALL//g' "$work/libvorbis-$VORBIS/configure"
 lib "libvorbis-$VORBIS" --with-ogg="$prefix" --disable-docs --disable-examples --disable-oggtest
-lib "opus-$OPUS" --disable-doc --disable-extra-programs
+# Opus' run-time checks call __memcpy_chk and friends, which a static mingw build does not have
+opus_extra=()
+[ "$target" = windows ] && opus_extra=(--disable-hardening)
+lib "opus-$OPUS" --disable-doc --disable-extra-programs ${opus_extra[@]+"${opus_extra[@]}"}
 lib "speex-$SPEEX" --disable-binaries
 
 encoders=libmp3lame,flac,aac,alac,libopus,libvorbis,wavpack,wmav2,libspeex,pcm_s16le,pcm_s32le,pcm_f32le
