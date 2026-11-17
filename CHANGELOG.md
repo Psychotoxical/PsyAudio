@@ -8,6 +8,7 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 
 ### Changed
 
+- A release can be built straight from main, without a release candidate: the new “main → release” workflow raises the version the same way and creates the draft.
 - The README opens with the PsyAudio wordmark, white on GitHub's dark theme and black on the light one.
 - The README shows what PsyAudio does on Windows, Linux and macOS in one table, lists the downloads, and keeps the developer notes in fold-out sections.
 
