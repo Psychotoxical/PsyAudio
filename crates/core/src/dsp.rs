@@ -964,11 +964,7 @@ pub fn hdcd_decode(a: &mut Audio, ffmpeg: Option<&std::path::Path>, amp_6db: boo
     .stdin(Stdio::piped())
     .stdout(Stdio::piped())
     .stderr(Stdio::piped());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x0800_0000);
-    }
+    crate::audio::hidden(&mut cmd);
     let mut child = cmd.spawn().map_err(|e| crate::i18n::tf(crate::i18n::t("FFmpeg kann nicht gestartet werden: {e}"), &[("e", e.to_string())]))?;
     let pcm: Vec<u8> = a.data.iter().flat_map(|s| ((s * 32768.0).round().clamp(-32768.0, 32767.0) as i16).to_le_bytes()).collect();
     let mut stdin = child.stdin.take().unwrap();

@@ -152,14 +152,7 @@ fn status_of(set: &FfmpegSet) -> ToolStatus {
 #[tauri::command]
 pub fn open_ffmpeg_download() -> Result<(), String> {
     let url = "https://ffmpeg.org/download.html";
-    let opener = if cfg!(windows) {
-        "explorer"
-    } else if cfg!(target_os = "macos") {
-        "open"
-    } else {
-        "xdg-open"
-    };
-    std::process::Command::new(opener).arg(url).spawn().map(|_| ()).map_err(|e| e.to_string())
+    audio::open_external(url.as_ref())
 }
 
 /// Which FFmpeg works and which stands by (for the sidebar and the settings page).

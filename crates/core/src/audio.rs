@@ -11,12 +11,68 @@ use std::os::windows::process::CommandExt;
 /// No console window for helper programs.
 pub const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
+/// Prepares a helper program: no console window on Windows, and inside an AppImage the
+/// environment of the system rather than the AppImage's own.
 pub fn hidden(cmd: &mut Command) -> &mut Command {
     #[cfg(windows)]
     {
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(appdir) = std::env::var_os("APPDIR") {
+            for (key, value) in host_env(std::env::vars_os(), Path::new(&appdir)) {
+                match value {
+                    Some(v) => cmd.env(key, v),
+                    None => cmd.env_remove(key),
+                };
+            }
+        }
+    }
     cmd
+}
+
+/// The changes that turn an AppImage's environment back into the system's: the AppImage's
+/// start script puts its own folders in front of search paths (`LD_LIBRARY_PATH`, `PATH`,
+/// `XDG_DATA_DIRS`, plugin folders). A program started from there, such as the file manager
+/// or the system's FFmpeg, would load the AppImage's older libraries and fail. Entries inside
+/// `appdir` are dropped; a variable left empty is removed (`None`).
+#[cfg(unix)]
+pub fn host_env(
+    vars: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+    appdir: &Path,
+) -> Vec<(std::ffi::OsString, Option<std::ffi::OsString>)> {
+    use std::ffi::{OsStr, OsString};
+    use std::os::unix::ffi::OsStrExt;
+    let mut out = Vec::new();
+    for (key, value) in vars {
+        let entries: Vec<&[u8]> = value.as_bytes().split(|&b| b == b':').collect();
+        let kept: Vec<&[u8]> = entries.iter().copied().filter(|e| !e.is_empty() && !Path::new(OsStr::from_bytes(e)).starts_with(appdir)).collect();
+        if kept.len() == entries.iter().filter(|e| !e.is_empty()).count() {
+            continue;
+        }
+        out.push((key, (!kept.is_empty()).then(|| OsString::from(OsStr::from_bytes(&kept.join(&b':'))))));
+    }
+    out
+}
+
+/// Opens a folder or web address with the system's handler (Explorer, Finder, the desktop's
+/// default program) and collects the handler's exit in the background.
+pub fn open_external(target: &std::ffi::OsStr) -> Result<(), String> {
+    let opener = if cfg!(windows) {
+        "explorer"
+    } else if cfg!(target_os = "macos") {
+        "open"
+    } else {
+        "xdg-open"
+    };
+    let mut cmd = Command::new(opener);
+    hidden(&mut cmd).arg(target).stdin(Stdio::null());
+    let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(())
 }
 
 /// Interleaved floating point audio in the range -1..1.
@@ -681,5 +737,46 @@ pub fn fmt_size(bytes: u64) -> String {
         format!("{:.1} MB", bytes as f64 / (1u64 << 20) as f64)
     } else {
         format!("{:.0} KB", bytes as f64 / 1024.0)
+    }
+}
+
+#[cfg(all(test, unix))]
+mod host_env_tests {
+    use super::host_env;
+    use std::ffi::OsString;
+    use std::path::Path;
+
+    fn run(vars: &[(&str, &str)]) -> Vec<(String, Option<String>)> {
+        let vars = vars.iter().map(|(k, v)| (OsString::from(k), OsString::from(v)));
+        host_env(vars, Path::new("/tmp/.mount_PsyAudX")).into_iter().map(|(k, v)| (k.into_string().unwrap(), v.map(|v| v.into_string().unwrap()))).collect()
+    }
+
+    #[test]
+    fn drops_the_appimage_folders_and_keeps_the_rest() {
+        let out = run(&[
+            ("LD_LIBRARY_PATH", "/tmp/.mount_PsyAudX/usr/lib/:/tmp/.mount_PsyAudX/usr/lib32/"),
+            ("PATH", "/tmp/.mount_PsyAudX/usr/bin/:/home/user/.local/bin:/usr/bin"),
+            ("XDG_DATA_DIRS", "/tmp/.mount_PsyAudX/usr/share/:/usr/local/share:/usr/share"),
+            ("PYTHONPATH", "/tmp/.mount_PsyAudX/usr/share/pyshared/:"),
+            ("GDK_PIXBUF_MODULE_FILE", "/tmp/.mount_PsyAudX//usr/lib/loaders.cache"),
+            ("HOME", "/home/user"),
+            ("APPIMAGE", "/home/user/PsyAudio.AppImage"),
+        ]);
+        assert_eq!(
+            out,
+            vec![
+                ("LD_LIBRARY_PATH".into(), None),
+                ("PATH".into(), Some("/home/user/.local/bin:/usr/bin".into())),
+                ("XDG_DATA_DIRS".into(), Some("/usr/local/share:/usr/share".into())),
+                ("PYTHONPATH".into(), None),
+                ("GDK_PIXBUF_MODULE_FILE".into(), None),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_neighbouring_mount_with_the_same_prefix_stays() {
+        let out = run(&[("PATH", "/tmp/.mount_PsyAudXY/usr/bin:/usr/bin")]);
+        assert!(out.is_empty());
     }
 }
