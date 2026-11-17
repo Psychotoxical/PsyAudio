@@ -28,14 +28,14 @@ export function DiscHeader() {
   // the database's count, linked to the disc's public page so anyone can check it
   const known = ctdb.state === "done" && ctdb.total > 0;
   const ctdbChip = {
-    idle: { tone: "muted", text: t("CTDB: nicht abgefragt") },
-    busy: { tone: "muted", text: t("CTDB: wird abgefragt…") },
+    idle: { tone: "muted", text: t("CTDB: not looked up") },
+    busy: { tone: "muted", text: t("CTDB: looking up…") },
     done: known
       ? {
           tone: "ok",
-          text: t(plural(ctdb.total, "CTDB · 1 Rip", "CTDB · {0} Rips"), { 0: String(ctdb.total) }),
+          text: t(plural(ctdb.total, "CTDB · 1 rip", "CTDB · {0} rips"), { 0: String(ctdb.total) }),
         }
-      : { tone: "muted", text: t("CTDB: CD nicht in der Datenbank") },
+      : { tone: "muted", text: t("CTDB: disc not in the database") },
     failed: { tone: "warn", text: `CTDB: ${ctdb.reason ?? ""}` },
   }[ctdb.state];
   const openPage = () => openCtdbPage().catch((e: unknown) => useUi.getState().notify(String(e)));
@@ -64,9 +64,9 @@ export function DiscHeader() {
           <InlineText
             id="cd-artist"
             nextId="cd-year"
-            label={t("Interpret")}
+            label={t("Artist")}
             value={meta.artist}
-            placeholder={t("Interpret")}
+            placeholder={t("Artist")}
             onCommit={(v) =>
               setMeta((m) => {
                 m.artist = v;
@@ -77,9 +77,9 @@ export function DiscHeader() {
           <InlineText
             id="cd-year"
             nextId="cd-genre"
-            label={t("Jahr")}
+            label={t("Year")}
             value={meta.year}
-            placeholder={t("Jahr")}
+            placeholder={t("Year")}
             onCommit={(v) =>
               setMeta((m) => {
                 m.year = v;
@@ -90,9 +90,9 @@ export function DiscHeader() {
           <InlineText
             id="cd-genre"
             nextId="cd-disc"
-            label="Genre"
+            label={t("Genre")}
             value={meta.genre}
-            placeholder="Genre"
+            placeholder={t("Genre")}
             onCommit={(v) =>
               setMeta((m) => {
                 m.genre = v;
@@ -100,12 +100,12 @@ export function DiscHeader() {
             }
           />
           <span aria-hidden="true">·</span>
-          <span>Disc</span>
+          <span>{t("Disc")}</span>
           <InlineText
             id="cd-disc"
             nextId="cd-disc-total"
             className="short"
-            label={t("Disc-Nummer")}
+            label={t("Disc number")}
             value={String(meta.disc)}
             onCommit={(v) =>
               setMeta((m) => {
@@ -113,12 +113,12 @@ export function DiscHeader() {
               })
             }
           />
-          <span>{t("von")}</span>
+          <span>{t("of")}</span>
           <InlineText
             id="cd-disc-total"
             nextId="cd-title-0"
             className="short"
-            label={t("Anzahl Discs")}
+            label={t("Number of discs")}
             value={String(meta.disc_total)}
             onCommit={(v) =>
               setMeta((m) => {
@@ -132,7 +132,7 @@ export function DiscHeader() {
             <button
               type="button"
               className={`chip ${ctdbChip.tone} chip-link`}
-              title={t("Eintrag der CD in der CUETools-Datenbank öffnen")}
+              title={t("Open the disc's entry in the CUETools database")}
               onClick={() => void openPage()}
             >
               <Check size={12} />
@@ -147,32 +147,34 @@ export function DiscHeader() {
           {lookup === "busy" && (
             <span className="chip muted">
               <LoaderCircle size={12} className="spin" />
-              {t("Suche bei MusicBrainz…")}
+              {t("Searching MusicBrainz…")}
             </span>
           )}
           {lookup === "failed" && (
             <span className="chip warn" title={lookupError ?? ""}>
               <TriangleAlert size={12} />
-              {t("MusicBrainz nicht erreichbar")}
+              {t("MusicBrainz not reachable")}
             </span>
           )}
           {lookup === "done" && candidates.length === 0 && (
-            <span className="chip warn">{t("MusicBrainz: kein Treffer")}</span>
+            <span className="chip warn">{t("MusicBrainz: no match")}</span>
           )}
           {candidates.length === 1 && (
-            <span className="chip ok">{t("MusicBrainz: 1 Treffer")}</span>
+            <span className="chip ok">
+              {t(plural(1, "MusicBrainz: 1 match", "MusicBrainz: {0} matches"), { 0: "1" })}
+            </span>
           )}
           {candidates.length > 1 && (
             <select
               className="dd sm"
-              aria-label={t("MusicBrainz-Treffer")}
+              aria-label={t("MusicBrainz matches")}
               value={current < 0 ? "" : String(current)}
               onChange={(e) => chooseCandidate(Number(e.target.value))}
             >
               {current < 0 && (
                 <option value="">
                   {t(
-                    plural(candidates.length, "MusicBrainz: 1 Treffer", "MusicBrainz: {0} Treffer"),
+                    plural(candidates.length, "MusicBrainz: 1 match", "MusicBrainz: {0} matches"),
                     {
                       0: String(candidates.length),
                     },
@@ -191,8 +193,8 @@ export function DiscHeader() {
           {t(
             plural(
               disc.tracks.length,
-              "1 Titel · {1} · MusicBrainz {2} · freedb {3}",
-              "{0} Titel · {1} · MusicBrainz {2} · freedb {3}",
+              "1 track · {1} · MusicBrainz {2} · freedb {3}",
+              "{0} tracks · {1} · MusicBrainz {2} · freedb {3}",
             ),
             {
               0: String(disc.tracks.length),

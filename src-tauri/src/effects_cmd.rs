@@ -20,11 +20,11 @@ mod tests {
 #[derive(Serialize)]
 pub struct EffectCatalogue {
     entries: Vec<EffectEntry>,
-    /// Kinds of "Lautstärke normalisieren", in German (translated in the frontend).
+    /// Kinds of "Normalize volume", in German (translated in the frontend).
     normalize_modes: Vec<&'static str>,
     /// dB to add for LUFS ("= −18 LUFS").
     ebu_offset: f32,
-    /// Tag fields "Tag-Bearbeitung" can change: (key, German label).
+    /// Tag fields "Tag processing" can change: (key, German label).
     tag_fields: Vec<(&'static str, &'static str)>,
 }
 

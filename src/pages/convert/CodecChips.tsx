@@ -60,23 +60,21 @@ export function CodecChips({ field }: { field: CodecField }) {
   return (
     <>
       <div className="field">
-        <p className="lbl">{t("Verlustfrei")}</p>
+        <p className="lbl">{t("Lossless")}</p>
         <ChipRow list={options.lossless} field={field} />
       </div>
       <div className="field">
-        <p className="lbl">{t("Komprimiert")}</p>
+        <p className="lbl">{t("Compressed")}</p>
         <ChipRow list={options.compressed} field={field} />
-        {anyMissing && (
-          <Hint>{t("Gestrichelt: Das Programm dafür fehlt noch (Einstellungen).")}</Hint>
-        )}
+        {anyMissing && <Hint>{t("Dashed: the program for it is still missing (Settings).")}</Hint>}
       </div>
       {field === "rip_codec" && (
-        <ChipRow list={["Multi"]} field={field} label={t("Mehrere Formate")} />
+        <ChipRow list={["Multi"]} field={field} label={t("Several formats")} />
       )}
       {field === "codec" && options.tools.length > 0 && (
         <Disclosure
-          title={t("Werkzeuge")}
-          summary={t("Prüfen, Aufteilen, Tags, ReplayGain")}
+          title={t("Tools")}
+          summary={t("Check, split, tags, ReplayGain")}
           defaultOpen={options.tools.includes(current as Codec)}
         >
           <ChipRow list={options.tools} field={field} />

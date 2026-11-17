@@ -48,7 +48,7 @@ export function Hint({ children, warn }: { children: ReactNode; warn?: boolean }
   );
 }
 
-/** Pro options folded away under "Erweitert" with a short list of what is inside. */
+/** Pro options folded away under "Advanced" with a short list of what is inside. */
 export function Disclosure({
   title,
   summary,

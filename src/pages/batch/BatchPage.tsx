@@ -64,9 +64,9 @@ function FoundList({ root, found }: { root: string; found: string[] }) {
           return row.kind === "group" ? (
             <div key={v.key} className="found-group" style={style}>
               <Folder size={15} />
-              <strong>{row.dir || t("Quellordner")}</strong>
+              <strong>{row.dir || t("Source folder")}</strong>
               <small>
-                {t(plural(row.count, "1 Titel", "{0} Titel"), { 0: String(row.count) })}
+                {t(plural(row.count, "1 track", "{0} tracks"), { 0: String(row.count) })}
               </small>
             </div>
           ) : (
@@ -98,12 +98,12 @@ export function BatchPage() {
     },
     {
       id: "target",
-      title: t("Zielordner"),
-      summary: settings.output_folder || t("Kein Ordner gewählt"),
+      title: t("Target folder"),
+      summary: settings.output_folder || t("No folder chosen"),
     },
     {
       id: "effects",
-      title: t("Effekte"),
+      title: t("Effects"),
       summary: effectsSummary(settings.effects, effectEntries, t),
     },
   ];
@@ -119,7 +119,7 @@ export function BatchPage() {
       .then((n) =>
         useUi
           .getState()
-          .notify(t(plural(n, "{n} Datei gefunden", "{n} Dateien gefunden"), { n: String(n) })),
+          .notify(t(plural(n, "{n} file found", "{n} files found"), { n: String(n) })),
       )
       .catch((e: unknown) => useUi.getState().notify(String(e)));
   const items = () => found.map((p) => [p, root] as [string, string | null]);
@@ -127,12 +127,12 @@ export function BatchPage() {
   return (
     <div className="page">
       <div className="page-main">
-        <PageHeader title={t("Stapel-Konverter")} page="batch" firstTile="format" />
+        <PageHeader title={t("Batch converter")} page="batch" firstTile="format" />
         <StepTiles page="batch" tiles={tiles} />
-        <section className="batch-source" aria-label={t("Quellordner")}>
+        <section className="batch-source" aria-label={t("Source folder")}>
           <div className="field">
             <label className="lbl" htmlFor="batch-folder">
-              {t("Quellordner")}
+              {t("Source folder")}
             </label>
             <div className="row">
               <input
@@ -141,12 +141,12 @@ export function BatchPage() {
                 type="text"
                 readOnly
                 value={folder}
-                placeholder={t("Klicken, um einen Ordner zu wählen (oder hierher ziehen)")}
+                placeholder={t("Click to choose a folder (or drop it here)")}
                 title={folder}
                 onClick={() => void choose()}
               />
               <button type="button" className="btn" onClick={() => void choose()}>
-                {t("Ändern")}
+                {t("Change")}
               </button>
               <button
                 type="button"
@@ -155,13 +155,13 @@ export function BatchPage() {
                 onClick={() => void search()}
               >
                 <Search size={16} />
-                {scanning ? t("Suche läuft…") : t("Dateien suchen")}
+                {scanning ? t("Searching…") : t("Find files")}
               </button>
             </div>
           </div>
           <div className="batch-opts">
             <Check
-              label={t("Unterordner einbeziehen")}
+              label={t("Include subfolders")}
               checked={settings.batch_subfolders}
               onChange={(v) =>
                 update((s) => {
@@ -169,8 +169,8 @@ export function BatchPage() {
                 })
               }
             />
-            <p className="lbl">{t("Dateitypen")}</p>
-            <fieldset className="chips type-chips" aria-label={t("Dateitypen")}>
+            <p className="lbl">{t("File types")}</p>
+            <fieldset className="chips type-chips" aria-label={t("File types")}>
               {BATCH_TYPES.map((ext) => {
                 const on = exts.includes(ext);
                 return (
@@ -200,9 +200,9 @@ export function BatchPage() {
           ) : (
             <p className="empty">
               {searched
-                ? t("Keine passenden Dateien in diesem Ordner.")
+                ? t("No matching files in this folder.")
                 : t(
-                    "Ganze Ordner mit Unterordnern auf einmal umwandeln – die Ordnerstruktur bleibt erhalten.",
+                    "Convert whole folders with subfolders at once – the folder structure is kept.",
                   )}
             </p>
           )}
@@ -210,7 +210,7 @@ export function BatchPage() {
         <FooterBar
           summary={
             <b>
-              {t(plural(found.length, "{n} Datei gefunden", "{n} Dateien gefunden"), {
+              {t(plural(found.length, "{n} file found", "{n} files found"), {
                 n: String(found.length),
               })}
             </b>
@@ -226,7 +226,7 @@ export function BatchPage() {
             }}
           >
             <ListPlus size={16} />
-            {t("Zur Konverter-Liste")}
+            {t("To the converter list")}
           </button>
           <button
             type="button"
@@ -235,7 +235,7 @@ export function BatchPage() {
             onClick={() => void convert(items(), settings.codec, true)}
           >
             <Play size={16} />
-            {t("Mit Ordnerstruktur umwandeln")}
+            {t("Convert keeping the folders")}
           </button>
         </FooterBar>
       </div>

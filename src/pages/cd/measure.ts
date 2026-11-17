@@ -22,8 +22,8 @@ function store(p: DriveProfile, agreeing: number): void {
     t(
       plural(
         agreeing,
-        "Laufwerks-Versatz {off} Samples gefunden und eingetragen (1 Titel stimmt überein)",
-        "Laufwerks-Versatz {off} Samples gefunden und eingetragen ({n} Titel stimmen überein)",
+        "Drive offset {off} samples found and set (1 track agrees)",
+        "Drive offset {off} samples found and set ({n} tracks agree)",
       ),
       { off: signed(p.offset), n: String(agreeing) },
     ),
@@ -40,7 +40,7 @@ export function applyMeasurement(p: DriveProfile, agreeing: number): void {
   store(p, agreeing);
 }
 
-/** The answer to "Ersetzen" (true) or "Behalten" (false) for a waiting measurement. */
+/** The answer to "Replace" (true) or "Keep" (false) for a waiting measurement. */
 export function settlePending(replace: boolean): void {
   const pending = useCd.getState().pendingProfile;
   useCd.setState({ pendingProfile: null });
@@ -52,7 +52,7 @@ export function settlePending(replace: boolean): void {
 export async function measure(drive: string, auto = false): Promise<void> {
   if (useCd.getState().offset.busy) return;
   useCd.setState({ offset: { busy: true, fraction: 0 } });
-  if (auto) notify(t("Laufwerk noch nicht vermessen – PsyAudio misst den Versatz mit dieser CD"));
+  if (auto) notify(t("Drive not measured yet – PsyAudio measures the offset with this CD"));
   try {
     await measureDrive(drive, (e) => {
       if (e.kind === "Progress") useCd.setState({ offset: { busy: true, fraction: e.fraction } });

@@ -38,9 +38,9 @@ describe("close question", () => {
     render(<CloseDialog />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await act(async () => fireAsk());
-    expect(screen.getByRole("dialog", { name: "PsyAudio beenden?" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Quit PsyAudio?" })).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Abbrechen und beenden" }));
+      fireEvent.click(screen.getByRole("button", { name: "Cancel and quit" }));
     });
     expect(order).toEqual(["flush", "confirm true"]);
   });
@@ -48,7 +48,7 @@ describe("close question", () => {
   it("keep_working_closes_the_question", async () => {
     render(<CloseDialog />);
     await act(async () => fireAsk());
-    fireEvent.click(screen.getByRole("button", { name: "Weiterarbeiten" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep working" }));
     expect(confirmClose).toHaveBeenLastCalledWith(false);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });

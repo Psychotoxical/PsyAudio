@@ -27,7 +27,7 @@ fn flush_cache(drive: &dyn SectorRead, lba: i64, block_end: i64, max_lba: i64, c
     let mut l = start;
     while l < start + sectors {
         if cancel.load(Ordering::Relaxed) {
-            return Err(crate::i18n::t("abgebrochen").into());
+            return Err(crate::i18n::t("cancelled").into());
         }
         let n = READ_SECTORS.min(start + sectors - l);
         let _ = read_block(drive, l, n, max_lba);
@@ -74,7 +74,7 @@ pub fn rip_track(
     progress: &dyn Fn(f32),
     accurate: &dyn Fn(&[u8]) -> bool,
 ) -> Result<TrackRip, String> {
-    let (start, end) = toc.span(number).ok_or(crate::i18n::t("Titel nicht gefunden"))?;
+    let (start, end) = toc.span(number).ok_or(crate::i18n::t("Track not found"))?;
     let sps = SAMPLES_PER_SECTOR as i64;
     let first_sample = start as i64 * sps + offset as i64;
     let total_samples = (end - start) as i64 * sps;
@@ -142,7 +142,7 @@ pub fn rip_track(
     let bad_list: Vec<usize> = (0..blocks).filter(|b| bad[*b]).collect();
     for (k, &b) in bad_list.iter().enumerate() {
         if cancel.load(Ordering::Relaxed) {
-            return Err(crate::i18n::t("abgebrochen").into());
+            return Err(crate::i18n::t("cancelled").into());
         }
         let r = range(b, best.len());
         let lba = s_lo + (b as i64) * READ_SECTORS;
@@ -150,7 +150,7 @@ pub fn rip_track(
         let mut accepted = None;
         for _ in 0..rp.reread_limit.max(1) {
             if cancel.load(Ordering::Relaxed) {
-                return Err(crate::i18n::t("abgebrochen").into());
+                return Err(crate::i18n::t("cancelled").into());
             }
             flush_cache(drive, lba, lba + n, max_lba, rp.cache_kb, cancel)?;
             let (again, refused) = read_block_lenient(drive, lba, n, max_lba, cancel)?;
@@ -179,7 +179,7 @@ pub fn rip_track(
         best[r].copy_from_slice(&data);
         progress(0.9 + 0.1 * (k + 1) as f32 / bad_list.len() as f32);
         if rp.abort_unrecoverable > 0 && insecure > rp.abort_unrecoverable {
-            return Err(crate::i18n::tf(crate::i18n::t("abgebrochen nach {insecure} nicht lesbaren Sektoren"), &[("insecure", format!("{insecure}"))]));
+            return Err(crate::i18n::tf(crate::i18n::t("stopped after {insecure} unreadable sectors"), &[("insecure", format!("{insecure}"))]));
         }
     }
     if rp.interpolate {

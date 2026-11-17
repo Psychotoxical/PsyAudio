@@ -160,7 +160,7 @@ impl CdState {
 }
 
 fn drive_char(id: &str) -> Result<char, String> {
-    id.chars().next().ok_or_else(|| t("Kein CD-Laufwerk gefunden").to_string())
+    id.chars().next().ok_or_else(|| t("No CD drive found").to_string())
 }
 
 #[derive(Serialize)]
@@ -316,7 +316,7 @@ pub fn lookup_disc(app: AppHandle, musicbrainz: bool, ctdb: bool, on: Channel<Lo
         if ctdb {
             cd.ctdb_pending = true;
         }
-        (cd.toc.clone().ok_or_else(|| t("Zuerst eine CD lesen").to_string())?, cd.generation)
+        (cd.toc.clone().ok_or_else(|| t("Read a CD first").to_string())?, cd.generation)
     };
     if musicbrainz {
         let (toc, on, app) = (toc.clone(), on.clone(), app.clone());
@@ -350,7 +350,7 @@ pub fn lookup_disc(app: AppHandle, musicbrainz: bool, ctdb: bool, on: Channel<Lo
 pub async fn eject(state: State<'_, AppState>, drive: String) -> Result<(), String> {
     let d = drive_char(&drive)?;
     if state.jobs.busy_with(Kind::Rip) {
-        return Err(t("Erst das Rippen abwarten oder abbrechen").into());
+        return Err(t("Wait for the rip to finish or cancel it first").into());
     }
     tauri::async_runtime::spawn_blocking(move || cdrip::Drive::open(d).and_then(|dr| dr.eject())).await.map_err(|e| e.to_string())??;
     state.cd.lock().unwrap_or_else(|e| e.into_inner()).new_disc(None, None);
@@ -423,7 +423,7 @@ pub fn measure_drive(app: AppHandle, drive: String, on: Channel<MeasureEvent>) -
 /// the count; only that page, never an address from the window.
 #[tauri::command]
 pub fn open_ctdb_page(state: State<'_, AppState>) -> Result<(), String> {
-    let toc = state.cd.lock().unwrap_or_else(|e| e.into_inner()).toc.clone().ok_or_else(|| t("Zuerst eine CD lesen").to_string())?;
+    let toc = state.cd.lock().unwrap_or_else(|e| e.into_inner()).toc.clone().ok_or_else(|| t("Read a CD first").to_string())?;
     let url = ctdb::disc_url(&toc);
     psyaudio_core::audio::open_external(url.as_ref())
 }
@@ -465,13 +465,13 @@ pub fn start_rip(app: AppHandle, settings: Settings, tracks: Vec<RipTrack>, meta
     let (letter, toc, ctdb, cover) = {
         let cd = state.cd.lock().unwrap_or_else(|e| e.into_inner());
         let (Some(letter), Some(toc)) = (cd.drive, cd.toc.clone()) else {
-            return Err(t("Zuerst eine CD lesen").into());
+            return Err(t("Read a CD first").into());
         };
         // no answer from the database: say why in every row instead of "not in the database"
         let ctdb = match (&cd.ctdb, cd.ctdb_pending) {
             (Some(r), _) => r.clone(),
-            (None, true) => Err(t("Abfrage lief beim Start noch").to_string()),
-            (None, false) => Err(t("nicht abgefragt").to_string()),
+            (None, true) => Err(t("lookup was still running at the start").to_string()),
+            (None, false) => Err(t("not looked up").to_string()),
         };
         (letter, toc, ctdb, cd.cover.clone())
     };
@@ -510,7 +510,7 @@ pub fn start_rip(app: AppHandle, settings: Settings, tracks: Vec<RipTrack>, meta
         jobs.push((row, tr.number, tg));
     }
     if jobs.is_empty() {
-        return Err(t("Keine Titel ausgewählt").into());
+        return Err(t("No tracks selected").into());
     }
     let handle = state.jobs.begin(Kind::Rip)?;
     let first_audio = audio.first().map(|tr| tr.number).unwrap_or(1);

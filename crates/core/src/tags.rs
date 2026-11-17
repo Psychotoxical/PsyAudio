@@ -9,23 +9,23 @@ use std::path::Path;
 
 /// The tag fields the program knows, with their names in the editor.
 pub const FIELDS: &[(&str, &str)] = &[
-    ("title", "Titel"),
-    ("artist", "Interpret"),
+    ("title", "Title"),
+    ("artist", "Artist"),
     ("album", "Album"),
-    ("album artist", "Albuminterpret"),
-    ("track", "Titelnummer"),
-    ("track_total", "Titel gesamt"),
+    ("album artist", "Album artist"),
+    ("track", "Track number"),
+    ("track_total", "Total tracks"),
     ("disc", "Disc"),
-    ("disc_total", "Discs gesamt"),
-    ("year", "Jahr"),
+    ("disc_total", "Total discs"),
+    ("year", "Year"),
     ("genre", "Genre"),
-    ("composer", "Komponist"),
-    ("conductor", "Dirigent"),
-    ("comment", "Kommentar"),
+    ("composer", "Composer"),
+    ("conductor", "Conductor"),
+    ("comment", "Comment"),
     ("label", "Label"),
     ("isrc", "ISRC"),
-    ("compilation", "Sampler (1 = ja)"),
-    ("lyrics", "Liedtext"),
+    ("compilation", "Compilation (1 = yes)"),
+    ("lyrics", "Lyrics"),
 ];
 
 pub const RG_FIELDS: &[&str] = &["replaygain_track_gain", "replaygain_track_peak", "replaygain_album_gain", "replaygain_album_peak"];
@@ -129,7 +129,7 @@ fn image_mime(data: &[u8]) -> &'static str {
     }
 }
 
-/// Album-wide fields copied by "Album-Felder für alle übernehmen".
+/// Album-wide fields copied by "Apply album fields to all".
 pub const ALBUM_FIELDS: &[&str] = &["album", "album artist", "year", "genre", "disc", "disc_total", "composer", "compilation", "label"];
 
 /// Copy the album fields that `from` has, and its front cover if it has one; nothing is removed.
@@ -244,7 +244,7 @@ pub fn write(path: &Path, tags: &Tags, replace_art: bool) -> Result<(), String> 
         let tt = file.primary_tag_type();
         file.insert_tag(Tag::new(tt));
     }
-    let tag = file.primary_tag_mut().ok_or(crate::i18n::t("Format unterstützt keine Tags"))?;
+    let tag = file.primary_tag_mut().ok_or(crate::i18n::t("Format does not support tags"))?;
     for name in ALL_KEYS {
         if *name == "year" {
             write_year(tag, tags.get("year"));
@@ -279,7 +279,7 @@ pub fn write(path: &Path, tags: &Tags, replace_art: bool) -> Result<(), String> 
             tag.push_picture(Picture::unchecked(a.data.clone()).pic_type(PictureType::from_u8(a.kind)).mime_type(mime).build());
         }
     }
-    tag.save_to_path(path, WriteOptions::default()).map_err(|e| crate::i18n::tf(crate::i18n::t("Tags speichern: {e}"), &[("e", format!("{e}"))]))
+    tag.save_to_path(path, WriteOptions::default()).map_err(|e| crate::i18n::tf(crate::i18n::t("Saving tags: {e}"), &[("e", format!("{e}"))]))
 }
 
 /// The year goes into the recording date, the key every format and other programs read

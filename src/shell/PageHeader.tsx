@@ -22,13 +22,7 @@ export function PageHeader({
     <header className="top">
       <h1>{title}</h1>
       <div className="top-actions">{children}</div>
-      {page && (
-        <PanelToggle
-          page={page}
-          firstTile={firstTile ?? ""}
-          label={t("Einstellungen einblenden")}
-        />
-      )}
+      {page && <PanelToggle page={page} firstTile={firstTile ?? ""} label={t("Show settings")} />}
     </header>
   );
 }

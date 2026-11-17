@@ -51,18 +51,18 @@ export function FileList() {
       ref={scroller}
       role="listbox"
       aria-multiselectable="true"
-      aria-label={t("Konvertieren")}
+      aria-label={t("Convert")}
       tabIndex={0}
       onKeyDown={onKey}
       onClick={() => setMenu(null)}
     >
       <div className="files-head" aria-hidden="true">
         <span>#</span>
-        <span>{t("Titel")}</span>
-        <span>{t("Interpret")}</span>
-        <span>Format</span>
-        <span className="r">{t("Länge")}</span>
-        <span className="r">{t("Größe")}</span>
+        <span>{t("Title")}</span>
+        <span>{t("Artist")}</span>
+        <span>{t("Format")}</span>
+        <span className="r">{t("Length")}</span>
+        <span className="r">{t("Size")}</span>
       </div>
       <div style={{ height: list.getTotalSize(), position: "relative" }}>
         {list.getVirtualItems().map((v) => {
@@ -89,16 +89,18 @@ export function FileList() {
                 <small>
                   {[
                     row.year,
-                    t(plural(row.count, "1 Titel", "{0} Titel"), { 0: String(row.count) }),
+                    t(plural(row.count, "1 track", "{0} tracks"), { 0: String(row.count) }),
                   ]
                     .filter(Boolean)
                     .join(" · ")}
                 </small>
                 <span className={row.tagged ? "chip ok" : "chip bad"}>
-                  {row.tagged ? <Check size={12} /> : <X size={12} />}Tags
+                  {row.tagged ? <Check size={12} /> : <X size={12} />}
+                  {t("Tags")}
                 </span>
                 <span className={row.cover ? "chip ok" : "chip bad"}>
-                  {row.cover ? <Check size={12} /> : <X size={12} />}Cover
+                  {row.cover ? <Check size={12} /> : <X size={12} />}
+                  {t("Cover")}
                 </span>
               </div>
             );
@@ -148,7 +150,7 @@ export function FileList() {
               setMenu(null);
             }}
           >
-            {t("Ordner öffnen")}
+            {t("Open folder")}
           </button>
         </div>
       )}

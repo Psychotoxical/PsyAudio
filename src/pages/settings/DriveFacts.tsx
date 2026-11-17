@@ -13,9 +13,9 @@ export function dateText(iso: string, lang: string): string {
 /** How and when a drive's offset was found: "mit CTDB am 14.11.2026". */
 export function methodText(p: DriveProfile, t: T, lang: string): string {
   const date = dateText(p.measured, lang);
-  if (p.method === "Ctdb") return t("mit CTDB am {0}", { 0: date });
-  if (p.method === "Manual") return t("von Hand am {0}", { 0: date });
-  return t("übernommen am {0}", { 0: date });
+  if (p.method === "Ctdb") return t("with CTDB on {0}", { 0: date });
+  if (p.method === "Manual") return t("by hand on {0}", { 0: date });
+  return t("taken over on {0}", { 0: date });
 }
 
 /** Offset, how it was found, and the drive's buffer, as a value list. */
@@ -25,18 +25,18 @@ export function DriveFacts({ profile }: { profile: DriveProfile }) {
   return (
     <dl className="kv">
       <div>
-        <dt>{t("Versatz")}</dt>
+        <dt>{t("Offset")}</dt>
         <dd>
           <strong>{`${signed(profile.offset)} Samples`}</strong>
         </dd>
       </div>
       <div>
-        <dt>{t("Gemessen")}</dt>
+        <dt>{t("Measured")}</dt>
         <dd>{how}</dd>
       </div>
       <div>
-        <dt>{t("Puffer")}</dt>
-        <dd>{profile.buffer_kb ? `${profile.buffer_kb} KB` : t("unbekannt")}</dd>
+        <dt>{t("Buffer")}</dt>
+        <dd>{profile.buffer_kb ? `${profile.buffer_kb} KB` : t("unknown")}</dd>
       </div>
     </dl>
   );

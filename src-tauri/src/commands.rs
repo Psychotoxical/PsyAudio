@@ -17,7 +17,7 @@ pub fn frontend_ready(app: AppHandle, state: State<'_, AppState>) -> Vec<String>
     files.iter().map(|p| p.to_string_lossy().into_owned()).collect()
 }
 
-/// Adds or removes "Mit PsyAudio konvertieren" in Explorer or Dolphin; returns the message.
+/// Adds or removes "Convert with PsyAudio" in Explorer or Dolphin; returns the message.
 /// Async, so the window keeps drawing while one key per extension is written.
 #[tauri::command]
 pub async fn file_manager_menu(add: bool) -> String {

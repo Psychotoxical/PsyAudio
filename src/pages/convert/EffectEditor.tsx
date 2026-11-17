@@ -10,30 +10,30 @@ import { useSystemInfo } from "../settings/SettingsPage";
 const RATES = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000];
 const EQ_LABELS = ["60", "130", "260", "500", "1k", "2k", "4k", "8k", "16k"];
 const EQ_PRESETS: [string, number[]][] = [
-  ["Auf 0 dB", [0, 0, 0, 0, 0, 0, 0, 0, 0]],
-  ["Konzertsaal", [4, 3, 1, 0, -1, 0, 2, 3, 4]],
-  ["Mehr Bass", [8, 6, 4, 1, 0, 0, 0, 0, 0]],
-  ["Mehr Höhen", [0, 0, 0, 0, 0, 1, 4, 6, 8]],
+  ["To 0 dB", [0, 0, 0, 0, 0, 0, 0, 0, 0]],
+  ["Concert hall", [4, 3, 1, 0, -1, 0, 2, 3, 4]],
+  ["More bass", [8, 6, 4, 1, 0, 0, 0, 0, 0]],
+  ["More treble", [0, 0, 0, 0, 0, 1, 4, 6, 8]],
 ];
 
-/** What each kind of "Lautstärke normalisieren" does, in the order of NORMALIZE_MODES. */
+/** What each kind of "Normalize volume" does, in the order of NORMALIZE_MODES. */
 const NORMALIZE_HINTS = [
-  "Hebt oder senkt jede Datei, bis ihre lauteste Stelle den Zielpegel erreicht. Wie laut sie wirkt, kann trotzdem verschieden bleiben.",
-  "Gleicht die gehörte Lautheit an (gemessen nach EBU R128, wie im Rundfunk und bei Streamingdiensten) und ändert den Ton dauerhaft.",
-  "Gleicht die gehörte Lautheit an (gemessen nach EBU R128, wie im Rundfunk und bei Streamingdiensten) und ändert den Ton dauerhaft.",
-  "Regelt laufend nach, auch innerhalb eines Titels: leise Stellen werden lauter. Für Hörbücher und Mitschnitte, nicht für Musik mit gewollter Dynamik.",
-  "Regelt laufend nach den Spitzen nach, auch innerhalb eines Titels. Für Hörbücher und Mitschnitte, nicht für Musik mit gewollter Dynamik.",
-  "Ändert jede Datei um denselben Wert; zu viel Anheben verzerrt.",
-  "Senkt nur Dateien, deren lauteste Stelle über dem Zielpegel liegt; leisere bleiben unverändert.",
+  "Raises or lowers each file until its loudest point reaches the target level. How loud the files sound can still differ.",
+  "Evens out the perceived loudness (measured to EBU R128, as broadcasters and streaming services do) and changes the audio for good.",
+  "Evens out the perceived loudness (measured to EBU R128, as broadcasters and streaming services do) and changes the audio for good.",
+  "Keeps adjusting, also within a track: quiet passages get louder. For audiobooks and live recordings, not for music whose dynamics are intended.",
+  "Keeps adjusting to the peaks, also within a track. For audiobooks and live recordings, not for music whose dynamics are intended.",
+  "Changes every file by the same amount; raising too much distorts.",
+  "Lowers only files whose loudest point is above the target level; quieter ones stay unchanged.",
 ];
 
 /** Tags a value can take over, as `<name>` (the names of file naming). */
 const PLACEHOLDERS: [string, string][] = [
-  ["artist", "Interpret"],
-  ["albumartist", "Albuminterpret"],
+  ["artist", "Artist"],
+  ["albumartist", "Album artist"],
   ["album", "Album"],
-  ["title", "Titel"],
-  ["year", "Jahr"],
+  ["title", "Title"],
+  ["year", "Year"],
   ["genre", "Genre"],
 ];
 
@@ -42,21 +42,21 @@ const AUTO_FIELDS = ["track", "track_total"];
 
 /** An example value per field, as the placeholder of the value field. */
 const FIELD_EXAMPLES: Record<string, string> = {
-  title: "z. B. <title> (Remastered)",
-  artist: "z. B. Band",
-  album: "z. B. <album> (Deluxe)",
-  "album artist": "z. B. <artist>",
-  disc: "z. B. 1",
-  disc_total: "z. B. 2",
-  year: "z. B. 1994",
-  genre: "z. B. Rock",
-  composer: "z. B. Komponist",
-  conductor: "z. B. Dirigent",
-  comment: "z. B. Gerippt mit PsyAudio",
-  label: "z. B. Label",
-  isrc: "z. B. DEA123456789",
-  compilation: "1 = Sampler, 0 = kein Sampler",
-  lyrics: "Liedtext",
+  title: "e.g. <title> (Remastered)",
+  artist: "e.g. Band",
+  album: "e.g. <album> (Deluxe)",
+  "album artist": "e.g. <artist>",
+  disc: "e.g. 1",
+  disc_total: "e.g. 2",
+  year: "e.g. 1994",
+  genre: "e.g. Rock",
+  composer: "e.g. Composer",
+  conductor: "e.g. Conductor",
+  comment: "e.g. Ripped with PsyAudio",
+  label: "e.g. Label",
+  isrc: "e.g. DEA123456789",
+  compilation: "1 = compilation, 0 = no compilation",
+  lyrics: "Lyrics",
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: the fields differ per effect; each case knows its own
@@ -120,7 +120,7 @@ function TagValue({
   return (
     <>
       <TextField
-        label={t("Wert")}
+        label={t("Value")}
         value={value}
         placeholder={t(FIELD_EXAMPLES[field] ?? "Text")}
         onChange={onChange}
@@ -135,7 +135,7 @@ function TagValue({
       </div>
       <Hint>
         {t(
-          "Gilt für jede Datei. Ein Knopf fügt den Wert eines anderen Tags ein, z. B. wird <artist> zum Interpreten der Datei.",
+          "Applies to every file. A button inserts the value of another tag; <artist>, for example, becomes the file's artist.",
         )}
       </Hint>
     </>
@@ -173,29 +173,29 @@ export function EffectEditor({
       return (
         <Hint warn>
           {t(
-            "Legt die Quelldatei in den Papierkorb, sobald alle ihre Zieldateien geschrieben sind. Schlägt die Umwandlung fehl, bleibt sie liegen.",
+            "Moves the source file to the recycle bin once all its output files are written. If the conversion fails, it stays where it is.",
           )}
         </Hint>
       );
     case "PreserveAttributes":
       return (
-        <Hint>{t("Die neue Datei bekommt das Änderungsdatum der Quelle statt des heutigen.")}</Hint>
+        <Hint>{t("The new file gets the source's modification date instead of today's.")}</Hint>
       );
     case "FolderJpgPreserve":
       return (
         <Hint>
           {t(
-            "Liegt im Quellordner ein folder.jpg oder cover.jpg, kommt es mit in den Zielordner; ein vorhandenes Bild dort bleibt.",
+            "A folder.jpg or cover.jpg in the source folder is copied to the output folder; an image already there is kept.",
           )}
         </Hint>
       );
     case "PlaySound":
-      return <Hint>{t("Ein kurzer Ton, wenn alle Dateien fertig sind.")}</Hint>;
+      return <Hint>{t("A short sound when all files are done.")}</Hint>;
     case "DeEmphasis":
       return (
         <Hint warn>
           {t(
-            "Nur für CDs mit Pre-Emphasis, meist aus den frühen 80ern: Dort wurden die Höhen beim Mastern angehoben, dieser Effekt senkt sie wieder. Bei allen anderen Aufnahmen klingt es danach dumpf.",
+            "Only for CDs with pre-emphasis, mostly from the early 1980s: their treble was raised in mastering, and this effect lowers it again. Any other recording sounds dull afterwards.",
           )}
         </Hint>
       );
@@ -203,31 +203,31 @@ export function EffectEditor({
       return (
         <>
           <Select<number>
-            label={t("Abtastrate")}
+            label={t("Sample rate")}
             value={v.rate}
             options={RATES.map((r) => [r, `${r} Hz`] as [number, string])}
             onChange={(x) => set({ rate: x })}
           />
-          <Hint>{t("44100 Hz ist CD-Qualität, 48000 Hz der Standard bei Video.")}</Hint>
+          <Hint>{t("44100 Hz is CD quality, 48000 Hz the standard for video.")}</Hint>
         </>
       );
     case "BitDepth":
       return (
         <>
           <Segmented<number>
-            label={t("Bittiefe")}
+            label={t("Bit depth")}
             value={v.bits}
             options={[8, 16, 24, 32].map((b) => [b, `${b} Bit`] as [number, string])}
             onChange={(x) => set({ bits: x })}
           />
           <Check
-            label={t("Dither (empfohlen beim Reduzieren auf 16 Bit)")}
+            label={t("Dither (recommended when reducing to 16 bit)")}
             checked={v.dither}
             onChange={(x) => set({ dither: x })}
           />
           <Hint>
             {t(
-              "16 Bit ist CD-Qualität. Dither legt beim Verringern ein unhörbares Rauschen darüber, damit leise Stellen nicht verzerren.",
+              "16 bit is CD quality. When reducing, dither adds inaudible noise so quiet passages don't distort.",
             )}
           </Hint>
         </>
@@ -236,7 +236,7 @@ export function EffectEditor({
       return (
         <>
           <Segmented<number>
-            label={t("Kanäle")}
+            label={t("Channels")}
             value={v.channels}
             options={[
               [1, "Mono"] as [number, string],
@@ -247,21 +247,19 @@ export function EffectEditor({
             onChange={(x) => set({ channels: x })}
           />
           <Hint>
-            {t(
-              "Mono mischt beide Seiten zu einer zusammen, Stereo macht aus Mono zwei gleiche Seiten.",
-            )}
+            {t("Mono mixes both sides into one; stereo turns mono into two identical sides.")}
           </Hint>
         </>
       );
     case "ChannelMapper":
       return (
         <Select<number>
-          label={t("Zuordnung")}
+          label={t("Mapping")}
           value={v.mode}
           options={[
-            [0, t("Links/Rechts tauschen")],
-            [1, t("Links auf beide Seiten")],
-            [2, t("Rechts auf beide Seiten")],
+            [0, t("Swap left/right")],
+            [1, t("Left on both sides")],
+            [2, t("Right on both sides")],
           ]}
           onChange={(x) => set({ mode: x })}
         />
@@ -272,18 +270,18 @@ export function EffectEditor({
       return (
         <>
           <Select<number>
-            label={t("Art")}
+            label={t("Kind")}
             value={mode}
             options={(catalogue?.normalize_modes ?? [])
               .map((n, i) => [i, t(n)] as [number, string])
-              // "ReplayGain (Titel)" measures like "EBU R128 (Titel)": shown only for old profiles
+              // "ReplayGain (track)" measures like "EBU R128 (track)": shown only for old profiles
               .filter(([i]) => i !== 1 || mode === 1)}
             onChange={(x) => set({ mode: x })}
           />
           <Hint>{t(NORMALIZE_HINTS[mode] ?? "")}</Hint>
           {mode === 5 ? (
             <SliderField
-              label={t("Verstärkung")}
+              label={t("Gain")}
               min={-12}
               max={12}
               step={0.1}
@@ -293,7 +291,7 @@ export function EffectEditor({
             />
           ) : mode >= 1 && mode <= 3 ? (
             <SliderField
-              label={t("Ziellautheit")}
+              label={t("Target loudness")}
               min={-38}
               max={-8}
               step={0.5}
@@ -303,7 +301,7 @@ export function EffectEditor({
             />
           ) : (
             <SliderField
-              label={t("Zielpegel der lautesten Stelle")}
+              label={t("Target level of the loudest point")}
               min={-20}
               max={0}
               step={0.1}
@@ -314,7 +312,7 @@ export function EffectEditor({
           )}
           {mode !== 5 && mode !== 6 && (
             <SliderField
-              label={t("Höchstens anheben um")}
+              label={t("Raise by at most")}
               min={1}
               max={20}
               step={0.5}
@@ -327,9 +325,7 @@ export function EffectEditor({
             <>
               {ms("Ausgleichsfenster", "window_ms", 30000)}
               <Hint>
-                {t(
-                  "Über diese Zeitspanne mittelt PsyAudio die Lautstärke; kürzer regelt schneller nach.",
-                )}
+                {t("PsyAudio averages the volume over this span; shorter reacts faster.")}
               </Hint>
             </>
           )}
@@ -340,7 +336,7 @@ export function EffectEditor({
       return (
         <>
           <SliderField
-            label={t("Ziellautheit")}
+            label={t("Target loudness")}
             min={-30}
             max={-5}
             step={0.5}
@@ -349,7 +345,7 @@ export function EffectEditor({
             onChange={(x) => set({ target_lufs: x })}
           />
           <SliderField
-            label={t("Höchstens anheben um")}
+            label={t("Raise by at most")}
             min={0}
             max={40}
             step={0.5}
@@ -358,23 +354,23 @@ export function EffectEditor({
             onChange={(x) => set({ max_gain: x })}
           />
           <Check
-            label={t("Auch Album-Gain berechnen")}
+            label={t("Also calculate album gain")}
             checked={v.album}
             onChange={(x) => set({ album: x })}
           />
           <Check
-            label={t("Nie so weit anheben, dass es übersteuert")}
+            label={t("Never raise so far that it clips")}
             checked={v.clip_prevention}
             onChange={(x) => set({ clip_prevention: x })}
           />
           <Check
-            label={t("Spitzen genauer messen (True Peak, langsamer)")}
+            label={t("Measure peaks more precisely (true peak, slower)")}
             checked={v.true_peak_ratio > 1}
             onChange={(x) => set({ true_peak_ratio: x ? 4 : 1 })}
           />
           <Hint>
             {t(
-              "Der Ton bleibt unverändert; Player mit ReplayGain spielen danach alle Titel gleich laut. −18 LUFS ist der übliche Wert. Album-Gain hält die Lautstärke-Unterschiede innerhalb eines Albums.",
+              "The audio stays unchanged; players with ReplayGain then play every track equally loud. −18 LUFS is the usual value. Album gain keeps the differences in volume within an album.",
             )}
           </Hint>
         </>
@@ -383,21 +379,21 @@ export function EffectEditor({
       return (
         <>
           <Segmented<boolean>
-            label={t("Wert")}
+            label={t("Value")}
             value={v.album}
             options={[
-              [false, t("Titel-Gain")],
-              [true, t("Album-Gain")],
+              [false, t("Track gain")],
+              [true, t("Album gain")],
             ]}
             onChange={(x) => set({ album: x })}
           />
           <Check
-            label={t("Nur so weit anheben, dass nichts übersteuert")}
+            label={t("Only raise as far as nothing clips")}
             checked={v.limit_peaks}
             onChange={(x) => set({ limit_peaks: x })}
           />
           <SliderField
-            label={t("Dateien ohne ReplayGain ändern um")}
+            label={t("Change files without ReplayGain by")}
             min={-40}
             max={0}
             step={0.5}
@@ -407,7 +403,7 @@ export function EffectEditor({
           />
           <Hint>
             {t(
-              "Rechnet die ReplayGain-Werte aus den Tags fest in den Ton ein, für Player ohne ReplayGain. Dateien ohne Werte ändern sich um den eingestellten Betrag; 0 dB lässt sie, wie sie sind.",
+              "Applies the ReplayGain values from the tags to the audio permanently, for players without ReplayGain. Files without values change by the amount set; 0 dB leaves them as they are.",
             )}
           </Hint>
         </>
@@ -415,39 +411,39 @@ export function EffectEditor({
     case "Fade":
       return (
         <>
-          {ms("Einblenden", "in_ms", 20000)}
-          {ms("Ausblenden (vom Ende)", "out_ms", 20000)}
-          <Hint>{t("0 ms schaltet die jeweilige Blende aus.")}</Hint>
+          {ms("Fade in", "in_ms", 20000)}
+          {ms("Fade out (from the end)", "out_ms", 20000)}
+          <Hint>{t("0 ms turns that fade off.")}</Hint>
         </>
       );
     case "Trim":
       return (
         <>
-          {ms("Vom Anfang", "start_ms", 120000)}
-          {ms("Vom Ende", "end_ms", 120000)}
-          <Hint>{t("Schneidet bei jeder Datei dieselbe Zeit ab; 1000 ms = 1 Sekunde.")}</Hint>
+          {ms("From the start", "start_ms", 120000)}
+          {ms("From the end", "end_ms", 120000)}
+          <Hint>{t("Cuts the same time off every file; 1000 ms = 1 second.")}</Hint>
         </>
       );
     case "TrimSilence":
       return (
         <>
           <Check
-            label={t("Stille am Anfang entfernen")}
+            label={t("Remove silence at the start")}
             checked={v.begin}
             onChange={(x) => set({ begin: x })}
           />
           <Check
-            label={t("Stille am Ende entfernen")}
+            label={t("Remove silence at the end")}
             checked={v.end}
             onChange={(x) => set({ end: x })}
           />
           <Check
-            label={t("Nur völlige Stille (digital null)")}
+            label={t("Only complete silence (digital zero)")}
             checked={v.digital_only}
             onChange={(x) => set({ digital_only: x })}
           />
           <SliderField
-            label={t("Als Stille gilt leiser als")}
+            label={t("Counts as silence below")}
             min={-96}
             max={-20}
             value={v.threshold_db}
@@ -456,9 +452,7 @@ export function EffectEditor({
             onChange={(x) => set({ threshold_db: x })}
           />
           <Hint>
-            {t(
-              "−60 dB passt für die meisten Aufnahmen; bei verrauschten Platten etwas höher, etwa −45 dB.",
-            )}
+            {t("−60 dB suits most recordings; for noisy records a little higher, about −45 dB.")}
           </Hint>
         </>
       );
@@ -467,7 +461,7 @@ export function EffectEditor({
       return (
         <>
           <SliderField
-            label={t("Grenzfrequenz")}
+            label={t("Cutoff frequency")}
             log
             min={10}
             max={22000}
@@ -477,10 +471,8 @@ export function EffectEditor({
           />
           <Hint>
             {kind === "Highpass"
-              ? t(
-                  "Entfernt alles unterhalb der Grenze, etwa Rumpeln von Plattenspielern: 20 bis 40 Hz.",
-                )
-              : t("Entfernt alles oberhalb der Grenze, etwa Rauschen: 12000 bis 16000 Hz.")}
+              ? t("Removes everything below the limit, such as turntable rumble: 20 to 40 Hz.")
+              : t("Removes everything above the limit, such as hiss: 12000 to 16000 Hz.")}
           </Hint>
         </>
       );
@@ -519,7 +511,7 @@ export function EffectEditor({
               </button>
             ))}
           </div>
-          <Hint>{t("Werte in dB; ein Klick auf eine Vorlage setzt alle Bänder.")}</Hint>
+          <Hint>{t("Values in dB; a click on a preset sets all bands.")}</Hint>
         </>
       );
     }
@@ -527,7 +519,7 @@ export function EffectEditor({
       return (
         <>
           <SliderField
-            label={t("Schwelle")}
+            label={t("Threshold")}
             min={-40}
             max={0}
             step={0.5}
@@ -536,7 +528,7 @@ export function EffectEditor({
             onChange={(x) => set({ threshold_db: x })}
           />
           <SliderField
-            label={t("Stärke")}
+            label={t("Strength")}
             min={1}
             max={20}
             step={0.5}
@@ -545,7 +537,7 @@ export function EffectEditor({
             onChange={(x) => set({ ratio: x })}
           />
           <SliderField
-            label={t("Reaktionszeit")}
+            label={t("Attack time")}
             min={0.1}
             max={200}
             step={0.1}
@@ -554,7 +546,7 @@ export function EffectEditor({
             onChange={(x) => set({ attack_ms: x })}
           />
           <SliderField
-            label={t("Erholzeit")}
+            label={t("Release time")}
             min={10}
             max={5000}
             step={10}
@@ -564,7 +556,7 @@ export function EffectEditor({
           />
           <Hint>
             {t(
-              "Alles, was lauter ist als die Schwelle, wird leiser: bei 3:1 werden aus 3 dB darüber 1 dB. Die Reaktionszeit sagt, wie schnell das einsetzt, die Erholzeit, wie schnell es wieder nachlässt. Danach ist alles leiser; mit „Lautstärke normalisieren“ dahinter werden die leisen Stellen lauter. Gut für Hörbücher und Mitschnitte mit großen Lautstärkesprüngen.",
+              'Everything louder than the threshold is turned down: at 3:1, 3 dB above it comes out as 1 dB. The attack time sets how fast this sets in, the release time how fast it lets go. Afterwards everything is quieter; with "Normalize volume" after it, the quiet passages get louder. Good for audiobooks and live recordings with big jumps in volume.',
             )}
           </Hint>
         </>
@@ -573,18 +565,18 @@ export function EffectEditor({
       return (
         <>
           <Check
-            label={t("Um 6 dB anheben")}
+            label={t("Raise by 6 dB")}
             checked={v.amp_6db}
             onChange={(x) => set({ amp_6db: x })}
           />
           <Hint>
             {t(
-              "Erkennt HDCDs (20-Bit-Audio-CDs) selbst und macht daraus 24 Bit. Normale CDs bleiben unverändert bei 16 Bit.",
+              "Detects HDCDs (20-bit audio CDs) by itself and turns them into 24 bit. Normal CDs stay unchanged at 16 bit.",
             )}
           </Hint>
           <Hint>
             {t(
-              "Dekodierte HDCDs sind 6 dB leiser als normale CDs, damit ihre erweiterten Spitzen Platz haben. Anheben gleicht das aus; diese Spitzen können dann übersteuern.",
+              "Decoded HDCDs are 6 dB quieter than normal CDs to make room for their extended peaks. Raising makes up for that; those peaks can then clip.",
             )}
           </Hint>
         </>
@@ -603,17 +595,17 @@ export function EffectEditor({
             onChange={(x) => set({ kind: x })}
           />
           <Segmented<boolean>
-            label={t("Speicherort")}
+            label={t("Location")}
             value={v.same_folder}
             options={[
-              [true, t("Eine je Ordner")],
-              [false, t("Eine im Zielordner")],
+              [true, t("One per folder")],
+              [false, t("One in the output folder")],
             ]}
             onChange={(x) => set({ same_folder: x })}
           />
           <Hint>
             {t(
-              "Die Liste heißt wie ihr Ordner, etwa „Album.m3u8“, und enthält die neuen Dateien in Listenreihenfolge. M3U8 versteht fast jeder Player.",
+              'The playlist is named after its folder, such as "Album.m3u8", and lists the new files in list order. Almost every player understands M3U8.',
             )}
           </Hint>
         </>
@@ -622,18 +614,18 @@ export function EffectEditor({
       return (
         <>
           <TextField
-            label={t("Befehl")}
+            label={t("Command")}
             value={v.command}
             placeholder={
               os === "windows"
-                ? t("z. B. mein-skript.bat [outfile]")
-                : t("z. B. ~/bin/mein-skript.sh [outfile]")
+                ? t("e.g. my-script.bat [outfile]")
+                : t("e.g. ~/bin/my-script.sh [outfile]")
             }
             onChange={(x) => set({ command: x })}
           />
           <Hint>
             {t(
-              "Läuft nach jeder fertigen Datei, unter Windows über cmd, unter Linux und macOS über sh; PsyAudio wartet, bis der Befehl fertig ist. [outfile] ist die neue Datei, [infile] die Quelle; die Anführungszeichen setzt PsyAudio selbst.",
+              "Runs after each finished file, through cmd on Windows and sh on Linux and macOS; PsyAudio waits until the command has finished. [outfile] is the new file, [infile] the source; PsyAudio adds the quotes itself.",
             )}
           </Hint>
         </>
@@ -642,7 +634,7 @@ export function EffectEditor({
       return (
         <>
           <TextField
-            label={t("Quellen mit der Endung")}
+            label={t("Sources with the extension")}
             value={v.skip_ext}
             placeholder="mp3"
             onChange={(x) => set({ skip_ext: x })}
@@ -650,14 +642,14 @@ export function EffectEditor({
           <Segmented<boolean>
             value={v.copy_instead}
             options={[
-              [false, t("überspringen")],
-              [true, t("unverändert kopieren")],
+              [false, t("skip")],
+              [true, t("copy unchanged")],
             ]}
             onChange={(x) => set({ copy_instead: x })}
           />
           <Hint>
             {t(
-              "Eine Endung ohne Punkt. Beispiel: Aus einem gemischten Ordner nach MP3 umwandeln, vorhandene MP3s aber nur kopieren statt sie ein zweites Mal verlustbehaftet zu kodieren.",
+              "One extension, without the dot. Example: convert a mixed folder to MP3 but only copy the MP3s already there instead of encoding them lossily a second time.",
             )}
           </Hint>
         </>
@@ -666,15 +658,15 @@ export function EffectEditor({
       return (
         <>
           <div className="field">
-            <p className="lbl">{t("Ordner")}</p>
+            <p className="lbl">{t("Folder")}</p>
             <div className="row">
               <input
                 className="text-field path-field"
                 type="text"
                 readOnly
-                aria-label={t("Ordner")}
+                aria-label={t("Folder")}
                 value={v.folder}
-                placeholder={t("Ordner wählen …")}
+                placeholder={t("Choose folder …")}
               />
               <button
                 type="button"
@@ -687,13 +679,13 @@ export function EffectEditor({
                   if (typeof picked === "string") set({ folder: picked });
                 }}
               >
-                {t("Ändern")}
+                {t("Change")}
               </button>
             </div>
           </div>
           <Hint>
             {t(
-              "Schlägt eine Umwandlung fehl, landet die halbfertige Datei zum Nachsehen hier. Ohne diesen Effekt löscht PsyAudio sie.",
+              "If a conversion fails, the half-written file is moved here so you can inspect it. Without this effect PsyAudio deletes it.",
             )}
           </Hint>
         </>
@@ -705,8 +697,8 @@ export function EffectEditor({
       const options = remove
         ? [
             ...fields,
-            ["cover", t("Cover-Bild")] as [string, string],
-            ["*", t("Alle Tags")] as [string, string],
+            ["cover", t("Cover picture")] as [string, string],
+            ["*", t("All tags")] as [string, string],
           ]
         : fields;
       return (
@@ -714,10 +706,10 @@ export function EffectEditor({
           <Segmented<number>
             value={auto && v.mode === 2 ? 0 : v.mode}
             options={[
-              [0, t("Setzen")] as [number, string],
+              [0, t("Set")] as [number, string],
               // numbering only some files would give gaps and doubles
-              ...(auto ? [] : [[2, t("Setzen, wenn leer")] as [number, string]]),
-              [1, t("Entfernen")] as [number, string],
+              ...(auto ? [] : [[2, t("Set if empty")] as [number, string]]),
+              [1, t("Remove")] as [number, string],
             ]}
             onChange={(x) =>
               set(
@@ -728,7 +720,7 @@ export function EffectEditor({
             }
           />
           <Select<string>
-            label={t("Feld")}
+            label={t("Field")}
             value={v.field}
             options={options}
             onChange={(x) =>
@@ -740,11 +732,9 @@ export function EffectEditor({
               <Hint>
                 {v.field === "track"
                   ? t(
-                      "Wird automatisch eingetragen: 1, 2, 3 … je Ordner, in der Reihenfolge der Dateiliste.",
+                      "Filled in automatically: 1, 2, 3 … per folder, in the order of the file list.",
                     )
-                  : t(
-                      "Wird automatisch eingetragen: die Anzahl der Dateien dieses Ordners in der Liste.",
-                    )}
+                  : t("Filled in automatically: the number of files from this folder in the list.")}
               </Hint>
             ) : (
               <TagValue field={v.field} value={v.value} onChange={(x) => set({ value: x })} />
@@ -753,6 +743,6 @@ export function EffectEditor({
       );
     }
     default:
-      return <Hint>{t("Keine Einstellungen.")}</Hint>;
+      return <Hint>{t("No settings.")}</Hint>;
   }
 }

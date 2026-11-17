@@ -82,8 +82,13 @@
 }
 
 :root {
-  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Space Grotesk Variable", "Inter Variable", system-ui, sans-serif;
+  /* Inter has Latin, Cyrillic and Greek; Chinese and Japanese come from the system's fonts */
+  --font-sans:
+    "Inter Variable", system-ui, -apple-system, "Segoe UI", "Microsoft YaHei UI", "Yu Gothic UI",
+    "PingFang SC", "Hiragino Sans", "Noto Sans CJK SC", "Noto Sans CJK JP", sans-serif;
+  --font-display:
+    "Space Grotesk Variable", "Inter Variable", system-ui, "Microsoft YaHei UI", "Yu Gothic UI",
+    "PingFang SC", "Hiragino Sans", "Noto Sans CJK SC", "Noto Sans CJK JP", sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, Consolas, monospace;
   --space-1: 4px;
   --space-2: 8px;

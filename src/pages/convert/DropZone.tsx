@@ -10,12 +10,12 @@ export function DropZone({ onPick }: { onPick: () => void }) {
     <div className="drop-wrap">
       <div className={dragging ? "drop over" : "drop"}>
         <FileDown size={44} strokeWidth={1.6} />
-        <h2>{t("Musikdateien oder Ordner hierher ziehen")}</h2>
+        <h2>{t("Drag music files or folders here")}</h2>
         <p>
-          {t("MP3, FLAC, WAV, AAC/M4A, ALAC, Opus, Ogg, WMA, AIFF, APE, WavPack, DSD und mehr")}
+          {t("MP3, FLAC, WAV, AAC/M4A, ALAC, Opus, Ogg, WMA, AIFF, APE, WavPack, DSD and more")}
         </p>
         <button type="button" className="btn primary" onClick={onPick}>
-          {t("Dateien auswählen")}
+          {t("Choose files")}
         </button>
       </div>
     </div>

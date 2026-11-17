@@ -6,7 +6,7 @@ import { ChipEditor } from "../../ui/ChipEditor";
 import { Hint } from "../../ui/controls";
 import { usePreviewFile } from "./NamingPanel";
 
-/** Chip → field name shown in the preview ("album artist" → "Albuminterpret"). */
+/** Chip → field name shown in the preview ("album artist" → "Album artist"). */
 const FIELD_CHIP: Record<string, string> = {
   "album artist": "albumartist",
   artist: "artist",
@@ -17,7 +17,7 @@ const FIELD_CHIP: Record<string, string> = {
   title: "title",
 };
 
-/** "Tags aus Dateiname": how file names are read, with what the first file gives. */
+/** "Tags from file name": how file names are read, with what the first file gives. */
 export function TagSchemeEditor() {
   const { t } = useTranslation();
   const s = useSettings((x) => x.settings);
@@ -40,9 +40,9 @@ export function TagSchemeEditor() {
   if (!s || !naming) return null;
   return (
     <>
-      <Hint>{t("Liest Tags aus dem Dateinamen und schreibt sie in die Quelldateien.")}</Hint>
+      <Hint>{t("Reads tags from the file name and writes them into the source files.")}</Hint>
       <ChipEditor
-        label={t("Muster")}
+        label={t("Pattern")}
         value={s.tag_scheme}
         data={naming.data.filter((d) => d !== "filename")}
         separators={naming.separators}
@@ -56,11 +56,9 @@ export function TagSchemeEditor() {
       />
       {file && found && (
         <div className="field">
-          <p className="lbl">
-            {t("Gelesen aus „{0}“", { 0: file.path.split(/[\\/]/).pop() ?? "" })}
-          </p>
+          <p className="lbl">{t("Read from “{0}”", { 0: file.path.split(/[\\/]/).pop() ?? "" })}</p>
           {found.length === 0 ? (
-            <Hint warn>{t("Der Dateiname passt nicht zum Muster.")}</Hint>
+            <Hint warn>{t("The file name does not match the pattern.")}</Hint>
           ) : (
             <dl className="kv">
               {found.map(([k, v]) => (

@@ -74,7 +74,7 @@ function StepBox({
 }
 
 /** First start: language and look, programs, the file manager menu, rips, the CD drive. Every
- * step saves at once and can be skipped; "Fertig" on the last one. */
+ * step saves at once and can be skipped; "Done" on the last one. */
 export function SetupPage() {
   const { t } = useTranslation();
   const s = useSettings((x) => x.settings);
@@ -91,46 +91,42 @@ export function SetupPage() {
   const ffmpeg = progs.list.find((p) => p.key === "ffmpeg");
   const codec =
     s.rip_codec === "Multi"
-      ? t("Mehrere Formate")
+      ? t("Several formats")
       : (codecInfo(options, s.rip_codec)?.name ?? s.rip_codec);
   const firstDrive = attached[0];
   const firstProfile = firstDrive
     ? s.rip.drives.find((p) => p.model === driveKey(firstDrive))
     : undefined;
   const tiles = [
-    { title: t("Willkommen"), summary: lookSummary(s.lang, s.dark) },
+    { title: t("Welcome"), summary: lookSummary(s.lang, s.dark) },
     {
-      title: t("Programme"),
+      title: t("Programs"),
       summary: !ffmpeg
         ? "…"
         : !ffmpeg.found
-          ? t("FFmpeg fehlt")
+          ? t("FFmpeg missing")
           : ffmpegSource === "bundled"
-            ? t("FFmpeg mitgeliefert")
-            : t("FFmpeg gefunden"),
+            ? t("FFmpeg bundled")
+            : t("FFmpeg found"),
     },
     {
-      title: t("Rechtsklick"),
+      title: t("Right-click"),
       summary:
-        menu === null
-          ? t("freiwillig")
-          : menu
-            ? t("Kontextmenü eingerichtet")
-            : t("Kontextmenü entfernt"),
+        menu === null ? t("optional") : menu ? t("Context menu set up") : t("Context menu removed"),
     },
     {
       title: t("Rips"),
-      summary: `${codec} · ${folderName(s.rip_folder) || t("kein Ordner")}`,
+      summary: `${codec} · ${folderName(s.rip_folder) || t("no folder")}`,
     },
     {
-      title: t("CD-Laufwerk"),
+      title: t("CD drive"),
       summary: measuring
-        ? t("wird gemessen …")
+        ? t("measuring …")
         : !firstDrive
-          ? t("kein Laufwerk")
+          ? t("no drive")
           : firstProfile
             ? `${signed(firstProfile.offset)} Samples`
-            : t("noch nicht gemessen"),
+            : t("not measured yet"),
     },
   ];
 
@@ -143,12 +139,12 @@ export function SetupPage() {
   return (
     <div className="page setup">
       <div className="page-main">
-        <PageHeader title={t("Einrichtung")}>
+        <PageHeader title={t("Setup")}>
           <span className="muted">
-            {t("Schritt {0} von {1}", { 0: String(step), 1: String(STEPS) })}
+            {t("Step {0} of {1}", { 0: String(step), 1: String(STEPS) })}
           </span>
         </PageHeader>
-        <nav className="steps" aria-label={t("Einrichtung")}>
+        <nav className="steps" aria-label={t("Setup")}>
           {tiles.map((tile, i) => {
             const n = i + 1;
             return (
@@ -176,26 +172,26 @@ export function SetupPage() {
               <>
                 <p className="setup-lead">
                   {t(
-                    "Willkommen bei PsyAudio. PsyAudio wandelt Audiodateien um und rippt CDs bitgenau. In fünf kurzen Schritten ist alles eingerichtet; jeden Schritt können Sie überspringen und später unter „Einstellungen“ ändern.",
+                    "Welcome to PsyAudio. PsyAudio converts audio files and rips CDs bit-exactly. Five short steps set everything up; you can skip any step and change it later under “Settings”.",
                   )}
                 </p>
-                <StepBox icon={<Palette size={16} />} title={t("Sprache und Aussehen")}>
+                <StepBox icon={<Palette size={16} />} title={t("Language and look")}>
                   <LookFields />
                 </StepBox>
               </>
             )}
             {step === 2 && (
-              <StepBox icon={<Package size={16} />} title={t("Encoder-Programme")}>
+              <StepBox icon={<Package size={16} />} title={t("Encoder programs")}>
                 <ProgramsFields {...progs} />
               </StepBox>
             )}
             {step === 3 && (
-              <StepBox icon={<MousePointerClick size={16} />} title={t("Kontextmenü")}>
+              <StepBox icon={<MousePointerClick size={16} />} title={t("Context menu")}>
                 {info ? <IntegrationFields info={info} onDone={setMenu} /> : null}
               </StepBox>
             )}
             {step === 4 && (
-              <StepBox icon={<Disc3 size={16} />} title={t("Format und Ordner der Rips")}>
+              <StepBox icon={<Disc3 size={16} />} title={t("Format and folder of rips")}>
                 <CodecChips field="rip_codec" />
                 <RipFolderField />
               </StepBox>
@@ -204,12 +200,12 @@ export function SetupPage() {
               <>
                 <p className="setup-lead">
                   {t(
-                    "Jedes CD-Laufwerk liest ein winziges Stück versetzt. PsyAudio misst das einmal mit einer gekauften Audio-CD und gleicht es bei jedem Rip aus. Ob ein Rip bitgenau ist, prüft die offene CUETools-Datenbank (CTDB).",
+                    "Every CD drive reads a tiny bit shifted. PsyAudio measures this once with a bought audio CD and corrects it in every rip. Whether a rip is bit-exact is checked by the open CUETools database (CTDB).",
                   )}
                 </p>
                 {attached.length === 0 && (
-                  <StepBox icon={<HardDrive size={16} />} title={t("CD-Laufwerk")}>
-                    <Hint>{t("Kein CD-Laufwerk gefunden.")}</Hint>
+                  <StepBox icon={<HardDrive size={16} />} title={t("CD drive")}>
+                    <Hint>{t("No CD drive found.")}</Hint>
                   </StepBox>
                 )}
                 {attached.map((d, i) => (
@@ -235,10 +231,10 @@ export function SetupPage() {
                         <Hint>
                           {measuring
                             ? t(
-                                "Dauert etwa eine Viertelminute. Die CD muss eine gekaufte Audio-CD sein, die in der CUETools-Datenbank steht – fast jede ist es.",
+                                "Takes about fifteen seconds. The CD must be a bought audio CD that is in the CUETools database – almost every one is.",
                               )
                             : t(
-                                "Ohne CD einfach weiter: PsyAudio misst dann beim ersten Einlesen einer CD automatisch.",
+                                "No CD at hand? Just go on: PsyAudio then measures automatically the first time it reads a CD.",
                               )}
                         </Hint>
                       </>
@@ -249,24 +245,24 @@ export function SetupPage() {
             )}
           </div>
         </div>
-        <FooterBar summary={t("Alles lässt sich später unter „Einstellungen“ ändern.")}>
+        <FooterBar summary={t("Everything can be changed later under “Settings”.")}>
           {step > 1 && (
             <button type="button" className="btn" onClick={() => setStep((n) => n - 1)}>
-              {t("Zurück")}
+              {t("Back")}
             </button>
           )}
           {step < STEPS ? (
             <>
               <button type="button" className="btn" onClick={next}>
-                {t("Überspringen")}
+                {t("Skip")}
               </button>
               <button type="button" className="btn primary" onClick={next}>
-                {t("Weiter")}
+                {t("Next")}
               </button>
             </>
           ) : (
             <button type="button" className="btn primary" disabled={measuring} onClick={finish}>
-              {t("Fertig")}
+              {t("Done")}
             </button>
           )}
         </FooterBar>

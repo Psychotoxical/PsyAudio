@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { usePanel } from "../store/layout";
 import type { Page } from "../store/ui";
 
@@ -10,9 +11,10 @@ export interface Tile {
 
 /** The numbered tiles above a page's list, as in PsyTags' step bar. */
 export function StepTiles({ page, tiles }: { page: Page; tiles: Tile[] }) {
+  const { t: tr } = useTranslation();
   const { open, tile, choose } = usePanel(page, tiles[0]?.id ?? "");
   return (
-    <nav className="steps" aria-label="Einstellungen">
+    <nav className="steps" aria-label={tr("Settings")}>
       {tiles.map((t, i) => {
         const active = open && tile === t.id;
         return (

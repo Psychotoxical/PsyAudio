@@ -51,32 +51,32 @@ describe("settings page", () => {
   it("finder_integration_on_macos", async () => {
     vi.mocked(systemInfo).mockResolvedValueOnce({ cores: 8, temp_default: "/tmp", os: "macos" });
     render(<SettingsPage />);
-    const box = await screen.findByRole("region", { name: "Finder-Integration" });
+    const box = await screen.findByRole("region", { name: "Finder integration" });
     expect(box.textContent).toContain("Finder");
-    expect(box.textContent).toContain("Kontextmenü einrichten");
+    expect(box.textContent).toContain("Set up context menu");
   });
 
   it("boxes_in_two_columns_for_wide_windows", async () => {
     render(<SettingsPage />);
-    await screen.findByRole("region", { name: "Windows-Integration" });
+    await screen.findByRole("region", { name: "Windows integration" });
     // one under the other in narrow windows, side by side in wide ones (settings.css)
     const cols = [...document.querySelectorAll(".settings-grid > .settings-col")];
     const names = cols.map((c) =>
       [...c.querySelectorAll(":scope > section")].map((s) => s.getAttribute("aria-label")),
     );
     expect(names).toEqual([
-      ["Encoder-Programme", "Leistung"],
-      ["CD-Laufwerke", "Aussehen", "Windows-Integration", "Zurücksetzen"],
+      ["Encoder programs", "Performance"],
+      ["CD drives", "Appearance", "Windows integration", "Reset"],
     ]);
   });
 
   it("reset_needs_confirmation", async () => {
     render(<SettingsPage />);
-    fireEvent.click(screen.getByRole("button", { name: "Alle Einstellungen auf Standard" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reset all settings to default" }));
     expect(resetSettings).not.toHaveBeenCalled();
-    expect(screen.getByText(/außer den Profilen/)).toBeInTheDocument();
+    expect(screen.getByText(/except the profiles/)).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Jetzt zurücksetzen" }));
+      fireEvent.click(screen.getByRole("button", { name: "Reset now" }));
     });
     expect(resetSettings).toHaveBeenCalledTimes(1);
   });
@@ -99,9 +99,11 @@ describe("settings page", () => {
         <RunView run={run} />
       </>,
     );
-    expect(screen.getByText("wartet")).toBeInTheDocument();
+    expect(screen.getByText("waiting")).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole("radio", { name: "English" }));
+      fireEvent.change(screen.getByRole("combobox", { name: "Language" }), {
+        target: { value: "en" },
+      });
     });
     expect(useSettings.getState().settings?.lang).toBe("en");
     expect(screen.getByText("waiting")).toBeInTheDocument();
@@ -132,8 +134,8 @@ describe("shipped FFmpeg", () => {
       ffmpegFallback: null,
     });
     render(<SettingsPage />);
-    expect(await screen.findByText("FFmpeg: mitgeliefert (12 Encoder)")).toBeInTheDocument();
-    expect(await screen.findByPlaceholderText("mitgeliefert")).toBeInTheDocument();
+    expect(await screen.findByText("FFmpeg: bundled (12 encoders)")).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText("bundled")).toBeInTheDocument();
     expect(document.body.textContent).not.toContain(".mount_");
   });
 
@@ -147,11 +149,9 @@ describe("shipped FFmpeg", () => {
     });
     render(<SettingsPage />);
     expect(
-      await screen.findByText("FFmpeg: C:\\Tools\\ffmpeg.exe (12 Encoder)"),
+      await screen.findByText("FFmpeg: C:\\Tools\\ffmpeg.exe (12 encoders)"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("Mitgeliefertes FFmpeg steht als Rückfall bereit."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("The bundled FFmpeg stands by as a fallback.")).toBeInTheDocument();
   });
 
   it.each([
@@ -164,13 +164,13 @@ describe("shipped FFmpeg", () => {
     useEncode.setState({ ffmpeg: null, encoders: 0, ffmpegSource: null, ffmpegFallback: null });
     render(<SettingsPage />);
     for (const c of commands) expect(await screen.findByText(c)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "ffmpeg.org öffnen" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open ffmpeg.org" })).toBeInTheDocument();
   });
 
   it("no_install_hint_while_ffmpeg_is_still_looked_for", async () => {
     vi.mocked(programs).mockResolvedValue([{ key: "ffmpeg", found: null }]);
     render(<SettingsPage />);
-    await screen.findByRole("region", { name: "Encoder-Programme" });
-    expect(screen.queryByRole("button", { name: "ffmpeg.org öffnen" })).toBeNull();
+    await screen.findByRole("region", { name: "Encoder programs" });
+    expect(screen.queryByRole("button", { name: "Open ffmpeg.org" })).toBeNull();
   });
 });

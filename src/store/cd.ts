@@ -49,7 +49,7 @@ export interface CdState {
   rows: TrackRow[];
   rip: RipState | null;
   offset: { busy: boolean; fraction: number };
-  /** A measurement that would replace an offset entered by hand: waits for "Ersetzen" or "Behalten". */
+  /** A measurement that would replace an offset entered by hand: waits for "Replace" or "Keep". */
   pendingProfile: { profile: DriveProfile; agreeing: number } | null;
 }
 

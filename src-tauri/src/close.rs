@@ -34,9 +34,9 @@ use tauri::{AppHandle, CloseRequestApi, Emitter, ExitRequestApi, Manager, State,
 pub enum CloseDecision {
     /// Nothing runs: close.
     Allow,
-    /// Something runs: ask "PsyAudio beenden?" first.
+    /// Something runs: ask "Quit PsyAudio?" first.
     Ask,
-    /// The answer was "Abbrechen und beenden": the window closes once the work has stopped.
+    /// The answer was "Cancel and quit": the window closes once the work has stopped.
     Wait,
 }
 
@@ -92,7 +92,7 @@ const UNANSWERED_CLOSE: Duration = Duration::from_secs(2);
 /// encoder must not keep a window open that can no longer be closed).
 const STOP_WAIT: Duration = Duration::from_secs(15);
 
-/// The answer to "PsyAudio beenden?": `cancel_work` stops conversion and rip and closes PsyAudio
+/// The answer to "Quit PsyAudio?": `cancel_work` stops conversion and rip and closes PsyAudio
 /// as soon as both have ended; otherwise the work goes on.
 #[tauri::command]
 pub fn confirm_close(app: AppHandle, state: State<'_, AppState>, cancel_work: bool) {

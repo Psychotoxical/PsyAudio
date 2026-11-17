@@ -219,7 +219,7 @@ pub struct Settings {
     pub temp_folder: String,
     pub low_priority: bool,
     pub dark: bool,
-    /// Interface language: "en" (default) or "de".
+    /// Interface language: a code of `i18n::LANGUAGES`, or "" for the system's language.
     pub lang: String,
     pub profiles: Vec<Profile>,
     pub rip: RipSettings,
@@ -271,7 +271,7 @@ impl Default for Settings {
             temp_folder: String::new(),
             low_priority: false,
             dark: true,
-            lang: "en".into(),
+            lang: String::new(),
             profiles: Vec::new(),
             rip: RipSettings::default(),
             rip_codec: Codec::Flac,
@@ -336,7 +336,7 @@ fn salvage(text: &str) -> Settings {
 }
 
 impl Settings {
-    /// "Alle Einstellungen auf Standard": everything back to the defaults except the profiles
+    /// "Reset all settings to default": everything back to the defaults except the profiles
     /// (as in the egui version) and the window layout, which is no setting.
     pub fn reset_keep_profiles(&mut self) {
         let profiles = std::mem::take(&mut self.profiles);
@@ -359,7 +359,7 @@ impl Settings {
         }
         let backup = p.with_extension("json.bak");
         let _ = std::fs::copy(p, &backup);
-        (st, Some(crate::i18n::tf(crate::i18n::t("Einstellungen teilweise unlesbar – die alte Datei liegt als {0}"), &[("0", backup.display().to_string())])))
+        (st, Some(crate::i18n::tf(crate::i18n::t("Settings partly unreadable – the old file is kept as {0}"), &[("0", backup.display().to_string())])))
     }
 
     /// Parse saved settings; chip schemes keep only known chips.

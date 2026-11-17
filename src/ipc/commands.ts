@@ -19,8 +19,9 @@ export function saveSettings(settings: Settings): Promise<void> {
 export interface Demo {
   page: string;
   light: boolean;
-  /** `--en`: English window and sample names. */
-  en: boolean;
+  /** Language of the window (`--lang=…`, `--en`; German otherwise); other than German, the
+   * sample names are English. */
+  lang: string;
 }
 
 export function demoState(): Promise<Demo | null> {

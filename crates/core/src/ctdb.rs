@@ -78,10 +78,10 @@ pub fn parse(xml: &str) -> Vec<Entry> {
 fn why_unreachable(e: &ureq::Error) -> String {
     use crate::i18n::{t, tf};
     match e {
-        ureq::Error::Io(_) | ureq::Error::HostNotFound | ureq::Error::ConnectionFailed => t("nicht erreichbar (keine Verbindung)").to_string(),
-        ureq::Error::Timeout(_) | ureq::Error::BodyStalled => t("nicht erreichbar (Zeitüberschreitung)").to_string(),
-        ureq::Error::StatusCode(code) => tf(t("nicht erreichbar (Server meldet {c})"), &[("c", code.to_string())]),
-        _ => t("nicht erreichbar").to_string(),
+        ureq::Error::Io(_) | ureq::Error::HostNotFound | ureq::Error::ConnectionFailed => t("not reachable (no connection)").to_string(),
+        ureq::Error::Timeout(_) | ureq::Error::BodyStalled => t("not reachable (timed out)").to_string(),
+        ureq::Error::StatusCode(code) => tf(t("not reachable (server reports {c})"), &[("c", code.to_string())]),
+        _ => t("not reachable").to_string(),
     }
 }
 
@@ -226,7 +226,7 @@ pub const OFFSET_SEARCH: i64 = 2000;
 /// sides; and where the checked samples start and end in it, for offset 0.
 fn read_for_search(drive: &dyn SectorRead, toc: &Toc, idx: usize, cancel: &AtomicBool, progress: &dyn Fn(f32)) -> Result<(Vec<u8>, u64, u64), String> {
     let audio = toc.audio_tracks();
-    let (start, end) = toc.span(audio[idx].number).ok_or(crate::i18n::t("Titel nicht gefunden"))?;
+    let (start, end) = toc.span(audio[idx].number).ok_or(crate::i18n::t("Track not found"))?;
     let margin = (OFFSET_SEARCH as u64).div_ceil(SAMPLES_PER_SECTOR as u64) as i64 + 1;
     let (raw, _) = read_range(drive, start as i64 - margin, end as i64 + margin, toc.readable_end() as i64, cancel, progress)?;
     let (a, b) = checked_samples((end - start) as u64 * SAMPLES_PER_SECTOR as u64, idx == 0, idx + 1 == audio.len(), disc_samples(toc));
@@ -295,7 +295,7 @@ pub fn find_offset(drive: &dyn SectorRead, toc: &Toc, entries: &[Entry], cancel:
     let audio = toc.audio_tracks();
     let n = audio.len();
     if n == 0 || disc_confidence(entries, n) == 0 {
-        return Err(t("Diese CD kennt CTDB nicht – bitte eine andere CD versuchen").into());
+        return Err(t("CTDB does not know this CD – please try another CD").into());
     }
     // the shortest middle tracks first (quickest to read); the first and last track (with their
     // edges) serve short discs
@@ -309,7 +309,7 @@ pub fn find_offset(drive: &dyn SectorRead, toc: &Toc, entries: &[Entry], cancel:
     }
     let found = search_track(drive, toc, entries, order[0], cancel, &|f| progress(f * 0.5))?;
     if found.is_empty() {
-        return Err(t("Kein Versatz gefunden – bitte eine andere CD versuchen").into());
+        return Err(t("No offset found – please try another CD").into());
     }
     let Some(&second) = order.get(1) else {
         let best = found.iter().max_by_key(|(_, c)| *c).map(|(o, _)| *o).unwrap_or_default();
@@ -323,7 +323,7 @@ pub fn find_offset(drive: &dyn SectorRead, toc: &Toc, entries: &[Entry], cancel:
         .filter(|(_, c2)| *c2 > 0)
         .max_by_key(|((_, c1), c2)| *c1 + *c2)
         .map(|((o, _), _)| (*o, 2))
-        .ok_or_else(|| t("Die Titel ergeben verschiedene Versätze (Kratzer?) – bitte eine andere CD versuchen").into())
+        .ok_or_else(|| t("The tracks give different offsets (scratches?) – please try another CD").into())
 }
 
 /// How many rips of this disc the database knows (entries with as many tracks as the disc).
@@ -356,21 +356,21 @@ mod tests {
     #[test]
     fn no_connection_hides_the_system_message() {
         let os = ureq::Error::Io(std::io::Error::other("Der angegebene Host ist unbekannt. (os error 11001)"));
-        assert_eq!(why_unreachable(&os), "nicht erreichbar (keine Verbindung)");
-        assert_eq!(why_unreachable(&ureq::Error::HostNotFound), "nicht erreichbar (keine Verbindung)");
-        assert_eq!(why_unreachable(&ureq::Error::ConnectionFailed), "nicht erreichbar (keine Verbindung)");
+        assert_eq!(why_unreachable(&os), "not reachable (no connection)");
+        assert_eq!(why_unreachable(&ureq::Error::HostNotFound), "not reachable (no connection)");
+        assert_eq!(why_unreachable(&ureq::Error::ConnectionFailed), "not reachable (no connection)");
     }
 
     #[test]
     fn timeout_and_server_errors_are_named() {
-        assert_eq!(why_unreachable(&ureq::Error::Timeout(ureq::Timeout::Global)), "nicht erreichbar (Zeitüberschreitung)");
-        assert_eq!(why_unreachable(&ureq::Error::StatusCode(503)), "nicht erreichbar (Server meldet 503)");
-        assert_eq!(why_unreachable(&ureq::Error::TooManyRedirects), "nicht erreichbar");
+        assert_eq!(why_unreachable(&ureq::Error::Timeout(ureq::Timeout::Global)), "not reachable (timed out)");
+        assert_eq!(why_unreachable(&ureq::Error::StatusCode(503)), "not reachable (server reports 503)");
+        assert_eq!(why_unreachable(&ureq::Error::TooManyRedirects), "not reachable");
     }
 
     #[test]
     fn the_reason_is_named_once() {
-        assert_eq!(unavailable_text("nicht erreichbar (keine Verbindung)"), "CTDB: nicht erreichbar (keine Verbindung)");
+        assert_eq!(unavailable_text("not reachable (no connection)"), "CTDB: not reachable (no connection)");
     }
 
     // test vectors from the `cdtoc` crate (src/ctdb.rs, t_ctdb), LBA = hex value - 150

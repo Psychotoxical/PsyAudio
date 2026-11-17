@@ -127,7 +127,7 @@ pub fn unmount(bsd: &str) -> Result<(), String> {
 
 fn arbitrate(bsd: &str, then_eject: bool) -> Result<(), String> {
     use core_foundation::runloop::{kCFRunLoopDefaultMode, CFRunLoop};
-    let failed = |e: String| crate::i18n::tf(crate::i18n::t("Laufwerksbefehl fehlgeschlagen (Fehler {0})"), &[("0", e)]);
+    let failed = |e: String| crate::i18n::tf(crate::i18n::t("Drive command failed (error {0})"), &[("0", e)]);
     let name = CString::new(bsd).map_err(|e| failed(e.to_string()))?;
     unsafe {
         let session = da::DASessionCreate(std::ptr::null());
@@ -149,7 +149,7 @@ fn arbitrate(bsd: &str, then_eject: bool) -> Result<(), String> {
             while answer.is_none() && std::time::Instant::now() < deadline {
                 CFRunLoop::run_in_mode(kCFRunLoopDefaultMode, std::time::Duration::from_millis(250), true);
             }
-            answer.unwrap_or_else(|| Err(crate::i18n::t("Zeitüberschreitung").to_string())).map_err(failed)
+            answer.unwrap_or_else(|| Err(crate::i18n::t("timed out").to_string())).map_err(failed)
         };
         let d = disk.as_CFTypeRef() as da::DADiskRef;
         let result = step(&|ctx| da::DADiskUnmount(d, da::UNMOUNT_WHOLE, on_done, ctx)).and_then(|()| {
@@ -172,7 +172,7 @@ extern "C" {
 /// macOS hands out the drive only while no disc is mounted: a mounted disc is unmounted first
 /// and comes back by itself afterwards, which this waits for (at most 20 s).
 pub fn scsi_command_in(index: usize, cdb: &[u8], len: usize) -> Result<Vec<u8>, String> {
-    let failed = |e: String| crate::i18n::tf(crate::i18n::t("Laufwerksbefehl fehlgeschlagen (Fehler {0})"), &[("0", e)]);
+    let failed = |e: String| crate::i18n::tf(crate::i18n::t("Drive command failed (error {0})"), &[("0", e)]);
     let disc = optical_drives().into_iter().nth(index).ok_or_else(|| failed("no drive".into()))?.bsd;
     if let Some(bsd) = &disc {
         unmount(bsd)?;

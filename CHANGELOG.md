@@ -8,6 +8,8 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 
 ### Changed
 
+- PsyAudio speaks sixteen languages: English, German, Spanish, French, Norwegian Bokmål, Dutch, Romanian, Russian, Chinese, Japanese, Hungarian, Polish, Bulgarian, Italian, Ukrainian and Greek. It follows the system language until another one is chosen in the settings; counts use each language's plural forms.
+- Every language is one file in `locales/`, keyed by the English text, so translators can improve a language or add one without touching code; `npm run i18n:report` shows what is missing.
 - The effects are cleared out: Reverse, Loop, Karaoke, Speed, Band-pass, Minimum and Maximum length, Insert silence, Write metadata file, CPU throttle and Delete output on error are gone. Saved profiles that used them keep everything else; "CPU throttle" becomes the "Low priority" setting.
 - Every effect explains itself: what it does, when to use it and an example, with plain labels and sensible defaults (the compressor now starts at 3:1 instead of doing nothing at 1:1).
 - Tag processing numbers tracks by itself (per folder, in list order), can take other tags into a value (`<artist>`, `<album>` …) and offers only combinations that make sense.
@@ -26,7 +28,7 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 - **Converter and batch converter** for MP3, FLAC, AAC, ALAC, Opus, Vorbis, WavPack, WMA, Speex, WAV, AIFF, Monkey's Audio, Musepack and DSD, with about 35 effects, ReplayGain and EBU R128 loudness, and file and folder names built from tags.
 - **"Convert with PsyAudio"** in the right-click menu of the Explorer (Windows) and Dolphin (Linux).
 - **Setup on first start** in five steps: look, programs, file manager menu, rips and CD drive.
-- Catppuccin Mocha (dark) and Latte (light), English and German.
+- Catppuccin Mocha (dark) and Latte (light).
 - Downloads for Windows (installer), Linux (AppImage, deb, rpm) and macOS (disk image for Apple Silicon and Intel).
 - **CD ripping on macOS**, with the same database check, drive offset and buffer measurement as on Windows and Linux.
 - **Finder integration on macOS**: a "Convert with PsyAudio" quick action (switched on in the settings), Open With and dropping files on the Dock icon. Audio formats macOS does not know, like Opus, APE and WavPack, count as audio files.

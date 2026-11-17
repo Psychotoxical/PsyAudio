@@ -31,8 +31,8 @@ export function SidePanel({
         <button
           type="button"
           className="icon-btn"
-          title={t("Einstellungen ausblenden")}
-          aria-label={t("Einstellungen ausblenden")}
+          title={t("Hide settings")}
+          aria-label={t("Hide settings")}
           onClick={() => setOpen(false)}
         >
           <PanelRightClose size={18} />

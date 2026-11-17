@@ -58,12 +58,12 @@ function PathPreview() {
     };
   }, [settings, file, position]);
 
-  if (!file) return <Hint>{t("Die Vorschau erscheint, sobald Dateien in der Liste sind.")}</Hint>;
+  if (!file) return <Hint>{t("The preview appears once files are in the list.")}</Hint>;
   if (!target) return null;
   const [dir, name] = splitPath(target);
   return (
     <div className="field">
-      <p className="lbl">{t("So wird gespeichert")}</p>
+      <p className="lbl">{t("Saved as")}</p>
       <p className="path" title={target}>
         {dir}
         <wbr />
@@ -84,7 +84,7 @@ export function NamingPanel() {
   if (s.output_mode === "PreservePath") {
     return (
       <>
-        <Hint>{t("Ordner und Dateinamen wie bei der Quelle.")}</Hint>
+        <Hint>{t("Folders and file names as in the source.")}</Hint>
         <PathPreview />
       </>
     );
@@ -92,7 +92,7 @@ export function NamingPanel() {
   return (
     <>
       <ChipEditor
-        label={t("Bausteine")}
+        label={t("Building blocks")}
         value={s.name_scheme}
         data={naming.data}
         separators={naming.separators}

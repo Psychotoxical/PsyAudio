@@ -27,6 +27,6 @@ describe("Sidebar", () => {
 
   it("badge_shows_file_count", () => {
     render(<Sidebar counts={{ convert: 12 }} />);
-    expect(screen.getByRole("button", { name: /Konvertieren/ })).toHaveTextContent("12");
+    expect(screen.getByRole("button", { name: /Convert/ })).toHaveTextContent("12");
   });
 });

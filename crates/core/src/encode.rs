@@ -74,7 +74,7 @@ impl Codec {
             Codec::Mp3 => "MP3",
             Codec::Flac => "FLAC",
             Codec::AacM4a => "AAC (m4a)",
-            Codec::AudioBook => crate::i18n::t("Hörbuch (m4b)"),
+            Codec::AudioBook => crate::i18n::t("Audiobook (m4b)"),
             Codec::Alac => "Apple Lossless",
             Codec::Opus => "Opus",
             Codec::Vorbis => "Ogg Vorbis",
@@ -86,15 +86,15 @@ impl Codec {
             Codec::Musepack => "Musepack",
             Codec::Speex => "Speex",
             Codec::Dsd => "DSD (dsf)",
-            Codec::Multi => crate::i18n::t("Mehrfach-Encoder"),
-            Codec::ReplayGainOnly => crate::i18n::t("ReplayGain berechnen"),
-            Codec::TagUpdate => crate::i18n::t("Tags aktualisieren"),
+            Codec::Multi => crate::i18n::t("Multi encoder"),
+            Codec::ReplayGainOnly => crate::i18n::t("Calculate ReplayGain"),
+            Codec::TagUpdate => crate::i18n::t("Update tags"),
             Codec::AudioInfo => "Audio-Info",
-            Codec::AudioCrc => crate::i18n::t("Audio-Prüfsumme (CRC)"),
-            Codec::ChannelSplit => crate::i18n::t("Kanäle aufteilen"),
-            Codec::LengthSplit => crate::i18n::t("Nach Länge aufteilen"),
-            Codec::TagFromFilename => crate::i18n::t("Tags aus Dateiname"),
-            Codec::TestConversion => crate::i18n::t("Testumwandlung"),
+            Codec::AudioCrc => crate::i18n::t("Audio checksum (CRC)"),
+            Codec::ChannelSplit => crate::i18n::t("Split channels"),
+            Codec::LengthSplit => crate::i18n::t("Split by length"),
+            Codec::TagFromFilename => crate::i18n::t("Tags from file name"),
+            Codec::TestConversion => crate::i18n::t("Test conversion"),
         }
     }
     pub fn short(&self) -> &'static str {
@@ -134,30 +134,30 @@ impl Codec {
     }
     pub fn description(&self) -> &'static str {
         match self {
-            Codec::Mp3 => crate::i18n::t("Verlustbehaftet, läuft überall"),
-            Codec::Flac => crate::i18n::t("Verlustfrei, offen, mit Tags"),
-            Codec::AacM4a => crate::i18n::t("Verlustbehaftet, Apple/Handy"),
-            Codec::AudioBook => crate::i18n::t("AAC für Hörbücher"),
-            Codec::Alac => crate::i18n::t("Verlustfrei für Apple-Geräte"),
-            Codec::Opus => crate::i18n::t("Modern, sehr effizient"),
-            Codec::Vorbis => crate::i18n::t("Offen, verlustbehaftet"),
-            Codec::Wave => crate::i18n::t("Unkomprimiert (PCM)"),
-            Codec::Aiff => crate::i18n::t("Unkomprimiert (Apple)"),
-            Codec::WavPack => crate::i18n::t("Verlustfrei, auch Hybrid"),
-            Codec::MonkeysAudio => crate::i18n::t("Verlustfrei, stark gepackt"),
+            Codec::Mp3 => crate::i18n::t("Lossy, plays everywhere"),
+            Codec::Flac => crate::i18n::t("Lossless, open, with tags"),
+            Codec::AacM4a => crate::i18n::t("Lossy, Apple/phones"),
+            Codec::AudioBook => crate::i18n::t("AAC for audiobooks"),
+            Codec::Alac => crate::i18n::t("Lossless for Apple devices"),
+            Codec::Opus => crate::i18n::t("Modern, very efficient"),
+            Codec::Vorbis => crate::i18n::t("Open, lossy"),
+            Codec::Wave => crate::i18n::t("Uncompressed (PCM)"),
+            Codec::Aiff => crate::i18n::t("Uncompressed (Apple)"),
+            Codec::WavPack => crate::i18n::t("Lossless, also hybrid"),
+            Codec::MonkeysAudio => crate::i18n::t("Lossless, highly compressed"),
             Codec::Wma => "Windows Media Audio",
-            Codec::Musepack => crate::i18n::t("Verlustbehaftet, Profile"),
-            Codec::Speex => crate::i18n::t("Sprache, sehr klein"),
+            Codec::Musepack => crate::i18n::t("Lossy, profiles"),
+            Codec::Speex => crate::i18n::t("Speech, very small"),
             Codec::Dsd => "Direct Stream Digital",
-            Codec::Multi => crate::i18n::t("Mehrere Formate auf einmal"),
-            Codec::ReplayGainOnly => crate::i18n::t("Lautheit messen, Tags schreiben"),
-            Codec::TagUpdate => crate::i18n::t("Tag-Bearbeitung auf Quellen"),
-            Codec::AudioInfo => crate::i18n::t("Format, Länge, Pegel"),
-            Codec::AudioCrc => crate::i18n::t("Prüfsumme der Audiodaten"),
-            Codec::ChannelSplit => crate::i18n::t("Jeder Kanal eine Datei"),
-            Codec::LengthSplit => crate::i18n::t("In gleich lange Teile"),
-            Codec::TagFromFilename => crate::i18n::t("Tags aus dem Namen lesen"),
-            Codec::TestConversion => crate::i18n::t("Nur dekodieren und prüfen"),
+            Codec::Multi => crate::i18n::t("Several formats at once"),
+            Codec::ReplayGainOnly => crate::i18n::t("Measure loudness, write tags"),
+            Codec::TagUpdate => crate::i18n::t("Tag processing on the sources"),
+            Codec::AudioInfo => crate::i18n::t("Format, length, level"),
+            Codec::AudioCrc => crate::i18n::t("Checksum of the audio data"),
+            Codec::ChannelSplit => crate::i18n::t("One file per channel"),
+            Codec::LengthSplit => crate::i18n::t("Into equal-length parts"),
+            Codec::TagFromFilename => crate::i18n::t("Read tags from the name"),
+            Codec::TestConversion => crate::i18n::t("Only decode and check"),
         }
     }
     pub fn is_tool(&self) -> bool {
@@ -263,21 +263,21 @@ pub const AAC_RATES: &[u32] = &[8, 12, 16, 24, 32, 48, 56, 64, 80, 96, 128, 144,
 /// Estimated bit rate per AAC VBR quality 1..5.
 pub const AAC_VBR_KBPS: [u32; 5] = [64, 80, 96, 144, 224];
 pub const MPC_PROFILES: &[(&str, &str, u32)] = &[
-    ("Telefon", "--telephone", 60),
-    ("Daumen", "--thumb", 90),
+    ("Telephone", "--telephone", 60),
+    ("Thumb", "--thumb", 90),
     ("Radio", "--radio", 130),
-    ("Standard", "--standard", 180),
-    ("Extrem", "--xtreme", 210),
-    ("Wahnsinn", "--insane", 240),
-    ("Hirntot", "--braindead", 270),
-    ("Qualität 9", "--quality 9", 300),
-    ("Qualität 10", "--quality 10", 350),
+    ("Default", "--standard", 180),
+    ("Extreme", "--xtreme", 210),
+    ("Insane", "--insane", 240),
+    ("Braindead", "--braindead", 270),
+    ("Quality 9", "--quality 9", 300),
+    ("Quality 10", "--quality 10", 350),
 ];
 pub const DSD_MODES: &[(&str, u32)] =
     &[("DSD64", 2822400), ("DSD128", 5644800), ("DSD256", 11289600), ("DSD512", 22579200), ("DSD1024", 45158400), ("DSD2048", 90316800)];
-pub const APE_LEVELS: &[(&str, &str)] = &[("Schnell", "-c1000"), ("Normal", "-c2000"), ("Hoch", "-c3000"), ("Extra hoch", "-c4000"), ("Wahnsinn", "-c5000")];
-pub const WAVPACK_MODES: &[&str] = &["Schnell", "Normal", "Hohe Qualität", "Sehr hohe Qualität"];
-pub const STEREO_MODES: &[&str] = &["Stereo (automatisch)", "Joint Stereo", "Erzwungenes Joint Stereo", "Stereo", "Mono"];
+pub const APE_LEVELS: &[(&str, &str)] = &[("Fast", "-c1000"), ("Normal", "-c2000"), ("High", "-c3000"), ("Extra high", "-c4000"), ("Insane", "-c5000")];
+pub const WAVPACK_MODES: &[&str] = &["Fast", "Normal", "High quality", "Very high quality"];
+pub const STEREO_MODES: &[&str] = &["Stereo (automatic)", "Joint Stereo", "Forced joint stereo", "Stereo", "Mono"];
 
 /// External programs used by the formats FFmpeg can't write.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -322,10 +322,8 @@ pub fn ffmpeg_for<'a>(c: Codec, env: &Env<'a>) -> Option<&'a Ffmpeg> {
 pub fn missing_requirement(c: Codec, env: &Env) -> Option<String> {
     if let Some(enc) = ffmpeg_encoder(c) {
         return match env.ffmpeg.for_encoder(enc) {
-            None => Some(crate::i18n::t("FFmpeg wird benötigt (Einstellungen » Encoder-Programme)").into()),
-            Some(f) if !f.has_encoder(enc) => {
-                Some(crate::i18n::tf(crate::i18n::t("Das gefundene FFmpeg hat keinen Encoder „{enc}“"), &[("enc", enc.to_string())]))
-            }
+            None => Some(crate::i18n::t("FFmpeg is needed (Settings » Encoder programs)").into()),
+            Some(f) if !f.has_encoder(enc) => Some(crate::i18n::tf(crate::i18n::t("The FFmpeg found has no “{enc}” encoder"), &[("enc", enc.to_string())])),
             Some(_) => None,
         };
     }
@@ -333,21 +331,21 @@ pub fn missing_requirement(c: Codec, env: &Env) -> Option<String> {
         Codec::Wave | Codec::Aiff => None,
         Codec::MonkeysAudio => {
             if audio::find_tool(&env.tools.mac, "mac").is_none() {
-                Some(crate::i18n::t("Programm mac.exe angeben (Einstellungen)").into())
+                Some(crate::i18n::t("Set the program mac.exe (Settings)").into())
             } else {
                 None
             }
         }
         Codec::Musepack => {
             if audio::find_tool(&env.tools.mpcenc, "mpcenc").is_none() {
-                Some(crate::i18n::t("Programm mpcenc.exe angeben (Einstellungen)").into())
+                Some(crate::i18n::t("Set the program mpcenc.exe (Settings)").into())
             } else {
                 None
             }
         }
         Codec::Dsd => {
             if audio::find_tool(&env.tools.sox, "sox").is_none() {
-                Some(crate::i18n::t("Programm sox.exe angeben (Einstellungen)").into())
+                Some(crate::i18n::t("Set the program sox.exe (Settings)").into())
             } else {
                 None
             }
@@ -512,7 +510,7 @@ fn run_ffmpeg(
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
     hidden(&mut cmd);
-    let mut child = cmd.spawn().map_err(|e| crate::i18n::tf(crate::i18n::t("FFmpeg kann nicht gestartet werden: {e}"), &[("e", format!("{e}"))]))?;
+    let mut child = cmd.spawn().map_err(|e| crate::i18n::tf(crate::i18n::t("Cannot start FFmpeg: {e}"), &[("e", format!("{e}"))]))?;
     let mut stderr = child.stderr.take().unwrap();
     let err_thread = std::thread::spawn(move || {
         let mut s = String::new();
@@ -528,7 +526,7 @@ fn run_ffmpeg(
             if cancel.load(Ordering::Relaxed) {
                 let _ = child.kill();
                 let _ = child.wait(); // the process must be gone before its temp file is removed
-                return Err(crate::i18n::t("abgebrochen").into());
+                return Err(crate::i18n::t("cancelled").into());
             }
             buf.clear();
             audio::pcm_bytes_le(chunk, fmt, &mut buf);
@@ -542,7 +540,7 @@ fn run_ffmpeg(
     let err = err_thread.join().unwrap_or_default();
     if !status.success() {
         let _ = std::fs::remove_file(out);
-        return Err(crate::i18n::tf(crate::i18n::t("Encoder-Fehler: {0}"), &[("0", err.lines().last().unwrap_or("unbekannt").to_string())]));
+        return Err(crate::i18n::tf(crate::i18n::t("Encoder error: {0}"), &[("0", err.lines().last().unwrap_or("unknown").to_string())]));
     }
     Ok(())
 }
@@ -552,9 +550,8 @@ fn run_cli(exe: &Path, args: &[String], cancel: &AtomicBool) -> Result<(), Strin
     let mut cmd = Command::new(exe);
     cmd.args(args).stdout(Stdio::null()).stderr(Stdio::piped()).stdin(Stdio::null());
     hidden(&mut cmd);
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| crate::i18n::tf(crate::i18n::t("{0} kann nicht gestartet werden: {e}"), &[("0", format!("{}", exe.display())), ("e", format!("{e}"))]))?;
+    let mut child =
+        cmd.spawn().map_err(|e| crate::i18n::tf(crate::i18n::t("Cannot start {0}: {e}"), &[("0", format!("{}", exe.display())), ("e", format!("{e}"))]))?;
     let mut stderr = child.stderr.take();
     let err_thread = std::thread::spawn(move || {
         let mut s = String::new();
@@ -567,7 +564,7 @@ fn run_cli(exe: &Path, args: &[String], cancel: &AtomicBool) -> Result<(), Strin
         if cancel.load(Ordering::Relaxed) {
             let _ = child.kill();
             let _ = child.wait();
-            return Err(crate::i18n::t("abgebrochen").into());
+            return Err(crate::i18n::t("cancelled").into());
         }
         match child.try_wait() {
             Ok(Some(st)) => break st,
@@ -578,8 +575,8 @@ fn run_cli(exe: &Path, args: &[String], cancel: &AtomicBool) -> Result<(), Strin
     let err = err_thread.join().unwrap_or_default();
     if !status.success() {
         return Err(crate::i18n::tf(
-            crate::i18n::t("{0} meldet: {1}"),
-            &[("0", format!("{}", exe.display())), ("1", err.lines().last().unwrap_or(crate::i18n::t("Fehler")).to_string())],
+            crate::i18n::t("{0} reports: {1}"),
+            &[("0", format!("{}", exe.display())), ("1", err.lines().last().unwrap_or(crate::i18n::t("Error")).to_string())],
         ));
     }
     Ok(())
@@ -685,7 +682,7 @@ pub fn encode(
             r
         }
         _ => {
-            let ff = ffmpeg_for(c, env).ok_or(crate::i18n::t("FFmpeg wird benötigt"))?;
+            let ff = ffmpeg_for(c, env).ok_or(crate::i18n::t("FFmpeg is needed"))?;
             let args = ffmpeg_args(c, s, audio, ff);
             run_ffmpeg(&ff.path, audio, out, &args, meta, c.lossless(), cancel, progress)?;
             let verify = match c {
@@ -716,14 +713,14 @@ pub fn verify_lossless(out: &Path, original: &Audio, ffmpeg: &Path, cancel: &Ato
     let back = audio::decode(out, Some(ffmpeg), cancel, &|_| {})?;
     if back.frames() != original.frames() || back.channels != original.channels {
         return Err(crate::i18n::tf(
-            crate::i18n::t("Prüfung fehlgeschlagen: Länge {0} statt {1} Frames"),
+            crate::i18n::t("Verification failed: length {0} instead of {1} frames"),
             &[("0", format!("{}", back.frames())), ("1", format!("{}", original.frames()))],
         ));
     }
     let bits = if original.float { 24 } else { original.bits.clamp(8, 24) };
     let tol = 1.5 / (1u64 << (bits - 1)) as f32;
     if let Some(i) = back.data.iter().zip(&original.data).position(|(a, b)| (a - b).abs() > tol) {
-        return Err(crate::i18n::tf(crate::i18n::t("Prüfung fehlgeschlagen: Abweichung bei Sample {i}"), &[("i", format!("{i}"))]));
+        return Err(crate::i18n::tf(crate::i18n::t("Verification failed: difference at sample {i}"), &[("i", format!("{i}"))]));
     }
     Ok(())
 }
@@ -737,7 +734,7 @@ pub fn plan_requirement(codec: Codec, enc: &EncSettings, env: &Env) -> Option<St
         c => vec![c],
     };
     if codec == Codec::Multi && codecs.is_empty() {
-        return Some(crate::i18n::t("Im Mehrfach-Encoder ist kein Format gewählt").into());
+        return Some(crate::i18n::t("No format is selected in the multi encoder").into());
     }
     codecs.into_iter().find_map(|c| missing_requirement(c, env).map(|m| format!("{}: {m}", c.name())))
 }

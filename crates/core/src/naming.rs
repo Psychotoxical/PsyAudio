@@ -43,12 +43,12 @@ pub const CD_SCHEME: &[&str] = &["albumartist", " - ", "(", "year", ")", " - ", 
 /// Naming presets offered in a list (German name, chips); choosing one sets the chips, which
 /// stay free to change. The first is the CD ripper's default, the last the converter's.
 pub const PRESETS: &[(&str, &[&str])] = &[
-    ("Albuminterpret – (Jahr) – Album / Track-Disc – Interpret – Titel", CD_SCHEME),
-    ("Albuminterpret – (Jahr) – Album / Track – Titel", &["albumartist", " - ", "(", "year", ")", " - ", "album", FOLDER, "track", " - ", "title"]),
-    ("Interpret / Album / Track Titel", &["artist", FOLDER, "album", FOLDER, "track", " ", "title"]),
-    ("Track – Titel", &["track", " - ", "title"]),
-    ("Interpret – Titel", &["artist", " - ", "title"]),
-    ("Dateiname", CONVERT_SCHEME),
+    ("Album artist – (Year) – Album / Track-Disc – Artist – Title", CD_SCHEME),
+    ("Album artist – (Year) – Album / Track – Title", &["albumartist", " - ", "(", "year", ")", " - ", "album", FOLDER, "track", " - ", "title"]),
+    ("Artist / Album / Track Title", &["artist", FOLDER, "album", FOLDER, "track", " ", "title"]),
+    ("Track – Title", &["track", " - ", "title"]),
+    ("Artist – Title", &["artist", " - ", "title"]),
+    ("File name", CONVERT_SCHEME),
 ];
 /// Default for reading tags from file names.
 pub const TAG_SCHEME: &[&str] = &["track", " ", "artist", " - ", "title"];
@@ -58,17 +58,17 @@ pub const MAX_PART: usize = 80;
 /// German label of a chip (translated with `t()` where shown).
 pub fn label(token: &str) -> &str {
     match token {
-        "filename" => "Dateiname",
-        "albumartist" => "Albuminterpret",
-        "artist" => "Interpret",
+        "filename" => "File name",
+        "albumartist" => "Album artist",
+        "artist" => "Artist",
         "album" => "Album",
-        "year" => "Jahr",
+        "year" => "Year",
         "track" => "Track",
         "disc" => "Disc",
-        "title" => "Titel",
+        "title" => "Title",
         " - " => "–",
-        " " => "Abstand",
-        FOLDER => "Neuer Ordner",
+        " " => "Space",
+        FOLDER => "New folder",
         other => other,
     }
 }
@@ -313,16 +313,16 @@ mod scheme_tests {
 
     #[test]
     fn sanitize_drops_unknown_and_defaults() {
-        assert_eq!(sanitize(&s(&["artist", "unbekannt", " - ", "/", "title"]), DATA, false, CD_SCHEME), s(&["artist", " - ", "title"]));
+        assert_eq!(sanitize(&s(&["artist", "unknown", " - ", "/", "title"]), DATA, false, CD_SCHEME), s(&["artist", " - ", "title"]));
         assert_eq!(sanitize(&s(&["bogus"]), DATA, true, TAG_SCHEME), s(TAG_SCHEME));
         assert_eq!(sanitize(&s(&["filename", "title"]), &DATA[1..], true, CD_SCHEME), s(&["title"]));
     }
 
     #[test]
     fn labels_and_keys() {
-        assert_eq!(label("albumartist"), "Albuminterpret");
+        assert_eq!(label("albumartist"), "Album artist");
         assert_eq!(label(" - "), "–");
-        assert_eq!(label(FOLDER), "Neuer Ordner");
+        assert_eq!(label(FOLDER), "New folder");
         assert_eq!(tag_key("albumartist"), Some("album artist"));
         assert_eq!(tag_key("filename"), None);
     }

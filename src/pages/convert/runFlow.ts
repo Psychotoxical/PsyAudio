@@ -48,9 +48,7 @@ export async function launch(
   const settings = useSettings.getState().settings;
   if (!settings) return;
   if (useRun.getState().run?.elapsed === null) {
-    useUi
-      .getState()
-      .notify(i18n.t("Es läuft schon eine Umwandlung – erst abwarten oder abbrechen"));
+    useUi.getState().notify(i18n.t("A conversion is already running – wait for it or cancel it"));
     return;
   }
   const files = useFiles.getState().files;
@@ -71,7 +69,7 @@ export async function launch(
   }
 }
 
-/** "Konvertieren": checks first, asks about existing targets (useRun.ask), then starts. */
+/** "Convert": checks first, asks about existing targets (useRun.ask), then starts. */
 export async function convert(items: Items, codec: Codec, keepStructure = false): Promise<void> {
   const settings = useSettings.getState().settings;
   if (!settings) return;
@@ -88,13 +86,13 @@ export async function convert(items: Items, codec: Codec, keepStructure = false)
   await launch(items, codec, keepStructure, []);
 }
 
-/** "Fertig": back to the list. */
+/** "Done": back to the list. */
 export function closeRun() {
   useRun.setState({ run: null });
   void clearRunTitle();
 }
 
-/** "Fehlgeschlagene erneut umwandeln": the list holds the failed files only. */
+/** "Convert failed files again": the list holds the failed files only. */
 export async function retryFailed(t: (key: string) => string) {
   const run = useRun.getState().run;
   if (!run) return;
@@ -114,9 +112,5 @@ export async function retryFailed(t: (key: string) => string) {
   }
   useUi
     .getState()
-    .notify(
-      t(
-        "Fehlgeschlagene Dateien sind wieder in der Liste – Einstellungen anpassen und erneut umwandeln",
-      ),
-    );
+    .notify(t("Failed files are back in the list – adjust the settings and convert again"));
 }

@@ -19,7 +19,7 @@ function openDriveSettings(): void {
   useUi.getState().setPage("settings");
 }
 
-/** How the disc is read: mode, re-reads, the drive's offset; the fine points under "Erweitert". */
+/** How the disc is read: mode, re-reads, the drive's offset; the fine points under "Advanced". */
 export function ReadModePanel() {
   const { t, i18n } = useTranslation();
   const r = useSettings((s) => s.settings?.rip);
@@ -39,43 +39,41 @@ export function ReadModePanel() {
     <>
       <div className="field">
         <Segmented<RipMode>
-          label={t("Lesemodus")}
+          label={t("Reading mode")}
           value={r.mode}
           options={[
-            ["Secure", t("Sicher")],
-            ["Burst", t("Schnell (Burst)")],
+            ["Secure", t("Secure")],
+            ["Burst", t("Fast (burst)")],
           ]}
           onChange={(v) => set({ mode: v })}
         />
         <Hint>
           {secure
             ? t(
-                "Liest jeden Titel in einem Zug. Bestätigt die CUETools-Datenbank das Ergebnis, ist der Titel fertig; sonst folgt ein zweiter Durchgang, und nur abweichende Stellen werden wiederholt.",
+                "Reads each track in one go. If the CUETools database confirms the result, the track is done; otherwise a second pass follows and only the parts that differ are read again.",
               )
             : t(
-                "Schnellstes Rippen ohne Fehlerkorrektur – die CUETools-Datenbank zeigt trotzdem, ob alles stimmt.",
+                "Fastest ripping without error correction – the CUETools database still shows whether everything is right.",
               )}
         </Hint>
       </div>
       <div className="field">
         <SliderField
-          label={t("Neu-Lesungen bei Fehlern")}
+          label={t("Re-reads on errors")}
           min={1}
           max={100}
           value={r.reread_limit}
-          format={(v) => t(plural(v, "{0} Versuch", "{0} Versuche"), { 0: String(v) })}
+          format={(v) => t(plural(v, "{0} try", "{0} tries"), { 0: String(v) })}
           disabled={!secure}
           onChange={(v) => set({ reread_limit: v })}
         />
-        <Hint>
-          {t("So oft liest PsyAudio eine fehlerhafte Stelle neu, bevor sie als unsicher gilt.")}
-        </Hint>
+        <Hint>{t("How often PsyAudio re-reads a faulty spot before it counts as insecure.")}</Hint>
       </div>
       <div className="field">
         <div className="panel-offset">
-          <span className="lbl">{t("Laufwerks-Versatz")}</span>
+          <span className="lbl">{t("Drive offset")}</span>
           <button type="button" className="link-btn" onClick={openDriveSettings}>
-            {t("In den Einstellungen ändern")}
+            {t("Change in Settings")}
           </button>
         </div>
         {offset.busy ? (
@@ -83,13 +81,13 @@ export function ReadModePanel() {
             <span
               className="prog wide"
               role="progressbar"
-              aria-label={t("Fortschritt")}
+              aria-label={t("Progress")}
               aria-valuenow={Math.round(offset.fraction * 100)}
             >
               <i style={{ width: `${offset.fraction * 100}%` }} />
             </span>
             <span className="muted">
-              {t("Misst … {0} %", { 0: String(Math.round(offset.fraction * 100)) })}
+              {t("Measuring … {0} %", { 0: String(Math.round(offset.fraction * 100)) })}
             </span>
           </div>
         ) : profile ? (
@@ -98,39 +96,37 @@ export function ReadModePanel() {
             <span className="muted">{methodText(profile, t, i18n.language)}</span>
           </p>
         ) : (
-          <p className="muted">{t("noch nicht gemessen")}</p>
+          <p className="muted">{t("not measured yet")}</p>
         )}
       </div>
-      <Disclosure title={t("Erweitert")} summary={t("Kontroll-Durchgänge, Abbruch")}>
+      <Disclosure title={t("Advanced")} summary={t("Check passes, abort")}>
         <div className="field">
           <Check
-            label={t("Zusätzliche Kontroll-Durchgänge")}
+            label={t("Extra check passes")}
             checked={r.extra_passes}
             disabled={!secure}
             onChange={(v) => set({ extra_passes: v })}
           />
-          <Hint>
-            {t("Liest sichere Titel weitere Male, bis genug Durchgänge gleich ausfallen.")}
-          </Hint>
+          <Hint>{t("Reads secure tracks more times until enough passes agree.")}</Hint>
         </div>
         {r.extra_passes && secure && (
           <>
             <SliderField
-              label={t("Mindestens Durchgänge")}
+              label={t("Minimum passes")}
               min={1}
               max={20}
               value={r.extra_min}
               onChange={(v) => set({ extra_min: v })}
             />
             <SliderField
-              label={t("Höchstens Durchgänge")}
+              label={t("Maximum passes")}
               min={1}
               max={20}
               value={r.extra_max}
               onChange={(v) => set({ extra_max: v })}
             />
             <SliderField
-              label={t("Ende nach sauberen Durchgängen")}
+              label={t("Stop after clean passes")}
               min={1}
               max={10}
               value={r.extra_clean}
@@ -141,64 +137,64 @@ export function ReadModePanel() {
         <div className="field">
           <SliderField
             bare
-            label={t("Abbrechen nach unlesbaren Sektoren")}
+            label={t("Abort after unreadable sectors")}
             min={0}
             max={100000}
             value={r.abort_unrecoverable}
-            format={(v) => (v === 0 ? t("nie") : String(v))}
+            format={(v) => (v === 0 ? t("never") : String(v))}
             disabled={!secure}
             onChange={(v) => set({ abort_unrecoverable: v })}
           />
           <Hint>
             {t(
-              "0 heißt nie; sonst endet ein Titel nach so vielen Sektoren, die sich nicht lesen ließen.",
+              "0 means never; otherwise a track ends after this many sectors that could not be read.",
             )}
           </Hint>
         </div>
         <div className="field">
           <Check
-            label={t("Unlesbare Stellen glätten (interpolieren)")}
+            label={t("Smooth unreadable parts (interpolate)")}
             checked={r.interpolate}
             disabled={!secure}
             onChange={(v) => set({ interpolate: v })}
           />
           <Hint>
             {t(
-              "Füllt Stellen, die sich nie lesen ließen, aus ihren Nachbarn, statt sie stumm zu lassen.",
+              "Fills spots that could never be read from their neighbours instead of leaving them silent.",
             )}
           </Hint>
         </div>
         <div className="field">
           <Select<number>
-            label={t("Titel als Fehler markieren, wenn")}
+            label={t("Mark track as error if")}
             value={r.mark_error}
             options={[
-              [0, t("(aus)")],
-              [1, t("unsicher")],
-              [2, t("nicht von CTDB bestätigt")],
+              [0, t("(off)")],
+              [1, t("insecure")],
+              [2, t("not confirmed by CTDB")],
             ]}
             onChange={(v) => set({ mark_error: v })}
           />
-          <Hint>{t("Ein markierter Titel zählt in der Liste und im Protokoll als Fehler.")}</Hint>
+          <Hint>{t("A marked track counts as an error in the list and the log.")}</Hint>
         </div>
         <div className="field">
           <Check
-            label={t("Abbrechen nach unsicherem Titel")}
+            label={t("Stop after an insecure track")}
             checked={r.cancel_on_insecure}
             onChange={(v) => set({ cancel_on_insecure: v })}
           />
-          <Hint>{t("Hört nach dem ersten unsicheren Titel mit der ganzen CD auf.")}</Hint>
+          <Hint>{t("Stops the whole CD after the first insecure track.")}</Hint>
         </div>
         <div className="field">
           <Check
-            label={t("Mit der CUETools-Datenbank prüfen")}
+            label={t("Verify with the CUETools database")}
             checked={r.ctdb}
             onChange={(v) => set({ ctdb: v })}
           />
-          <Hint>{t("Vergleicht jeden Titel mit den Prüfsummen anderer Rips derselben CD.")}</Hint>
+          <Hint>{t("Compares each track with the checksums of other rips of the same CD.")}</Hint>
         </div>
         <Check
-          label={t("CD danach auswerfen")}
+          label={t("Eject the CD afterwards")}
           checked={r.eject_after}
           onChange={(v) => set({ eject_after: v })}
         />

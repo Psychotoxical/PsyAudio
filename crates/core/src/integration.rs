@@ -84,7 +84,7 @@ mod reg {
         fn a_key_is_written_and_deleted_with_its_subkeys() {
             let base = format!(r"Software\PsyAudioTest-{}", std::process::id());
             let sub = format!(r"{base}\shell\PsyAudio");
-            assert!(super::set(&sub, &[(None, "Mit PsyAudio konvertieren"), (Some("Icon"), r"C:\x\PsyAudio.exe")]));
+            assert!(super::set(&sub, &[(None, "Convert with PsyAudio"), (Some("Icon"), r"C:\x\PsyAudio.exe")]));
             assert!(super::set(&format!(r"{sub}\command"), &[(None, r#""C:\x\PsyAudio.exe" "%1""#)]));
             assert!(super::exists(&format!(r"{sub}\command")));
             assert!(super::delete(&sub));
@@ -100,20 +100,20 @@ mod reg {
 pub fn file_manager_menu(add: bool) -> String {
     #[cfg(windows)]
     {
-        let Ok(exe) = std::env::current_exe() else { return crate::i18n::t("Programmpfad unbekannt").into() };
+        let Ok(exe) = std::env::current_exe() else { return crate::i18n::t("Program path unknown").into() };
         // the old single entry would show the item twice where Explorer does use the group
         let had_old = reg::delete(OLD_EXPLORER_MENU_KEY);
         if add {
             let cmd = format!("\"{}\" \"%1\"", exe.display());
             let icon = exe.display().to_string();
-            let label = crate::i18n::t("Mit PsyAudio konvertieren");
+            let label = crate::i18n::t("Convert with PsyAudio");
             let ok = explorer_menu_keys()
                 .iter()
                 .all(|k| reg::set(k, &[(None, label), (Some("Icon"), &icon)]) && reg::set(&format!(r"{k}\command"), &[(None, &cmd)]));
             if ok {
-                crate::i18n::t("Kontextmenü eingerichtet").into()
+                crate::i18n::t("Context menu set up").into()
             } else {
-                crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden").into()
+                crate::i18n::t("Context menu could not be set up").into()
             }
         } else {
             let mut removed = had_old;
@@ -121,49 +121,49 @@ pub fn file_manager_menu(add: bool) -> String {
                 removed |= reg::delete(&k);
             }
             if removed {
-                crate::i18n::t("Kontextmenü entfernt").into()
+                crate::i18n::t("Context menu removed").into()
             } else {
-                crate::i18n::t("Kein Kontextmenü vorhanden").into()
+                crate::i18n::t("No context menu present").into()
             }
         }
     }
     #[cfg(target_os = "linux")]
     {
-        let Some(data) = dirs::data_dir() else { return crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden").into() };
+        let Some(data) = dirs::data_dir() else { return crate::i18n::t("Context menu could not be set up").into() };
         let menu = data.join("kio/servicemenus/psyaudio.desktop");
         let icon = data.join("PsyAudio/PsyAudio.png");
         if !add {
             let _ = std::fs::remove_file(&icon);
             return if std::fs::remove_file(&menu).is_ok() {
-                crate::i18n::t("Kontextmenü entfernt").into()
+                crate::i18n::t("Context menu removed").into()
             } else {
-                crate::i18n::t("Kein Kontextmenü vorhanden").into()
+                crate::i18n::t("No context menu present").into()
             };
         }
-        let Some(exe) = own_launch_path() else { return crate::i18n::t("Programmpfad unbekannt").into() };
+        let Some(exe) = own_launch_path() else { return crate::i18n::t("Program path unknown").into() };
         match write_service_menu(&menu, &icon, &exe) {
-            Ok(()) => crate::i18n::t("Kontextmenü eingerichtet").into(),
-            Err(_) => crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden").into(),
+            Ok(()) => crate::i18n::t("Context menu set up").into(),
+            Err(_) => crate::i18n::t("Context menu could not be set up").into(),
         }
     }
     #[cfg(target_os = "macos")]
     {
         let Some(services) = dirs::home_dir().map(|h| h.join("Library/Services")) else {
-            return crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden").into();
+            return crate::i18n::t("Context menu could not be set up").into();
         };
         // one entry, in the current language: an earlier one (other language) goes first
         let removed = remove_quick_actions(&services);
         let result = if !add {
             if removed {
-                crate::i18n::t("Kontextmenü entfernt")
+                crate::i18n::t("Context menu removed")
             } else {
-                crate::i18n::t("Kein Kontextmenü vorhanden")
+                crate::i18n::t("No context menu present")
             }
         } else {
-            let label = crate::i18n::t("Mit PsyAudio konvertieren");
+            let label = crate::i18n::t("Convert with PsyAudio");
             match write_quick_action(&services.join(format!("{label}.workflow")), label) {
-                Ok(()) => crate::i18n::t("Kontextmenü eingerichtet"),
-                Err(_) => crate::i18n::t("Kontextmenü konnte nicht eingerichtet werden"),
+                Ok(()) => crate::i18n::t("Context menu set up"),
+                Err(_) => crate::i18n::t("Context menu could not be set up"),
             }
         };
         // the Finder reads the services again
@@ -173,7 +173,7 @@ pub fn file_manager_menu(add: bool) -> String {
     #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
     {
         let _ = add;
-        crate::i18n::t("Auf diesem System nicht verfügbar").into()
+        crate::i18n::t("Not available on this system").into()
     }
 }
 
@@ -185,7 +185,7 @@ fn write_service_menu(menu: &std::path::Path, icon: &std::path::Path, exe: &std:
         std::fs::create_dir_all(dir)?;
     }
     std::fs::write(icon, crate::APP_ICON_PNG)?;
-    std::fs::write(menu, service_menu_text(exe, icon, crate::i18n::t("Mit PsyAudio konvertieren")))?;
+    std::fs::write(menu, service_menu_text(exe, icon, crate::i18n::t("Convert with PsyAudio")))?;
     std::fs::set_permissions(menu, std::fs::Permissions::from_mode(0o755))
 }
 
@@ -673,9 +673,9 @@ mod service_menu_tests {
 
     #[test]
     fn a_moved_appimage_is_followed_by_the_menu() {
-        let old = service_menu_text(Path::new("/home/u/Downloads/PsyAudio.AppImage"), Path::new("/tmp/i.png"), "Mit PsyAudio konvertieren");
+        let old = service_menu_text(Path::new("/home/u/Downloads/PsyAudio.AppImage"), Path::new("/tmp/i.png"), "Convert with PsyAudio");
         let new = super::menu_with_launch_path(&old, Path::new("/home/u/AppImages/psyaudio.appimage")).unwrap();
-        assert_eq!(new, service_menu_text(Path::new("/home/u/AppImages/psyaudio.appimage"), Path::new("/tmp/i.png"), "Mit PsyAudio konvertieren"));
+        assert_eq!(new, service_menu_text(Path::new("/home/u/AppImages/psyaudio.appimage"), Path::new("/tmp/i.png"), "Convert with PsyAudio"));
         assert!(super::menu_with_launch_path(&new, Path::new("/home/u/AppImages/psyaudio.appimage")).is_none());
     }
 
@@ -718,7 +718,7 @@ mod quick_action_tests {
     #[test]
     fn workflow_uses_bundle_id() {
         let dir = temp("write").join("Mit PsyAudio konvertieren.workflow");
-        write_quick_action(&dir, "Mit PsyAudio konvertieren").unwrap();
+        write_quick_action(&dir, "Convert with PsyAudio").unwrap();
         let wflow = std::fs::read_to_string(dir.join("Contents/document.wflow")).unwrap();
         assert!(wflow.contains("open -b app.psyaudio \"$@\""));
         assert!(!wflow.contains(".app/Contents/MacOS"));

@@ -1,5 +1,5 @@
 //! Folder and file names from chips: the chips on offer, presets, a preview of the target path,
-//! and the preview for "Tags aus Dateiname".
+//! and the preview for "Tags from file name".
 
 use crate::state::AppState;
 use psyaudio_core::convert;
@@ -102,7 +102,7 @@ pub async fn preview_name(
         .map_err(|e| e.to_string())
 }
 
-/// The tags "Tags aus Dateiname" would read from `path` with `scheme`.
+/// The tags "Tags from file name" would read from `path` with `scheme`.
 #[tauri::command]
 pub fn tags_from_name(path: String, scheme: Vec<String>) -> Vec<(String, String)> {
     let stem = Path::new(&path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();

@@ -33,7 +33,7 @@ pub fn flush_kb(override_kb: u32, measured: Option<u32>) -> u32 {
 pub fn mode_sense_page(d: char, page: u8) -> Result<Vec<u8>, String> {
     let cdb = [0x5A, 0x08, page & 0x3F, 0, 0, 0, 0, 0x01, 0x00, 0];
     let resp = command_in(d, &cdb, 256)?;
-    page_of_mode_sense10(&resp).map(|p| p.to_vec()).ok_or_else(|| crate::i18n::t("Laufwerk lieferte zu wenig Daten").to_string())
+    page_of_mode_sense10(&resp).map(|p| p.to_vec()).ok_or_else(|| crate::i18n::t("The drive returned too little data").to_string())
 }
 
 /// The drive's buffer in KB as it reports it.
@@ -56,7 +56,7 @@ pub fn stop_disc(d: char) -> Result<(), String> {
 
 #[cfg(any(windows, target_os = "linux"))]
 fn failed(e: impl std::fmt::Display) -> String {
-    crate::i18n::tf(crate::i18n::t("Laufwerksbefehl fehlgeschlagen (Fehler {0})"), &[("0", e.to_string())])
+    crate::i18n::tf(crate::i18n::t("Drive command failed (error {0})"), &[("0", e.to_string())])
 }
 
 /// A command that reads up to `len` bytes from the drive.
@@ -215,13 +215,13 @@ fn command_in(d: char, cdb: &[u8], len: usize) -> Result<Vec<u8>, String> {
 
 #[cfg(target_os = "macos")]
 fn command_in(d: char, cdb: &[u8], len: usize) -> Result<Vec<u8>, String> {
-    let index = d.to_digit(36).ok_or_else(|| crate::i18n::t("nicht unterstützt").to_string())? as usize;
+    let index = d.to_digit(36).ok_or_else(|| crate::i18n::t("not supported").to_string())? as usize;
     crate::macos::scsi_command_in(index, cdb, len)
 }
 
 #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 fn command_in(_d: char, _cdb: &[u8], _len: usize) -> Result<Vec<u8>, String> {
-    Err(crate::i18n::t("nicht unterstützt").into())
+    Err(crate::i18n::t("not supported").into())
 }
 
 #[cfg(test)]

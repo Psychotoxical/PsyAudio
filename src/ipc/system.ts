@@ -27,7 +27,7 @@ export function systemInfo(): Promise<SystemInfo> {
   return invoke<SystemInfo>("system_info");
 }
 
-/** The defaults with the profiles kept ("Alle Einstellungen auf Standard"). */
+/** The defaults with the profiles kept ("Reset all settings to default"). */
 export function resetSettings(settings: Settings): Promise<Settings> {
   return invoke<Settings>("reset_settings", { settings });
 }
