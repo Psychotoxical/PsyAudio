@@ -1,42 +1,141 @@
-//! Interface language. German text is the key; English comes from `i18n_dict.rs`.
+//! Interface language. The English text is the key; every language is one file in `locales/`
+//! (`{"English": "translation"}`, counts as `{"one": …, "few": …, "many": …, "other": …}`),
+//! read by the core here and by the interface in `src/i18n.ts`. A text a language lacks stays
+//! English.
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
 
-#[path = "i18n_dict.rs"]
-mod dict;
+/// Code, name in its own language, and the language file. English first: the key language.
+pub const LANGUAGES: &[(&str, &str, &str)] = &[
+    ("en", "English", include_str!("../../../locales/en.json")),
+    ("de", "Deutsch", include_str!("../../../locales/de.json")),
+    ("es", "Español", include_str!("../../../locales/es.json")),
+    ("fr", "Français", include_str!("../../../locales/fr.json")),
+    ("nb", "Norsk bokmål", include_str!("../../../locales/nb.json")),
+    ("nl", "Nederlands", include_str!("../../../locales/nl.json")),
+    ("ro", "Română", include_str!("../../../locales/ro.json")),
+    ("ru", "Русский", include_str!("../../../locales/ru.json")),
+    ("zh", "中文", include_str!("../../../locales/zh.json")),
+    ("ja", "日本語", include_str!("../../../locales/ja.json")),
+    ("hu", "Magyar", include_str!("../../../locales/hu.json")),
+    ("pl", "Polski", include_str!("../../../locales/pl.json")),
+    ("bg", "Български", include_str!("../../../locales/bg.json")),
+    ("it", "Italiano", include_str!("../../../locales/it.json")),
+    ("uk", "Українська", include_str!("../../../locales/uk.json")),
+    ("el", "Ελληνικά", include_str!("../../../locales/el.json")),
+];
 
-/// 0 = German, 1 = English. Starts German so tests see the German source text;
-/// the app sets it from the settings (English by default) before drawing.
-static LANG: AtomicU8 = AtomicU8::new(0);
+/// Index into `LANGUAGES`; English until the app sets the language from the settings.
+static LANG: AtomicUsize = AtomicUsize::new(0);
 
-pub const LANGUAGES: &[(&str, &str)] = &[("en", "English"), ("de", "Deutsch")];
+/// One entry of a language file: a text, or the forms of a count by plural category.
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum Entry {
+    Text(String),
+    Counted(HashMap<String, String>),
+}
 
+/// Switch the language by code ("de", "pt-BR" …); unknown codes fall back to English.
 pub fn set_lang(code: &str) {
-    LANG.store(if code == "de" { 0 } else { 1 }, Ordering::Relaxed);
+    let base = code.split(['-', '_']).next().unwrap_or("").to_ascii_lowercase();
+    let i = LANGUAGES.iter().position(|l| l.0 == base).unwrap_or(0);
+    LANG.store(i, Ordering::Relaxed);
 }
 
-fn english() -> &'static HashMap<&'static str, &'static str> {
-    static MAP: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
-    MAP.get_or_init(|| dict::EN.iter().copied().collect())
+/// The code of the current language.
+pub fn lang() -> &'static str {
+    LANGUAGES[LANG.load(Ordering::Relaxed)].0
 }
 
-/// Translate a German interface text into the chosen language.
+fn table(i: usize) -> &'static HashMap<String, Entry> {
+    static TABLES: OnceLock<Vec<OnceLock<HashMap<String, Entry>>>> = OnceLock::new();
+    let tables = TABLES.get_or_init(|| LANGUAGES.iter().map(|_| OnceLock::new()).collect());
+    tables[i].get_or_init(|| serde_json::from_str(LANGUAGES[i].2).unwrap_or_default())
+}
+
+/// Translate an English interface text into the current language.
 pub fn t(s: &str) -> &str {
-    if LANG.load(Ordering::Relaxed) == 0 {
-        return s;
+    match table(LANG.load(Ordering::Relaxed)).get(s) {
+        Some(Entry::Text(x)) if !x.is_empty() => x,
+        _ => s,
     }
-    english().get(s).copied().unwrap_or(s)
 }
 
-/// The German text for a count: `one` for exactly 1, else `many`. German and English share this
-/// rule, so the English singular is the dictionary's entry for `one`. Where German has one form
-/// for both ("Titel"), `one` spells out the 1 ("1 Titel") to stay a key of its own.
-pub fn plural<'a>(n: u64, one: &'a str, many: &'a str) -> &'a str {
+/// The text for a count in the current language. `one` and `other` are the English forms;
+/// `other` is the key, and the language file gives the forms its grammar needs.
+pub fn plural<'a>(n: u64, one: &'a str, other: &'a str) -> &'a str {
+    let i = LANG.load(Ordering::Relaxed);
+    if let Some(Entry::Counted(forms)) = table(i).get(other) {
+        let form = forms.get(category(LANGUAGES[i].0, n)).or_else(|| forms.get("other")).filter(|x| !x.is_empty());
+        if let Some(f) = form {
+            return f;
+        }
+    }
     if n == 1 {
         one
     } else {
-        many
+        other
+    }
+}
+
+/// The CLDR plural category of a whole number in a language (the forms a count file may give).
+pub fn category(lang: &str, n: u64) -> &'static str {
+    let (m10, m100) = (n % 10, n % 100);
+    match lang {
+        "ja" | "zh" => "other",
+        "fr" => {
+            if n <= 1 {
+                "one"
+            } else {
+                "other"
+            }
+        }
+        "ro" => {
+            if n == 1 {
+                "one"
+            } else if n == 0 || (2..=19).contains(&m100) {
+                "few"
+            } else {
+                "other"
+            }
+        }
+        "ru" | "uk" => {
+            if m10 == 1 && m100 != 11 {
+                "one"
+            } else if (2..=4).contains(&m10) && !(12..=14).contains(&m100) {
+                "few"
+            } else {
+                "many"
+            }
+        }
+        "pl" => {
+            if n == 1 {
+                "one"
+            } else if (2..=4).contains(&m10) && !(12..=14).contains(&m100) {
+                "few"
+            } else {
+                "many"
+            }
+        }
+        _ => {
+            if n == 1 {
+                "one"
+            } else {
+                "other"
+            }
+        }
+    }
+}
+
+/// The plural categories a language uses (what its count entries must give).
+pub fn categories(lang: &str) -> &'static [&'static str] {
+    match lang {
+        "ja" | "zh" => &["other"],
+        "ro" => &["one", "few", "other"],
+        "ru" | "uk" | "pl" => &["one", "few", "many"],
+        _ => &["one", "other"],
     }
 }
 
@@ -73,75 +172,76 @@ pub fn tf(template: &str, args: &[(&str, String)]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn plural_picks_one_only_for_exactly_one() {
-        assert_eq!(plural(1, "1 Datei", "{0} Dateien"), "1 Datei");
-        assert_eq!(plural(0, "1 Datei", "{0} Dateien"), "{0} Dateien");
-        assert_eq!(plural(2, "1 Datei", "{0} Dateien"), "{0} Dateien");
+
+    fn placeholders(s: &str) -> Vec<String> {
+        let mut v: Vec<String> = s.split('{').skip(1).filter_map(|p| p.split('}').next()).map(String::from).collect();
+        v.sort();
+        v
     }
 
-    /// The first two string literals of a Rust source, unescaped.
-    fn literals(src: &str) -> Vec<String> {
-        let mut out = Vec::new();
-        let mut chars = src.chars();
-        while let Some(c) = chars.next() {
-            if c != '"' {
-                continue;
+    #[test]
+    fn plural_categories_follow_cldr() {
+        let cases = [
+            ("en", [(0, "other"), (1, "one"), (2, "other"), (21, "other")]),
+            ("fr", [(0, "one"), (1, "one"), (2, "other"), (21, "other")]),
+            ("ru", [(1, "one"), (3, "few"), (11, "many"), (22, "few")]),
+            ("pl", [(1, "one"), (4, "few"), (5, "many"), (21, "many")]),
+            ("ro", [(0, "few"), (1, "one"), (19, "few"), (20, "other")]),
+            ("ja", [(0, "other"), (1, "other"), (2, "other"), (5, "other")]),
+        ];
+        for (lang, list) in cases {
+            for (n, cat) in list {
+                assert_eq!(category(lang, n), cat, "{lang} {n}");
             }
-            let mut s = String::new();
-            while let Some(c) = chars.next() {
-                match c {
-                    '"' => break,
-                    '\\' => match chars.next() {
-                        Some('n') => s.push('\n'),
-                        Some(o) => s.push(o),
-                        None => {}
-                    },
-                    o => s.push(o),
+        }
+    }
+
+    /// Every language file: only keys English has, the same placeholders, and for counts the
+    /// categories its language uses.
+    #[test]
+    fn language_files_match_english() {
+        let en = table(0);
+        for (i, (code, _, _)) in LANGUAGES.iter().enumerate() {
+            assert!(serde_json::from_str::<HashMap<String, Entry>>(LANGUAGES[i].2).is_ok(), "{code}.json does not parse");
+            for (key, entry) in table(i) {
+                let base = en.get(key).unwrap_or_else(|| panic!("{code}.json: unknown key {key:?}"));
+                match (base, entry) {
+                    (Entry::Text(_), Entry::Text(x)) => {
+                        if !x.is_empty() {
+                            assert_eq!(placeholders(key), placeholders(x), "{code}.json: placeholders differ in {key:?}");
+                        }
+                    }
+                    (Entry::Counted(_), Entry::Counted(forms)) => {
+                        for cat in categories(code) {
+                            assert!(forms.contains_key(*cat), "{code}.json: {key:?} lacks the form {cat:?}");
+                        }
+                        for (cat, x) in forms {
+                            assert!(
+                                categories(code).contains(&cat.as_str()) || cat == "other",
+                                "{code}.json: {key:?} has a form {cat:?} the language does not use"
+                            );
+                            let mut want = placeholders(key);
+                            let mut got = placeholders(x);
+                            // a singular may spell out the number ("1 file")
+                            want.retain(|p| got.contains(p) || cat != "one");
+                            got.sort();
+                            assert_eq!(want, got, "{code}.json: placeholders differ in {key:?} ({cat})");
+                        }
+                    }
+                    _ => panic!("{code}.json: {key:?} is a count in one file and a text in the other"),
                 }
             }
-            out.push(s);
-            if out.len() == 2 {
-                break;
-            }
         }
-        out
-    }
-
-    /// Every `plural(n, "…", "…")` of the core has English for both texts, and the English
-    /// singular really differs from the plural.
-    #[test]
-    fn plural_texts_have_english() {
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-        let mut found = 0;
-        for entry in std::fs::read_dir(&dir).unwrap() {
-            let path = entry.unwrap().path();
-            if path.extension().is_none_or(|e| e != "rs") || path.ends_with("i18n.rs") {
-                continue;
-            }
-            let src = std::fs::read_to_string(&path).unwrap();
-            for (i, _) in src.match_indices("plural(") {
-                let pair = literals(&src[i..]);
-                let (one, many) = (&pair[0], &pair[1]);
-                let (en_one, en_many) = (english().get(one.as_str()), english().get(many.as_str()));
-                assert!(en_one.is_some() && en_many.is_some(), "no English for {one:?} / {many:?} in {}", path.display());
-                assert_ne!(en_one, en_many, "English singular equals plural: {one:?}");
-                found += 1;
-            }
-        }
-        assert!(found > 0, "no plural() calls found");
     }
 
     #[test]
-    fn fills_and_translates() {
-        assert_eq!(tf("{a} von {0}", &[("a", "1".into()), ("0", "2".into())]), "1 von 2");
-        for (de, en) in dict::EN {
-            let ph = |s: &str| {
-                let mut v: Vec<String> = s.split('{').skip(1).filter_map(|p| p.split('}').next()).map(String::from).collect();
-                v.sort();
-                v
-            };
-            assert_eq!(ph(de), ph(en), "placeholders differ: {de}");
-        }
+    fn falls_back_to_english_and_fills() {
+        set_lang("xx");
+        assert_eq!(lang(), "en");
+        assert_eq!(t("a text no language has"), "a text no language has");
+        assert_eq!(tf("{a} of {0}", &[("a", "1".into()), ("0", "2".into())]), "1 of 2");
+        set_lang("de-AT");
+        assert_eq!(lang(), "de");
+        set_lang("en");
     }
 }

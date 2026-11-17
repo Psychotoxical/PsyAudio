@@ -31,7 +31,7 @@ export function previewName(
   return invoke<string | null>("preview_name", { settings, path, root, position });
 }
 
-/** The tags "Tags aus Dateiname" reads from `path`. */
+/** The tags "Tags from file name" reads from `path`. */
 export function tagsFromName(path: string, scheme: string[]): Promise<[string, string][]> {
   return invoke<[string, string][]>("tags_from_name", { path, scheme });
 }

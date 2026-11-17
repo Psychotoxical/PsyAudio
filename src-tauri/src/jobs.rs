@@ -67,8 +67,8 @@ impl Jobs {
         let mut slot = self.slot(kind).lock().unwrap_or_else(|e| e.into_inner());
         if slot.as_ref().is_some_and(RunHandle::running) {
             return Err(match kind {
-                Kind::Conversion => psyaudio_core::i18n::t("Es läuft schon eine Umwandlung – erst abwarten oder abbrechen"),
-                Kind::Rip => psyaudio_core::i18n::t("Es läuft schon ein Rip – erst abwarten oder abbrechen"),
+                Kind::Conversion => psyaudio_core::i18n::t("A conversion is already running – wait for it or cancel it"),
+                Kind::Rip => psyaudio_core::i18n::t("A rip is already running – wait or cancel it first"),
             }
             .to_string());
         }

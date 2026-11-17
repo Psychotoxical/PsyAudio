@@ -10,8 +10,8 @@ import { StepTiles } from "./StepTiles";
 
 const tiles = [
   { id: "format", title: "Format", summary: "Opus · 192 kbit/s" },
-  { id: "save", title: "Speichern in", summary: "Neben der Quelle" },
-  { id: "naming", title: "Benennung", summary: "Albuminterpret – Album" },
+  { id: "save", title: "Save to", summary: "Next to the source" },
+  { id: "naming", title: "Naming", summary: "Albuminterpret – Album" },
 ];
 
 function fresh() {
@@ -23,10 +23,7 @@ function page(name: "convert" | "cd") {
   return (
     <>
       <StepTiles page={name} tiles={tiles} />
-      <SidePanel
-        page={name}
-        titles={{ format: "Format", save: "Speichern in", naming: "Benennung" }}
-      >
+      <SidePanel page={name} titles={{ format: "Format", save: "Save to", naming: "Naming" }}>
         {(tile) => <p>Inhalt {tile}</p>}
       </SidePanel>
     </>
@@ -38,27 +35,24 @@ describe("StepTiles", () => {
 
   it("click_opens_panel_with_that_tile", () => {
     render(page("convert"));
-    fireEvent.click(screen.getByRole("button", { name: /Benennung/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Naming/ }));
     expect(screen.getByText("Inhalt naming")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Benennung/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByRole("button", { name: /Naming/ })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("click_on_open_tile_closes_panel", () => {
     render(page("convert"));
-    fireEvent.click(screen.getByRole("button", { name: /Speichern in/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Speichern in/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Save to/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Save to/ }));
     expect(screen.queryByText(/^Inhalt/)).not.toBeInTheDocument();
   });
 
   it("state_is_kept_per_page", () => {
     const { unmount } = render(page("convert"));
-    fireEvent.click(screen.getByRole("button", { name: /Benennung/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Naming/ }));
     unmount();
     const cd = render(page("cd"));
-    fireEvent.click(screen.getByRole("button", { name: /Speichern in/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Save to/ }));
     cd.unmount();
     render(page("convert"));
     expect(screen.getByText("Inhalt naming")).toBeInTheDocument();

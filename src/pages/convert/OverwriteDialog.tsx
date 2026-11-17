@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
- * "Dateien sind schon vorhanden": every existing target ticked; unticked ones are kept.
+ * "Files already exist": every existing target ticked; unticked ones are kept.
  * `onStart` gets the targets to overwrite ([] = skip all existing ones).
  */
 export function OverwriteDialog({
@@ -30,27 +30,27 @@ export function OverwriteDialog({
         className="picker"
         role="dialog"
         aria-modal="true"
-        aria-label={t("Dateien sind schon vorhanden")}
+        aria-label={t("Files already exist")}
         onKeyDown={(e) => {
           if (e.key === "Escape") onCancel();
         }}
       >
         <header className="picker-head">
-          <h2>{t("Dateien sind schon vorhanden")}</h2>
+          <h2>{t("Files already exist")}</h2>
         </header>
         <p className="dialog-text">
-          {t("{count} Zieldatei(en) gibt es bereits. Überschreiben?", {
+          {t("{count} output file(s) already exist. Overwrite?", {
             count: String(paths.length),
           })}
           <br />
-          <span className="muted">{t("Häkchen entfernen, um eine Datei zu überspringen.")}</span>
+          <span className="muted">{t("Untick a file to skip it.")}</span>
         </p>
         <div className="row">
           <button type="button" className="btn" onClick={() => setTicked(new Set(paths))}>
-            {t("Alle")}
+            {t("All")}
           </button>
           <button type="button" className="btn" onClick={() => setTicked(new Set())}>
-            {t("Keine")}
+            {t("None")}
           </button>
         </div>
         <div className="overwrite-list">
@@ -63,7 +63,7 @@ export function OverwriteDialog({
         </div>
         <div className="dialog-actions">
           <button type="button" className="btn" onClick={onCancel}>
-            {t("Abbrechen")}
+            {t("Cancel")}
           </button>
           <button
             type="button"
@@ -71,7 +71,7 @@ export function OverwriteDialog({
             disabled={chosen.length === 0}
             onClick={() => onStart([])}
           >
-            {t("Vorhandene überspringen")}
+            {t("Skip existing")}
           </button>
           <button
             type="button"
@@ -81,8 +81,8 @@ export function OverwriteDialog({
             onClick={() => onStart(chosen)}
           >
             {chosen.length > 0
-              ? t("Überschreiben ({count})", { count: String(chosen.length) })
-              : t("Konvertieren")}
+              ? t("Overwrite ({count})", { count: String(chosen.length) })
+              : t("Convert")}
           </button>
         </div>
       </div>

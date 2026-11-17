@@ -206,7 +206,7 @@ pub fn decode(path: &Path, ffmpeg: Option<&Path>, cancel: &AtomicBool, progress:
         Err(Fail::Stop(e)) => Err(e),
         Err(Fail::Unsupported(e)) => match ffmpeg {
             Some(ff) => decode_ffmpeg(path, ff, cancel),
-            None => Err(crate::i18n::tf(crate::i18n::t("{e} (für dieses Format wird FFmpeg benötigt – siehe Einstellungen)"), &[("e", e.to_string())])),
+            None => Err(crate::i18n::tf(crate::i18n::t("{e} (this format needs FFmpeg – see Settings)"), &[("e", e.to_string())])),
         },
     }
 }
@@ -228,8 +228,7 @@ fn decode_builtin(path: &Path, cancel: &AtomicBool, progress: Progress) -> Resul
     use symphonia::core::meta::MetadataOptions;
     use symphonia::core::probe::Hint;
 
-    let file = std::fs::File::open(path)
-        .map_err(|e| Fail::Stop(crate::i18n::tf(crate::i18n::t("Datei kann nicht geöffnet werden: {e}"), &[("e", format!("{e}"))])))?;
+    let file = std::fs::File::open(path).map_err(|e| Fail::Stop(crate::i18n::tf(crate::i18n::t("Cannot open file: {e}"), &[("e", format!("{e}"))])))?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let mut hint = Hint::new();
     if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
@@ -237,16 +236,16 @@ fn decode_builtin(path: &Path, cancel: &AtomicBool, progress: Progress) -> Resul
     }
     let probed = symphonia::default::get_probe()
         .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
-        .map_err(|e| Fail::Unsupported(crate::i18n::tf(crate::i18n::t("Format nicht erkannt: {e}"), &[("e", format!("{e}"))])))?;
+        .map_err(|e| Fail::Unsupported(crate::i18n::tf(crate::i18n::t("Format not recognised: {e}"), &[("e", format!("{e}"))])))?;
     let mut format = probed.format;
     let track =
-        format.tracks().iter().find(|t| t.codec_params.codec != CODEC_TYPE_NULL).ok_or(Fail::Unsupported(crate::i18n::t("keine Audiospur gefunden").into()))?;
+        format.tracks().iter().find(|t| t.codec_params.codec != CODEC_TYPE_NULL).ok_or(Fail::Unsupported(crate::i18n::t("no audio track found").into()))?;
     let track_id = track.id;
     let params = track.codec_params.clone();
     let total_frames = params.n_frames.unwrap_or(0);
     let mut decoder = symphonia::default::get_codecs()
         .make(&params, &DecoderOptions::default())
-        .map_err(|e| Fail::Unsupported(crate::i18n::tf(crate::i18n::t("kein eingebauter Decoder: {e}"), &[("e", format!("{e}"))])))?;
+        .map_err(|e| Fail::Unsupported(crate::i18n::tf(crate::i18n::t("no built-in decoder: {e}"), &[("e", format!("{e}"))])))?;
     let codec = params.codec;
     use symphonia::core::codecs::*;
     let lossless = matches!(
@@ -283,13 +282,13 @@ fn decode_builtin(path: &Path, cancel: &AtomicBool, progress: Progress) -> Resul
     let mut bad_packets = 0u32;
     loop {
         if cancel.load(Ordering::Relaxed) {
-            return Err(Fail::Stop(crate::i18n::t("abgebrochen").into()));
+            return Err(Fail::Stop(crate::i18n::t("cancelled").into()));
         }
         let packet = match format.next_packet() {
             Ok(p) => p,
             Err(Error::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
             Err(Error::ResetRequired) => break,
-            Err(e) => return Err(Fail::Stop(crate::i18n::tf(crate::i18n::t("Lesefehler: {e}"), &[("e", format!("{e}"))]))),
+            Err(e) => return Err(Fail::Stop(crate::i18n::tf(crate::i18n::t("Read error: {e}"), &[("e", format!("{e}"))]))),
         };
         if packet.track_id() != track_id {
             continue;
@@ -315,26 +314,22 @@ fn decode_builtin(path: &Path, cancel: &AtomicBool, progress: Progress) -> Resul
                 bad_packets += 1;
                 continue;
             }
-            Err(e) => return Err(Fail::Stop(crate::i18n::tf(crate::i18n::t("Dekodierfehler: {e}"), &[("e", format!("{e}"))]))),
+            Err(e) => return Err(Fail::Stop(crate::i18n::tf(crate::i18n::t("Decoding error: {e}"), &[("e", format!("{e}"))]))),
         }
     }
     if audio.channels == 0 || audio.rate == 0 {
-        return Err(Fail::Unsupported(crate::i18n::t("leere oder unbekannte Audiodaten").into()));
+        return Err(Fail::Unsupported(crate::i18n::t("empty or unknown audio data").into()));
     }
     if bad_packets > 0 {
         return Err(Fail::Stop(crate::i18n::tf(
-            crate::i18n::t(crate::i18n::plural(
-                bad_packets as u64,
-                "Datei ist beschädigt: {0} Stelle nicht lesbar",
-                "Datei ist beschädigt: {0} Stellen nicht lesbar",
-            )),
+            crate::i18n::t(crate::i18n::plural(bad_packets as u64, "File is damaged: {0} part cannot be read", "File is damaged: {0} parts cannot be read")),
             &[("0", bad_packets.to_string())],
         )));
     }
     // more than a tenth of a second missing against the length in the header: cut off
     if total_frames > 0 && decoded_frames < total_frames && total_frames - decoded_frames > (audio.rate as u64 / 10).max(1) {
         return Err(Fail::Stop(crate::i18n::tf(
-            crate::i18n::t("Datei ist beschädigt: endet nach {0} von {1}"),
+            crate::i18n::t("File is damaged: ends after {0} of {1}"),
             &[("0", fmt_len(decoded_frames as f64 / audio.rate as f64)), ("1", fmt_len(total_frames as f64 / audio.rate as f64))],
         )));
     }
@@ -387,7 +382,7 @@ mod decode_tests {
 /// Rate, channels, bits and codec FFmpeg must decode with; without FFprobe they are unknown,
 /// and guessing would silently resample or downmix.
 fn stream_layout(info: Option<(u32, usize, u16, String)>) -> Result<(u32, usize, u16, String), String> {
-    info.ok_or_else(|| crate::i18n::t("FFprobe fehlt neben FFmpeg – ohne FFprobe lässt sich dieses Format nicht unverändert lesen").into())
+    info.ok_or_else(|| crate::i18n::t("FFprobe is missing next to FFmpeg – without it this format cannot be read unchanged").into())
 }
 
 /// Rate, channels and bits of a file as FFprobe sees it.
@@ -444,7 +439,7 @@ fn decode_ffmpeg(path: &Path, ffmpeg: &Path, cancel: &AtomicBool) -> Result<Audi
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     hidden(&mut cmd);
-    let mut child = cmd.spawn().map_err(|e| crate::i18n::tf(crate::i18n::t("FFmpeg kann nicht gestartet werden: {e}"), &[("e", format!("{e}"))]))?;
+    let mut child = cmd.spawn().map_err(|e| crate::i18n::tf(crate::i18n::t("Cannot start FFmpeg: {e}"), &[("e", format!("{e}"))]))?;
     let mut stderr = child.stderr.take().unwrap();
     let err_thread = std::thread::spawn(move || {
         let mut s = String::new();
@@ -458,19 +453,19 @@ fn decode_ffmpeg(path: &Path, ffmpeg: &Path, cancel: &AtomicBool) -> Result<Audi
         if cancel.load(Ordering::Relaxed) {
             let _ = child.kill();
             let _ = child.wait(); // the process must be gone before its temp file is removed
-            return Err(crate::i18n::t("abgebrochen").into());
+            return Err(crate::i18n::t("cancelled").into());
         }
         match out.read(&mut chunk) {
             Ok(0) => break,
             Ok(n) => bytes.extend_from_slice(&chunk[..n]),
-            Err(e) => return Err(crate::i18n::tf(crate::i18n::t("FFmpeg-Lesefehler: {e}"), &[("e", format!("{e}"))])),
+            Err(e) => return Err(crate::i18n::tf(crate::i18n::t("FFmpeg read error: {e}"), &[("e", format!("{e}"))])),
         }
     }
     let status = child.wait().map_err(|e| e.to_string())?;
     let err = err_thread.join().unwrap_or_default();
     // with "-v error" FFmpeg only writes real errors: partial audio is not accepted
     if !status.success() || !err.trim().is_empty() {
-        return Err(crate::i18n::tf(crate::i18n::t("FFmpeg konnte die Datei nicht lesen: {0}"), &[("0", err.trim().lines().next().unwrap_or("").to_string())]));
+        return Err(crate::i18n::tf(crate::i18n::t("FFmpeg could not read the file: {0}"), &[("0", err.trim().lines().next().unwrap_or("").to_string())]));
     }
     let data: Vec<f32> = bytes.as_chunks::<4>().0.iter().map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
     Ok(Audio {
@@ -523,8 +518,8 @@ impl PcmFormat {
             PcmFormat::S16 => "16 Bit",
             PcmFormat::S24 => "24 Bit",
             PcmFormat::S32 => "32 Bit",
-            PcmFormat::F32 => crate::i18n::t("32 Bit Gleitkomma (IEEE float)"),
-            PcmFormat::F64 => crate::i18n::t("64 Bit Gleitkomma (IEEE float)"),
+            PcmFormat::F32 => crate::i18n::t("32-bit floating point (IEEE float)"),
+            PcmFormat::F64 => crate::i18n::t("64-bit floating point (IEEE float)"),
         }
     }
     pub fn bytes(&self) -> usize {
@@ -574,7 +569,7 @@ pub fn pcm_bytes_le(data: &[f32], fmt: PcmFormat, out: &mut Vec<u8>) {
 fn container_len(body: u64, overhead: u64) -> Result<u32, String> {
     u32::try_from(body + overhead + (body & 1))
         .map(|_| (body + overhead) as u32)
-        .map_err(|_| crate::i18n::t("Zu groß für WAV/AIFF (über 4 GB) – FLAC oder WavPack wählen").into())
+        .map_err(|_| crate::i18n::t("Too large for WAV/AIFF (over 4 GB) – choose FLAC or WavPack").into())
 }
 
 #[cfg(test)]
@@ -637,8 +632,7 @@ pub fn write_wav(path: &Path, a: &Audio, fmt: PcmFormat) -> Result<(), String> {
     }
     h.extend_from_slice(b"data");
     h.extend_from_slice(&(body.len() as u32).to_le_bytes());
-    let mut f =
-        std::fs::File::create(path).map_err(|e| crate::i18n::tf(crate::i18n::t("Zieldatei kann nicht angelegt werden: {e}"), &[("e", format!("{e}"))]))?;
+    let mut f = std::fs::File::create(path).map_err(|e| crate::i18n::tf(crate::i18n::t("Cannot create output file: {e}"), &[("e", format!("{e}"))]))?;
     f.write_all(&h).and_then(|_| f.write_all(&body)).map_err(|e| e.to_string())?;
     if body.len() & 1 == 1 {
         f.write_all(&[0]).map_err(|e| e.to_string())?;
@@ -699,8 +693,7 @@ pub fn write_aiff(path: &Path, a: &Audio, bits: u16) -> Result<(), String> {
     h.extend_from_slice(b"SSND");
     h.extend_from_slice(&ssnd_len.to_be_bytes());
     h.extend_from_slice(&[0u8; 8]);
-    let mut f =
-        std::fs::File::create(path).map_err(|e| crate::i18n::tf(crate::i18n::t("Zieldatei kann nicht angelegt werden: {e}"), &[("e", format!("{e}"))]))?;
+    let mut f = std::fs::File::create(path).map_err(|e| crate::i18n::tf(crate::i18n::t("Cannot create output file: {e}"), &[("e", format!("{e}"))]))?;
     f.write_all(&h).and_then(|_| f.write_all(&body)).map_err(|e| e.to_string())?;
     if body.len() & 1 == 1 {
         f.write_all(&[0]).map_err(|e| e.to_string())?;

@@ -24,7 +24,7 @@ export function FfmpegInstallHint() {
   const copy = async (command: string) => {
     try {
       await navigator.clipboard.writeText(command);
-      useUi.getState().notify(t("Befehl kopiert"));
+      useUi.getState().notify(t("Command copied"));
     } catch (e) {
       useUi.getState().notify(String(e));
     }
@@ -32,7 +32,7 @@ export function FfmpegInstallHint() {
   return (
     <div className="field ffmpeg-install">
       <Hint warn>
-        {t("FFmpeg fehlt. Ohne FFmpeg schreibt PsyAudio nur WAV und AIFF. So installieren Sie es:")}
+        {t("FFmpeg is missing. Without it PsyAudio writes only WAV and AIFF. To install it:")}
       </Hint>
       {COMMANDS[info.os].map(({ distro, command }) => (
         <div className="row" key={command}>
@@ -41,8 +41,8 @@ export function FfmpegInstallHint() {
           <button
             type="button"
             className="icon-btn"
-            aria-label={t("Befehl kopieren")}
-            title={t("Befehl kopieren")}
+            aria-label={t("Copy command")}
+            title={t("Copy command")}
             onClick={() => void copy(command)}
           >
             <Copy size={15} />
@@ -56,7 +56,7 @@ export function FfmpegInstallHint() {
           onClick={() => void openFfmpegDownload().catch((e) => useUi.getState().notify(String(e)))}
         >
           <ExternalLink size={15} />
-          {t("ffmpeg.org öffnen")}
+          {t("Open ffmpeg.org")}
         </button>
       </div>
     </div>

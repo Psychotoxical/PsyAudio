@@ -9,14 +9,14 @@ describe("overwrite question", () => {
     const onStart = vi.fn();
     render(<OverwriteDialog paths={paths} onStart={onStart} onCancel={() => {}} />);
     fireEvent.click(screen.getByRole("checkbox", { name: "C:\\Ziel\\b.opus" }));
-    fireEvent.click(screen.getByRole("button", { name: "Überschreiben (2)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Overwrite (2)" }));
     expect(onStart).toHaveBeenCalledWith(["C:\\Ziel\\a.opus", "C:\\Ziel\\c.opus"]);
   });
 
   it("skip_existing_overwrites_nothing", () => {
     const onStart = vi.fn();
     render(<OverwriteDialog paths={paths} onStart={onStart} onCancel={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Vorhandene überspringen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Skip existing" }));
     expect(onStart).toHaveBeenCalledWith([]);
   });
 });

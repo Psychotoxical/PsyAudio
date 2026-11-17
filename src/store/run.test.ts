@@ -28,12 +28,12 @@ describe("run", () => {
       kind: "Progress",
       id: 0,
       progress: 0.6,
-      stage: "Kodieren",
+      stage: "Encoding",
     });
     expect(overallProgress(0.5, r.jobs)).toBeCloseTo(0.5);
     expect(overallProgress(0.2, r.jobs)).toBeCloseTo(0.3);
     // a file that starts its next stage at 0 does not pull the bar back
-    const back = applyEvent(r, { kind: "Progress", id: 0, progress: 0.1, stage: "Kodieren" });
+    const back = applyEvent(r, { kind: "Progress", id: 0, progress: 0.1, stage: "Encoding" });
     expect(back.maxOverall).toBeCloseTo(0.3);
   });
 

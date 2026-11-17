@@ -30,9 +30,7 @@ async function flush(): Promise<void> {
     if (!reported) {
       reported = true;
       useSettings.setState({ error: String(e) });
-      useUi
-        .getState()
-        .notify(i18n.t("Einstellungen konnten nicht gespeichert werden: {e}", { e: String(e) }));
+      useUi.getState().notify(i18n.t("Settings could not be saved: {e}", { e: String(e) }));
     }
   }
 }

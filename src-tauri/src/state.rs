@@ -15,27 +15,30 @@ mod tests {
 
     #[test]
     fn demo_args_are_read() {
-        assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=cd", "--light"])), Some(Demo { page: "cd".into(), light: true, en: false }));
+        assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=cd", "--light"])), Some(Demo { page: "cd".into(), light: true, lang: "de".into() }));
         assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=konverter"])).map(|d| d.light), Some(false));
-        assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=cd", "--en"])).map(|d| d.en), Some(true));
+        assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=cd", "--en"])).map(|d| d.lang), Some("en".into()));
+        assert_eq!(Demo::from_args(&os(&["PsyAudio", "--demo=cd", "--lang=ja"])).map(|d| d.lang), Some("ja".into()));
         assert_eq!(Demo::from_args(&os(&["PsyAudio", "a.flac"])), None);
     }
 }
 
-/// `--demo=<page>` (with `--light` for Latte, `--en` for English): sample content for screenshots;
+/// `--demo=<page>` (with `--light` for Latte, `--lang=<code>` for a language, `--en` for English;
+/// German otherwise): sample content for screenshots;
 /// nothing is saved and no other PsyAudio window is asked.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct Demo {
     pub page: String,
     pub light: bool,
-    pub en: bool,
+    /// Language code of the window ("de" unless `--en` or `--lang=…`).
+    pub lang: String,
 }
 
 impl Demo {
     pub fn from_args(args: &[std::ffi::OsString]) -> Option<Demo> {
         let mut page = None;
         let mut light = false;
-        let mut en = false;
+        let mut lang = "de".to_string();
         for a in args.iter().skip(1) {
             let a = a.to_string_lossy();
             if let Some(p) = a.strip_prefix("--demo=") {
@@ -43,10 +46,12 @@ impl Demo {
             } else if a == "--light" {
                 light = true;
             } else if a == "--en" {
-                en = true;
+                lang = "en".into();
+            } else if let Some(l) = a.strip_prefix("--lang=") {
+                lang = l.to_string();
             }
         }
-        page.map(|page| Demo { page, light, en })
+        page.map(|page| Demo { page, light, lang })
     }
 }
 
@@ -63,7 +68,7 @@ pub struct AppState {
     pub frontend_ready: AtomicBool,
     /// The conversion and the rip running in the background.
     pub jobs: crate::jobs::Jobs,
-    /// "Abbrechen und beenden" was chosen: the window closes once the work has stopped.
+    /// "Cancel and quit" was chosen: the window closes once the work has stopped.
     pub closing: AtomicBool,
     /// The disc read last and what the lookups found.
     pub cd: Mutex<crate::cd_cmd::CdState>,

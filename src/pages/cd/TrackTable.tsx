@@ -57,16 +57,16 @@ export function TrackTable() {
             <th className="tick">
               <input
                 type="checkbox"
-                aria-label={t("Alle Titel")}
+                aria-label={t("All tracks")}
                 checked={all}
                 onChange={() => useCd.setState({ selected: selected.map(() => !all) })}
               />
             </th>
             <th className="num">#</th>
-            <th>{t("Titel")}</th>
-            <th>{t("Interpret")}</th>
-            <th className="r">{t("Länge")}</th>
-            <th className="st-col">Status</th>
+            <th>{t("Title")}</th>
+            <th>{t("Artist")}</th>
+            <th className="r">{t("Length")}</th>
+            <th className="st-col">{t("Status")}</th>
           </tr>
         </thead>
         <tbody>
@@ -86,7 +86,7 @@ export function TrackTable() {
                   {phaseText(row.phase, t)}
                 </span>
               );
-            else if (rip?.running && on) state = <span className="wait">{t("wartet")}</span>;
+            else if (rip?.running && on) state = <span className="wait">{t("waiting")}</span>;
             return (
               <tr
                 key={tr.number}
@@ -95,7 +95,7 @@ export function TrackTable() {
                 <td className="tick">
                   <input
                     type="checkbox"
-                    aria-label={t("Titel {0} rippen", { 0: n })}
+                    aria-label={t("Rip track {0}", { 0: n })}
                     checked={on}
                     onChange={() => toggle(i)}
                   />
@@ -105,7 +105,7 @@ export function TrackTable() {
                   <InlineText
                     id={`cd-title-${i}`}
                     nextId={`cd-artist-${i}`}
-                    label={t("Titel {0}", { 0: n })}
+                    label={t("Track {0}", { 0: n })}
                     value={m?.title ?? ""}
                     onCommit={(v) =>
                       setMeta((x) => {
@@ -118,7 +118,7 @@ export function TrackTable() {
                   <InlineText
                     id={`cd-artist-${i}`}
                     nextId={i + 1 < disc.tracks.length ? `cd-title-${i + 1}` : undefined}
-                    label={t("Interpret von Titel {0}", { 0: n })}
+                    label={t("Artist of track {0}", { 0: n })}
                     value={m?.artist ?? ""}
                     placeholder={meta.artist}
                     onCommit={(v) =>

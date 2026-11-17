@@ -12,22 +12,22 @@ import { ChipEditor } from "../../ui/ChipEditor";
 import { Check, Hint } from "../../ui/controls";
 import { FormatPanel } from "../convert/FormatPanel";
 
-/** Format of the rip: its own chips (with "Mehrere Formate"), settings shared with the converter. */
+/** Format of the rip: its own chips (with "Several formats"), settings shared with the converter. */
 export function RipFormatPanel() {
   const { t } = useTranslation();
   const effects = useSettings((s) => s.settings?.effects.length ?? 0);
   return (
     <>
       <FormatPanel field="rip_codec" />
-      <Hint>{t("Bitrate usw. gelten auch im Konverter.")}</Hint>
+      <Hint>{t("Bit rate etc. apply to the converter too.")}</Hint>
       {effects > 0 && (
-        <Hint>{t("Effekte vom Konverter laufen mit ({0} aktiv).", { 0: String(effects) })}</Hint>
+        <Hint>{t("The converter's effects run along ({0} active).", { 0: String(effects) })}</Hint>
       )}
     </>
   );
 }
 
-/** Where rips go: the folder, "Ändern" and a button that opens it. */
+/** Where rips go: the folder, "Change" and a button that opens it. */
 export function RipFolderField() {
   const { t } = useTranslation();
   const folder = useSettings((x) => x.settings?.rip_folder ?? "");
@@ -42,7 +42,7 @@ export function RipFolderField() {
   return (
     <div className="field">
       <label className="lbl" htmlFor="rip-folder">
-        {t("Zielordner")}
+        {t("Target folder")}
       </label>
       <div className="row">
         <input
@@ -51,18 +51,18 @@ export function RipFolderField() {
           type="text"
           readOnly
           value={folder}
-          placeholder={t("Ordner wählen …")}
+          placeholder={t("Choose folder …")}
           title={folder}
           onClick={() => void choose()}
         />
         <button type="button" className="btn" onClick={() => void choose()}>
-          {t("Ändern")}
+          {t("Change")}
         </button>
         <button
           type="button"
           className="icon-btn"
-          aria-label={t("Ordner im Explorer öffnen")}
-          title={t("Ordner im Explorer öffnen")}
+          aria-label={t("Open folder in Explorer")}
+          title={t("Open folder in Explorer")}
           disabled={!folder}
           onClick={() =>
             openFolder(folder).catch((e: unknown) => useUi.getState().notify(String(e)))
@@ -88,23 +88,19 @@ export function RipSavePanel() {
   const checks: [keyof RipSettings, string, string][] = [
     [
       "write_log",
-      t("Protokoll (.log) schreiben"),
-      t("Legt ein Protokoll mit Prüfsummen und CTDB-Ergebnis in den Album-Ordner."),
+      t("Write log (.log)"),
+      t("Puts a log with checksums and the CTDB result into the album folder."),
     ],
     [
       "write_cue",
-      t("CUE-Datei schreiben"),
-      t("Legt eine CUE-Datei mit der Titelfolge in den Album-Ordner."),
+      t("Write CUE file"),
+      t("Puts a CUE file with the track order into the album folder."),
     ],
-    [
-      "embed_art",
-      t("Cover in Dateien einbetten"),
-      t("Bettet das Cover von MusicBrainz in jede Datei ein."),
-    ],
+    ["embed_art", t("Embed cover in files"), t("Embeds the cover from MusicBrainz in every file.")],
     [
       "folder_jpg",
-      t("folder.jpg speichern"),
-      t("Speichert das Cover zusätzlich als folder.jpg im Album-Ordner."),
+      t("Save folder.jpg"),
+      t("Also saves the cover as folder.jpg in the album folder."),
     ],
   ];
   return (
@@ -136,10 +132,10 @@ export function RipNamingPanel() {
     // without a disc: sample data, as the egui version showed
     const sample = {
       ...meta,
-      artist: meta.artist || t("Interpret"),
+      artist: meta.artist || t("Artist"),
       album: meta.album || "Album",
       year: meta.year || "2024",
-      tracks: meta.tracks.length ? meta.tracks : [{ title: t("Titel"), artist: "", isrc: "" }],
+      tracks: meta.tracks.length ? meta.tracks : [{ title: t("Title"), artist: "", isrc: "" }],
     };
     let live = true;
     const timer = setTimeout(() => {
@@ -163,7 +159,7 @@ export function RipNamingPanel() {
   return (
     <>
       <ChipEditor
-        label={t("Bausteine")}
+        label={t("Building blocks")}
         value={s.rip.name_scheme}
         data={naming.data.filter((d) => d !== "filename")}
         separators={naming.separators}
@@ -178,7 +174,7 @@ export function RipNamingPanel() {
       />
       {path && (
         <div className="field">
-          <p className="lbl">{t("So wird gespeichert")}</p>
+          <p className="lbl">{t("Saved as")}</p>
           <p className="path" title={path}>
             {path.slice(0, cut)}
             <wbr />

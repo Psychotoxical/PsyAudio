@@ -25,17 +25,11 @@ const options: EncodeOptions = {
   aac_rates: [128, 256],
   aac_vbr_kbps: [64, 80, 96, 144, 224],
   vorbis_kbps: [128, 160],
-  stereo_modes: [
-    "Stereo (automatisch)",
-    "Joint Stereo",
-    "Erzwungenes Joint Stereo",
-    "Stereo",
-    "Mono",
-  ],
-  wavpack_modes: ["Schnell", "Normal", "Hohe Qualität", "Sehr hohe Qualität"],
-  ape_levels: ["Schnell", "Normal", "Hoch", "Extra hoch", "Wahnsinn"],
+  stereo_modes: ["Stereo (automatic)", "Joint Stereo", "Forced joint stereo", "Stereo", "Mono"],
+  wavpack_modes: ["Fast", "Normal", "High quality", "Very high quality"],
+  ape_levels: ["Fast", "Normal", "High", "Extra high", "Insane"],
   dsd_modes: ["DSD64"],
-  mpc_profiles: [{ name: "Standard", kbps: 180 }],
+  mpc_profiles: [{ name: "Default", kbps: 180 }],
   pcm_formats: [{ format: "S16", label: "16 Bit" }],
 };
 
@@ -59,7 +53,7 @@ describe("format area", () => {
     const ape = screen.getByRole("button", { name: "APE" });
     expect(ape).toHaveClass("missing");
     expect(ape).toHaveAttribute("title", "Monkey's Audio: mac.exe fehlt");
-    expect(screen.getByText(/Gestrichelt/)).toBeInTheDocument();
+    expect(screen.getByText(/Dashed/)).toBeInTheDocument();
   });
 
   it("choosing_a_chip_sets_codec", () => {
@@ -71,10 +65,10 @@ describe("format area", () => {
 
   it("saving_a_profile_keeps_codec_and_settings", () => {
     render(<ProfileRow />);
-    fireEvent.change(screen.getByRole("textbox", { name: "Profilname" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "Profile name" }), {
       target: { value: "Unterwegs" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Profil speichern" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
     const saved = useSettings.getState().settings?.profiles;
     expect(saved).toHaveLength(1);
     expect(saved?.[0]?.name).toBe("Unterwegs");
@@ -88,7 +82,7 @@ describe("format area", () => {
       ];
     });
     render(<ProfileRow />);
-    fireEvent.change(screen.getByRole("combobox", { name: "Profil" }), {
+    fireEvent.change(screen.getByRole("combobox", { name: "Profile" }), {
       target: { value: "Archiv" },
     });
     expect(useSettings.getState().settings?.codec).toBe("Flac");
@@ -97,9 +91,9 @@ describe("format area", () => {
 
   it("opus_shows_bitrate_and_mode", () => {
     render(<CodecSettings codec="Opus" />);
-    expect(screen.getByRole("textbox", { name: "Bitrate" })).toHaveValue("192 kbit/s");
+    expect(screen.getByRole("textbox", { name: "Bit rate" })).toHaveValue("192 kbit/s");
     expect(screen.getByRole("radio", { name: "VBR" })).toBeChecked();
-    expect(screen.getByRole("radio", { name: "Eingeschränktes VBR" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Constrained VBR" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "CBR" })).toBeInTheDocument();
   });
 });

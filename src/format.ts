@@ -48,15 +48,15 @@ export function longDuration(total: number, verbose: boolean, t: T): string {
   const hoursAll = Math.floor(s / 3600);
   const rest = s % 3600;
   const parts: [number, string, string][] = [
-    [Math.floor(hoursAll / 24), "{0} Tag", "{0} Tage"],
-    [hoursAll % 24, "{0} Stunde", "{0} Stunden"],
-    [Math.floor(rest / 60), "{0} Minute", "{0} Minuten"],
-    [rest % 60, "{0} Sekunde", "{0} Sekunden"],
+    [Math.floor(hoursAll / 24), "{0} day", "{0} days"],
+    [hoursAll % 24, "{0} hour", "{0} hours"],
+    [Math.floor(rest / 60), "{0} minute", "{0} minutes"],
+    [rest % 60, "{0} second", "{0} seconds"],
   ];
   const word = ([n, one, many]: [number, string, string]) =>
     t(n === 1 ? one : many, { 0: String(n) });
   const i = parts.findIndex(([n]) => n > 0);
-  if (i === -1) return t("{0} Sekunden", { 0: "0" });
+  if (i === -1) return t("{0} seconds", { 0: "0" });
   const first = parts[i] as [number, string, string];
   const next = parts[i + 1];
   return next && (verbose || first[0] < 4) ? `${word(first)} ${word(next)}` : word(first);
@@ -72,5 +72,5 @@ export function encodingSpeed(audioSecs: number, elapsed: number, t: T, lang: st
           maximumFractionDigits: 1,
         })
       : String(Math.floor(x + 0.5));
-  return t("{0}× Kodiergeschwindigkeit", { 0: n });
+  return t("{0}× encoding speed", { 0: n });
 }

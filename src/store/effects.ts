@@ -12,11 +12,11 @@ export interface EffectEntry {
 
 export interface EffectCatalogue {
   entries: EffectEntry[];
-  /** Kinds of "Lautstärke normalisieren", German. */
+  /** Kinds of "Normalize volume", German. */
   normalize_modes: string[];
   /** dB to add for LUFS. */
   ebu_offset: number;
-  /** Tag fields for "Tag-Bearbeitung": [key, German label]. */
+  /** Tag fields for "Tag processing": [key, German label]. */
   tag_fields: [string, string][];
 }
 

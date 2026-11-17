@@ -19,7 +19,7 @@ setup_done: boolean, codec: Codec, enc: EncSettings, effects: Array<Effect>, out
  */
 name_scheme: Array<string>, overwrite: Overwrite, threads: number, copy_tags: boolean, copy_art: boolean, tools: Tools, temp_folder: string, low_priority: boolean, dark: boolean, 
 /**
- * Interface language: "en" (default) or "de".
+ * Interface language: a code of `i18n::LANGUAGES`, or "" for the system's language.
  */
 lang: string, profiles: Array<Profile>, rip: RipSettings, rip_codec: Codec, rip_folder: string, batch_extensions: Array<string>, batch_subfolders: boolean, 
 /**

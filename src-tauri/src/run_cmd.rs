@@ -52,12 +52,12 @@ mod tests {
         let mut gate = ProgressGate::new(1);
         let mut overall = Overall::new(1);
         let t0 = Instant::now();
-        assert!(relay(Msg::Progress(0, 0.52, "Kodieren"), &mut gate, &mut overall, t0).is_some());
+        assert!(relay(Msg::Progress(0, 0.52, "Encoding"), &mut gate, &mut overall, t0).is_some());
         // too soon after the last one: the window hears nothing, so the title stays too
-        let soon = relay(Msg::Progress(0, 0.55, "Kodieren"), &mut gate, &mut overall, t0 + Duration::from_millis(20));
+        let soon = relay(Msg::Progress(0, 0.55, "Encoding"), &mut gate, &mut overall, t0 + Duration::from_millis(20));
         assert!(soon.is_none());
         assert_eq!(overall.percent(), 52);
-        assert!(relay(Msg::Progress(0, 0.6, "Kodieren"), &mut gate, &mut overall, t0 + PROGRESS_EVERY).is_some());
+        assert!(relay(Msg::Progress(0, 0.6, "Encoding"), &mut gate, &mut overall, t0 + PROGRESS_EVERY).is_some());
         assert_eq!(overall.percent(), 60);
     }
 }
@@ -145,7 +145,7 @@ fn prepared(state: &AppState, settings: &Settings, codec: Codec, keep_structure:
 #[tauri::command]
 pub async fn check_existing(state: State<'_, AppState>, settings: Settings, items: Items, codec: Codec, keep_structure: bool) -> Result<Vec<String>, String> {
     if items.is_empty() {
-        return Err(t("Keine Dateien in der Liste").into());
+        return Err(t("No files in the list").into());
     }
     let plan = prepared(&state, &settings, codec, keep_structure)?;
     if settings.overwrite != Overwrite::Ask || plan.outputs().is_empty() {
@@ -169,13 +169,13 @@ pub struct RunInfo {
 
 fn run_info(plan: &Plan, files: usize) -> RunInfo {
     let title = if plan.codec == Codec::Multi {
-        tf(t("Umwandeln in {0} Formate"), &[("0", plan.enc.multi.len().to_string())])
+        tf(t("Converting to {0} formats"), &[("0", plan.enc.multi.len().to_string())])
     } else if plan.codec.is_tool() && plan.outputs().is_empty() {
         plan.codec.name().to_string()
     } else if plan.codec.is_tool() {
         format!("{} ({})", plan.codec.name(), plan.enc.split_codec.name())
     } else {
-        tf(t("Umwandeln nach {0}"), &[("0", plan.codec.name().to_string())])
+        tf(t("Converting to {0}"), &[("0", plan.codec.name().to_string())])
     };
     let target =
         if plan.codec == Codec::Multi { plan.enc.multi.iter().map(|c| c.name()).collect::<Vec<_>>().join(", ") } else { plan.codec.name().to_string() };
@@ -196,7 +196,7 @@ pub async fn start_conversion(
     on: Channel<RunEvent>,
 ) -> Result<RunInfo, String> {
     if items.is_empty() {
-        return Err(t("Keine Dateien in der Liste").into());
+        return Err(t("No files in the list").into());
     }
     let mut plan = prepared(&state, &settings, codec, keep_structure)?;
     if settings.overwrite == Overwrite::Ask {
@@ -265,7 +265,7 @@ fn forward(app: AppHandle, handle: RunHandle, rx: Receiver<Msg>, n: usize, on: C
         let event = relay(msg, &mut gate, &mut overall, Instant::now());
         if shown != Some(overall.percent()) {
             shown = Some(overall.percent());
-            set_title(&app, &tf(t("[{0}%] PsyAudio – Umwandeln"), &[("0", overall.percent().to_string())]));
+            set_title(&app, &tf(t("[{0}%] PsyAudio – Converting"), &[("0", overall.percent().to_string())]));
         }
         if let Some(e) = event {
             // a closed window no longer listens; the run still ends normally
@@ -275,7 +275,7 @@ fn forward(app: AppHandle, handle: RunHandle, rx: Receiver<Msg>, n: usize, on: C
     // free the slot before the window hears of the end, so a new start right away is accepted
     handle.finish();
     psyaudio_core::integration::keep_awake(false);
-    set_title(&app, t("[Fertig] PsyAudio"));
+    set_title(&app, t("[Finished] PsyAudio"));
     if window_open {
         let _ = on.send(RunEvent::Finished { elapsed: started.elapsed().as_secs_f64() });
     }

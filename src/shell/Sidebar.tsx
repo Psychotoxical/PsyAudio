@@ -69,10 +69,10 @@ export function Sidebar({ counts = {}, ffmpeg, jobs = [] }: Props) {
           } as React.CSSProperties
         }
       />
-      <p className="grp">{t("Werkzeuge")}</p>
-      {item("convert", <Music size={17} />, t("Konvertieren"))}
-      {item("batch", <Folders size={17} />, t("Stapel"))}
-      {item("cd", <Disc3 size={17} />, "CD-Ripper")}
+      <p className="grp">{t("Tools")}</p>
+      {item("convert", <Music size={17} />, t("Convert"))}
+      {item("batch", <Folders size={17} />, t("Batch"))}
+      {item("cd", <Disc3 size={17} />, t("CD-Ripper"))}
       <div className="grow" />
       {jobs.map((j) => (
         <div key={j.label} className="side-job" title={j.label}>
@@ -82,15 +82,15 @@ export function Sidebar({ counts = {}, ffmpeg, jobs = [] }: Props) {
           </span>
         </div>
       ))}
-      <p className="grp">System</p>
-      {item("settings", <SlidersHorizontal size={17} />, t("Einstellungen"))}
-      {item("setup", <Wand2 size={17} />, t("Einrichtung"))}
+      <p className="grp">{t("System")}</p>
+      {item("settings", <SlidersHorizontal size={17} />, t("Settings"))}
+      {item("setup", <Wand2 size={17} />, t("Setup"))}
       <div className="side-foot">
         {ffmpeg !== undefined && (
           <span className={ffmpeg ? "status ok" : "status warn"}>
             {ffmpeg ? <CircleCheck size={14} /> : <CircleAlert size={14} />}
             <span className="nav-label">
-              {ffmpeg ? t("FFmpeg bereit") : t("FFmpeg fehlt (Einstellungen)")}
+              {ffmpeg ? t("FFmpeg ready") : t("FFmpeg missing (Settings)")}
             </span>
           </span>
         )}
@@ -99,8 +99,8 @@ export function Sidebar({ counts = {}, ffmpeg, jobs = [] }: Props) {
       <button
         type="button"
         className="side-toggle"
-        aria-label={collapsed ? t("Seitenleiste ausklappen") : t("Seitenleiste einklappen")}
-        title={collapsed ? t("Seitenleiste ausklappen") : t("Seitenleiste einklappen")}
+        aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
+        title={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
         onClick={() =>
           update((s) => {
             s.ui.sidebar_collapsed = !collapsed;

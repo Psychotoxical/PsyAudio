@@ -36,7 +36,7 @@ export function demoFiles(en = false): FileRow[] {
     ...album(
       1,
       w("Beispiel-Band - Erstes Album", "Sample Band - First Album"),
-      w("Beispiel-Band", "Sample Band"),
+      w("Sample Band", "Sample Band"),
       w("Erstes Album", "First Album"),
       "2021",
       [
@@ -120,7 +120,7 @@ export function demoCd(en = false): Partial<CdState> {
   ];
   const meta = {
     album: w("Erstes Album", "First Album"),
-    artist: w("Beispiel-Band", "Sample Band"),
+    artist: w("Sample Band", "Sample Band"),
     year: "2021",
     genre: "Rock",
     disc: 1,

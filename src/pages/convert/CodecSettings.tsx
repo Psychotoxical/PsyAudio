@@ -35,7 +35,7 @@ function useEstimate(codec: Codec, enc: EncSettings | undefined, on: boolean): n
 
 const KBPS = "kbit/s";
 
-/** The settings of one format, as in the egui version; pro options sit under "Erweitert". */
+/** The settings of one format, as in the egui version; pro options sit under "Advanced". */
 export function CodecSettings({ codec }: { codec: Codec }) {
   const { t } = useTranslation();
   const options = useEncode((s) => s.options);
@@ -47,23 +47,19 @@ export function CodecSettings({ codec }: { codec: Codec }) {
   );
   if (!e) return null;
 
-  const rateHint = <Hint>{t("Mehr kbit/s heißt bessere Qualität und größere Dateien.")}</Hint>;
-  const vbrHint = t(
-    "VBR passt die Bitrate jedem Stück an und klingt bei gleicher Dateigröße am besten.",
-  );
-  const cbrHint = t("CBR hält die Bitrate fest; das brauchen nur alte Geräte und manche Streams.");
+  const rateHint = <Hint>{t("More kbit/s means better quality and larger files.")}</Hint>;
+  const vbrHint = t("VBR adapts the bit rate to each track and sounds best at the same file size.");
+  const cbrHint = t("CBR keeps the bit rate fixed; only old devices and some streams need that.");
   const verify = (key: "flac_verify" | "alac_verify" | "wavpack_verify") => (
-    <Disclosure title={t("Erweitert")} summary={t("Geschriebene Datei prüfen")}>
+    <Disclosure title={t("Advanced")} summary={t("Verify the written file")}>
       <div className="field">
         <Check
-          label={t("Geschriebene Datei prüfen")}
+          label={t("Verify the written file")}
           checked={e[key]}
           onChange={(v) => set({ [key]: v } as Partial<EncSettings>)}
         />
         <Hint>
-          {t(
-            "Liest die fertige Datei noch einmal und vergleicht sie Sample für Sample mit dem Original.",
-          )}
+          {t("Reads the finished file again and compares it sample by sample with the original.")}
         </Hint>
       </div>
     </Disclosure>
@@ -75,7 +71,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
         <>
           <div className="field">
             <Segmented<RateMode>
-              label={t("Modus")}
+              label={t("Mode")}
               value={e.mp3_mode}
               options={[
                 ["Vbr", "VBR"],
@@ -89,13 +85,13 @@ export function CodecSettings({ codec }: { codec: Codec }) {
                 ? vbrHint
                 : e.mp3_mode === "Cbr"
                   ? cbrHint
-                  : t("ABR schwankt um die gewählte Bitrate, so bleibt die Dateigröße planbar.")}
+                  : t("ABR varies around the chosen bit rate, so the file size stays predictable.")}
             </Hint>
           </div>
           {e.mp3_mode === "Vbr" ? (
             <div className="field">
               <SliderField
-                label={t("Qualität")}
+                label={t("Quality")}
                 min={0}
                 max={9}
                 value={9 - e.mp3_vbr}
@@ -104,7 +100,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
                 onChange={(v) => set({ mp3_vbr: 9 - v })}
               />
               <Hint>
-                {t("ca. {0} kbit/s · rechts = bessere Qualität", {
+                {t("approx. {0} kbit/s · right = better quality", {
                   0: estimate === null ? "…" : String(Math.round(estimate)),
                 })}
               </Hint>
@@ -112,7 +108,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
           ) : (
             <div className="field">
               <SliderField
-                label={t("Bitrate")}
+                label={t("Bit rate")}
                 values={options?.mp3_rates}
                 value={e.mp3_kbps}
                 unit={KBPS}
@@ -121,30 +117,30 @@ export function CodecSettings({ codec }: { codec: Codec }) {
               {rateHint}
             </div>
           )}
-          <Disclosure title={t("Erweitert")} summary={t("Kanäle, Encoder-Sorgfalt")}>
+          <Disclosure title={t("Advanced")} summary={t("Channels, encoder effort")}>
             <div className="field">
               <Select
-                label={t("Kanäle")}
+                label={t("Channels")}
                 value={e.mp3_stereo}
                 options={(options?.stereo_modes ?? []).map((n, i) => [i, t(n)] as [number, string])}
                 onChange={(v) => set({ mp3_stereo: v })}
               />
               <Hint>
                 {t(
-                  "Joint Stereo spart Platz, wenn beide Kanäle ähnlich klingen; „automatisch“ lässt LAME wählen.",
+                  "Joint stereo saves space when both channels sound alike; “automatic” lets LAME choose.",
                 )}
               </Hint>
             </div>
             <div className="field">
               <Check
-                label={t("Encoder-Sorgfalt selbst festlegen")}
+                label={t("Set encoder effort yourself")}
                 checked={e.mp3_q_custom}
                 onChange={(v) => set({ mp3_q_custom: v })}
               />
               {e.mp3_q_custom ? (
                 <>
                   <SliderField
-                    label={t("Encoder-Sorgfalt")}
+                    label={t("Encoder effort")}
                     min={0}
                     max={9}
                     value={9 - e.mp3_q}
@@ -152,12 +148,10 @@ export function CodecSettings({ codec }: { codec: Codec }) {
                     readOnly
                     onChange={(v) => set({ mp3_q: 9 - v })}
                   />
-                  <Hint>
-                    {t("Mehr Sorgfalt rechnet länger; hörbar ist der Unterschied selten.")}
-                  </Hint>
+                  <Hint>{t("More effort takes longer; the difference is rarely audible.")}</Hint>
                 </>
               ) : (
-                <Hint>{t("LAME wählt die Sorgfalt selbst.")}</Hint>
+                <Hint>{t("LAME chooses the effort itself.")}</Hint>
               )}
             </div>
           </Disclosure>
@@ -169,7 +163,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
         <>
           <div className="field">
             <SliderField
-              label={t("Kompressionsstufe")}
+              label={t("Compression level")}
               min={0}
               max={8}
               value={e.flac_level}
@@ -177,7 +171,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
             />
             <Hint>
               {t(
-                "Höhere Stufen machen kleinere Dateien und rechnen länger, der Klang bleibt gleich (üblich: 5).",
+                "Higher levels make smaller files and take longer; the sound stays the same (usual: 5).",
               )}
             </Hint>
           </div>
@@ -191,7 +185,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
         <>
           <div className="field">
             <Segmented<boolean>
-              label={t("Modus")}
+              label={t("Mode")}
               value={e.aac_vbr}
               options={[
                 [true, "VBR"],
@@ -204,14 +198,14 @@ export function CodecSettings({ codec }: { codec: Codec }) {
           {e.aac_vbr ? (
             <div className="field">
               <SliderField
-                label={t("Qualität")}
+                label={t("Quality")}
                 min={1}
                 max={5}
                 value={e.aac_quality}
                 onChange={(v) => set({ aac_quality: v })}
               />
               <Hint>
-                {t("geschätzt {0} kbit/s", {
+                {t("estimated {0} kbit/s", {
                   0: String(
                     options?.aac_vbr_kbps[Math.min(4, Math.max(0, e.aac_quality - 1))] ?? "",
                   ),
@@ -221,7 +215,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
           ) : (
             <div className="field">
               <SliderField
-                label={t("Bitrate")}
+                label={t("Bit rate")}
                 values={options?.aac_rates}
                 value={e.aac_kbps}
                 unit={KBPS}
@@ -230,19 +224,19 @@ export function CodecSettings({ codec }: { codec: Codec }) {
               {rateHint}
             </div>
           )}
-          <Disclosure title={t("Erweitert")} summary={t("Profil")}>
+          <Disclosure title={t("Advanced")} summary={t("Profile")}>
             <div className="field">
               <Select
-                label={t("Profil")}
+                label={t("Profile")}
                 value={e.aac_profile}
                 options={[
                   [0, "LC AAC"],
-                  [1, t("HE AAC (bis 128 kbit/s)")],
-                  [2, t("HE v2 AAC (bis 56 kbit/s)")],
+                  [1, t("HE AAC (up to 128 kbit/s)")],
+                  [2, t("HE v2 AAC (up to 56 kbit/s)")],
                 ]}
                 onChange={(v) => set({ aac_profile: v })}
               />
-              <Hint>{t("HE-Profile brauchen ein FFmpeg mit FDK-AAC.")}</Hint>
+              <Hint>{t("HE profiles need an FFmpeg with FDK-AAC.")}</Hint>
             </div>
           </Disclosure>
         </>
@@ -251,7 +245,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
     case "Alac":
       return (
         <>
-          <Hint>{t("Verlustfrei – keine Einstellungen nötig.")}</Hint>
+          <Hint>{t("Lossless – no settings needed.")}</Hint>
           {verify("alac_verify")}
         </>
       );
@@ -261,7 +255,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
         <>
           <div className="field">
             <SliderField
-              label={t("Bitrate")}
+              label={t("Bit rate")}
               min={6}
               max={512}
               value={e.opus_kbps}
@@ -272,11 +266,11 @@ export function CodecSettings({ codec }: { codec: Codec }) {
           </div>
           <div className="field">
             <Segmented<number>
-              label={t("Modus")}
+              label={t("Mode")}
               value={e.opus_mode}
               options={[
                 [0, "VBR"],
-                [1, t("Eingeschränktes VBR")],
+                [1, t("Constrained VBR")],
                 [2, "CBR"],
               ]}
               onChange={(v) => set({ opus_mode: v })}
@@ -285,7 +279,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
               {e.opus_mode === 0
                 ? vbrHint
                 : e.opus_mode === 1
-                  ? t("Eingeschränktes VBR bleibt nahe an der Bitrate, gut für Streams.")
+                  ? t("Constrained VBR stays close to the bit rate, good for streams.")
                   : cbrHint}
             </Hint>
           </div>
@@ -297,7 +291,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
         <>
           <div className="field">
             <Segmented<number>
-              label={t("Modus")}
+              label={t("Mode")}
               value={e.vorbis_mode}
               options={[
                 [0, "VBR"],
@@ -311,7 +305,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
                 ? vbrHint
                 : e.vorbis_mode === 1
                   ? t(
-                      "Die Bitrate schwankt um den gewählten Wert, so bleibt die Dateigröße planbar.",
+                      "The bit rate varies around the chosen value, so the file size stays predictable.",
                     )
                   : cbrHint}
             </Hint>
@@ -319,7 +313,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
           <div className="field">
             {e.vorbis_mode === 0 ? (
               <SliderField
-                label={t("Qualität -q")}
+                label={t("Quality -q")}
                 min={-1}
                 max={10}
                 value={e.vorbis_q}
@@ -327,7 +321,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
               />
             ) : (
               <SliderField
-                label={t("Bitrate")}
+                label={t("Bit rate")}
                 values={options?.vorbis_kbps}
                 value={e.vorbis_kbps}
                 unit={KBPS}
@@ -335,7 +329,9 @@ export function CodecSettings({ codec }: { codec: Codec }) {
               />
             )}
             <Hint>
-              {t("ca. {0} kbit/s", { 0: estimate === null ? "…" : String(Math.round(estimate)) })}
+              {t("approx. {0} kbit/s", {
+                0: estimate === null ? "…" : String(Math.round(estimate)),
+              })}
             </Hint>
           </div>
         </>
@@ -345,14 +341,14 @@ export function CodecSettings({ codec }: { codec: Codec }) {
       return (
         <div className="field">
           <Check
-            label={t("Bittiefe der Quelle übernehmen")}
+            label={t("Keep the source bit depth")}
             checked={e.wav_match_source}
             onChange={(v) => set({ wav_match_source: v })}
           />
-          <Hint>{t("Behält 16, 24 oder 32 Bit der Quelle bei, statt umzurechnen.")}</Hint>
+          <Hint>{t("Keeps the source's 16, 24 or 32 bits instead of converting.")}</Hint>
           <div style={{ marginTop: 12 }}>
             <Select<PcmFormat>
-              label={t("Bittiefe")}
+              label={t("Bit depth")}
               value={e.wav_format}
               disabled={e.wav_match_source}
               options={(options?.pcm_formats ?? []).map(
@@ -368,14 +364,14 @@ export function CodecSettings({ codec }: { codec: Codec }) {
       return (
         <div className="field">
           <Check
-            label={t("Bittiefe der Quelle übernehmen")}
+            label={t("Keep the source bit depth")}
             checked={e.aiff_match_source}
             onChange={(v) => set({ aiff_match_source: v })}
           />
-          <Hint>{t("Behält 16, 24 oder 32 Bit der Quelle bei, statt umzurechnen.")}</Hint>
+          <Hint>{t("Keeps the source's 16, 24 or 32 bits instead of converting.")}</Hint>
           <div style={{ marginTop: 12 }}>
             <Segmented<number>
-              label={t("Bittiefe")}
+              label={t("Bit depth")}
               value={e.aiff_bits}
               disabled={e.aiff_match_source}
               options={[8, 16, 24, 32].map((b) => [b, `${b} Bit`] as [number, string])}
@@ -390,7 +386,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
         <>
           <div className="field">
             <SliderField
-              label={t("Modus")}
+              label={t("Mode")}
               min={0}
               max={Math.max(0, (options?.wavpack_modes.length ?? 1) - 1)}
               value={e.wavpack_mode}
@@ -399,7 +395,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
               onChange={(v) => set({ wavpack_mode: v })}
             />
             <Hint>
-              {t("Höhere Qualität packt kleiner und rechnet länger; verlustfrei bleibt es immer.")}
+              {t("Higher quality packs smaller and takes longer; it always stays lossless.")}
             </Hint>
           </div>
           {verify("wavpack_verify")}
@@ -410,7 +406,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
       return (
         <div className="field">
           <SliderField
-            label={t("Kompression")}
+            label={t("Compression")}
             min={0}
             max={Math.max(0, (options?.ape_levels.length ?? 1) - 1)}
             value={e.ape_level}
@@ -419,7 +415,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
             onChange={(v) => set({ ape_level: v })}
           />
           <Hint>
-            {t("Höhere Stufen packen kleiner, schwache Geräte spielen sie aber schwerer ab.")}
+            {t("Higher levels pack smaller, but weak devices have a harder time playing them.")}
           </Hint>
         </div>
       );
@@ -428,7 +424,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
       return (
         <div className="field">
           <SliderField
-            label={t("Bitrate")}
+            label={t("Bit rate")}
             min={32}
             max={320}
             value={e.wma_kbps}
@@ -445,7 +441,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
       return (
         <div className="field">
           <SliderField
-            label={t("Profil")}
+            label={t("Profile")}
             min={0}
             max={Math.max(0, profiles.length - 1)}
             value={e.mpc_profile}
@@ -453,7 +449,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
             readOnly
             onChange={(v) => set({ mpc_profile: v })}
           />
-          <Hint>{t("ca. {0} kbit/s", { 0: String(current?.kbps ?? "") })}</Hint>
+          <Hint>{t("approx. {0} kbit/s", { 0: String(current?.kbps ?? "") })}</Hint>
         </div>
       );
     }
@@ -462,13 +458,13 @@ export function CodecSettings({ codec }: { codec: Codec }) {
       return (
         <div className="field">
           <SliderField
-            label={t("Qualität")}
+            label={t("Quality")}
             min={0}
             max={10}
             value={e.speex_q}
             onChange={(v) => set({ speex_q: v })}
           />
-          <Hint>{t("Speex ist für Sprache gemacht; für Musik ist Opus die bessere Wahl.")}</Hint>
+          <Hint>{t("Speex is made for speech; for music, Opus is the better choice.")}</Hint>
         </div>
       );
 
@@ -476,7 +472,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
       return (
         <div className="field">
           <SliderField
-            label={t("Abtastrate")}
+            label={t("Sample rate")}
             min={0}
             max={Math.max(0, (options?.dsd_modes.length ?? 1) - 1)}
             value={e.dsd_mode}
@@ -484,14 +480,14 @@ export function CodecSettings({ codec }: { codec: Codec }) {
             readOnly
             onChange={(v) => set({ dsd_mode: v })}
           />
-          <Hint>{t("Schreibt .dsf-Dateien (über SoX).")}</Hint>
+          <Hint>{t("Writes .dsf files (via SoX).")}</Hint>
         </div>
       );
 
     case "Multi":
       return (
         <div className="field">
-          <p className="lbl">{t("Formate")}</p>
+          <p className="lbl">{t("Formats")}</p>
           <div className="chips">
             {(options?.audio_codecs ?? []).map((c) => (
               <Check
@@ -505,9 +501,7 @@ export function CodecSettings({ codec }: { codec: Codec }) {
             ))}
           </div>
           <Hint>
-            {t(
-              "Jede Datei wird in alle gewählten Formate umgewandelt, jeweils mit deren Einstellungen.",
-            )}
+            {t("Each file is converted to all chosen formats, each with its own settings.")}
           </Hint>
         </div>
       );
@@ -519,26 +513,26 @@ export function CodecSettings({ codec }: { codec: Codec }) {
           {codec === "LengthSplit" && (
             <div className="field">
               <SliderField
-                label={t("Minuten pro Teil")}
+                label={t("Minutes per part")}
                 min={1}
                 max={180}
                 value={Math.max(1, Math.round(e.split_seconds / 60))}
                 unit="min"
                 onChange={(v) => set({ split_seconds: v * 60 })}
               />
-              <Hint>{t("Teilt lange Aufnahmen in gleich lange Stücke.")}</Hint>
+              <Hint>{t("Splits long recordings into pieces of equal length.")}</Hint>
             </div>
           )}
           <div className="field">
             <Select<Codec>
-              label={t("Format der Teile")}
+              label={t("Format of the parts")}
               value={e.split_codec}
               options={(options?.audio_codecs ?? []).map(
                 (c) => [c, codecInfo(options, c)?.name ?? c] as [Codec, string],
               )}
               onChange={(v) => set({ split_codec: v })}
             />
-            <Hint>{t("Die Teile bekommen die Einstellungen dieses Formats.")}</Hint>
+            <Hint>{t("The pieces get this format's settings.")}</Hint>
           </div>
         </>
       );
@@ -547,10 +541,10 @@ export function CodecSettings({ codec }: { codec: Codec }) {
       return <TagSchemeEditor />;
 
     case "ReplayGainOnly":
-      return <Hint>{t("Schreibt Titel- und Album-Gain (−18 LUFS) in die Quelldateien.")}</Hint>;
+      return <Hint>{t("Writes track and album gain (−18 LUFS) to the source files.")}</Hint>;
 
     case "TagUpdate":
-      return <Hint>{t("Wendet die Effekte „Tag-Bearbeitung“ auf die Quelldateien an.")}</Hint>;
+      return <Hint>{t("Applies the “Tag processing” effects to the source files.")}</Hint>;
 
     default:
       return <Hint>{codecInfo(options, codec)?.description ?? ""}</Hint>;

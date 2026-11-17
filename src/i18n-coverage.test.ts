@@ -1,10 +1,12 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import en from "./locales/en.json";
+import { languageFile } from "./i18n";
 
-/** Every `t("…")` text in the interface (also with the text on the next line) has an English
- * entry in tools/i18n_dict.tsv. */
+const en = languageFile("en");
+
+/** Every `t("…")` text in the interface (also with the text on the next line) is a key of
+ * locales/en.json, and every `plural(n, one, other)` has its count entry there. */
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const p = join(dir, name);
@@ -28,7 +30,6 @@ describe("translation coverage", () => {
   });
 
   it("every_plural_has_an_english_singular", () => {
-    const dict = en as Record<string, string>;
     const problems: string[] = [];
     let found = 0;
     const lit = '"((?:[^"\\\\]|\\\\.)+)"';
@@ -37,8 +38,10 @@ describe("translation coverage", () => {
       for (const m of readFileSync(file, "utf8").matchAll(call)) {
         found++;
         const [one, many] = [m[1]!, m[2]!].map((s) => s.replace(/\\"/g, '"'));
-        if (!(one in dict) || !(many in dict)) problems.push(`no English: ${one} / ${many}`);
-        else if (dict[one] === dict[many]) problems.push(`English singular equals plural: ${one}`);
+        const entry = (en as Record<string, unknown>)[many];
+        if (typeof entry !== "object" || entry === null) problems.push(`no count entry: ${many}`);
+        else if ((entry as Record<string, string>).one !== one)
+          problems.push(`English singular differs: ${one}`);
       }
     }
     expect(found).toBeGreaterThan(0);

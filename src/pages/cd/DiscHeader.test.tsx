@@ -28,14 +28,14 @@ describe("disc header", () => {
       },
     });
     render(<DiscHeader />);
-    fireEvent.click(screen.getByRole("button", { name: /CTDB · 214 Rips/ }));
+    fireEvent.click(screen.getByRole("button", { name: /CTDB · 214 rips/ }));
     expect(openCtdbPage).toHaveBeenCalledTimes(1);
   });
 
   it("an_unknown_disc_has_no_link", () => {
     useCd.setState({ ctdb: { state: "done", total: 0, url: null, reason: null } });
     render(<DiscHeader />);
-    expect(screen.getByText("CTDB: CD nicht in der Datenbank")).toBeInTheDocument();
+    expect(screen.getByText("CTDB: disc not in the database")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /CTDB/ })).toBeNull();
   });
 });

@@ -81,15 +81,15 @@ pub fn output_location_problem(folder: &Path) -> Option<String> {
         let wide: Vec<u16> = root.encode_utf16().chain(std::iter::once(0)).collect();
         let mask = unsafe { GetLogicalDrives() };
         if mask & (1 << (letter - b'A')) == 0 {
-            return Some(crate::i18n::tf(crate::i18n::t("Ziellaufwerk {0} gibt es nicht"), &[("0", root.clone())]));
+            return Some(crate::i18n::tf(crate::i18n::t("Output drive {0} does not exist"), &[("0", root.clone())]));
         }
         if unsafe { GetDriveTypeW(wide.as_ptr()) } == 5 {
-            return Some(crate::i18n::tf(crate::i18n::t("Ziellaufwerk {0} ist ein CD-Laufwerk"), &[("0", root.clone())]));
+            return Some(crate::i18n::tf(crate::i18n::t("Output drive {0} is a CD drive"), &[("0", root.clone())]));
         }
         let (mut avail, mut total, mut free) = (0u64, 0u64, 0u64);
         let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut avail, &mut total, &mut free) } != 0;
         if ok && free < OUTPUT_MIN_FREE {
-            return Some(crate::i18n::tf(crate::i18n::t("Ziellaufwerk {0} ist voll"), &[("0", root.clone())]));
+            return Some(crate::i18n::tf(crate::i18n::t("Output drive {0} is full"), &[("0", root.clone())]));
         }
     }
     // the folder may not exist yet: test the nearest folder that does
@@ -106,7 +106,7 @@ pub fn output_location_problem(folder: &Path) -> Option<String> {
             let _ = std::fs::remove_file(&probe);
             None
         }
-        Err(_) => Some(crate::i18n::t("In den Zielordner kann nicht geschrieben werden – ist er schreibgeschützt oder fehlen Schreibrechte?").to_string()),
+        Err(_) => Some(crate::i18n::t("Cannot write to the output folder – is it read-only, or is write permission missing?").to_string()),
     }
 }
 
@@ -142,9 +142,9 @@ impl Plan {
     pub fn name_clash(&self, name: &str, root: Option<&Path>) -> String {
         let source_names = (self.keep_structure && root.is_some()) || self.output_mode == OutputMode::PreservePath;
         let text = if source_names {
-            "Eine andere Datei dieses Laufs bekommt schon den Namen {0} – die Quelle enthält diesen Namen zweimal, nur mit anderer Endung"
+            "Another file in this run already gets the name {0} – the source has this name twice, only with another extension"
         } else {
-            "Eine andere Datei dieses Laufs bekommt schon den Namen {0} – Bausteine für die Namen anpassen"
+            "Another file in this run already gets the name {0} – adjust the name chips"
         };
         crate::i18n::tf(crate::i18n::t(text), &[("0", name.to_string())])
     }
@@ -486,8 +486,8 @@ fn finish(plan: &Plan, shared: &Shared, tx: &Sender<Msg>) {
                 let _ = tx.send(Msg::Report(crate::i18n::tf(
                     crate::i18n::t(crate::i18n::plural(
                         files.len() as u64,
-                        "Album-ReplayGain „{name}“: {lufs} LUFS » {gain} dB ({0} Datei)",
-                        "Album-ReplayGain „{name}“: {lufs} LUFS » {gain} dB ({0} Dateien)",
+                        "Album ReplayGain “{name}”: {lufs} LUFS » {gain} dB ({0} file)",
+                        "Album ReplayGain “{name}”: {lufs} LUFS » {gain} dB ({0} files)",
                     )),
                     &[("name", name.to_string()), ("lufs", format!("{lufs:.2}")), ("gain", format!("{gain:+.2}")), ("0", format!("{}", files.len()))],
                 )));
@@ -504,7 +504,7 @@ fn finish(plan: &Plan, shared: &Shared, tx: &Sender<Msg>) {
                 by_folder.entry(key).or_default().push(p);
             }
             for (folder, files) in by_folder {
-                let name = folder.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| crate::i18n::t("Wiedergabeliste").into());
+                let name = folder.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| crate::i18n::t("Playlist").into());
                 let ext = ["m3u8", "m3u", "pls"][*kind as usize % 3];
                 let path = folder.join(format!("{name}.{ext}"));
                 let rel = |f: &PathBuf| f.strip_prefix(&folder).map(|r| r.display().to_string()).unwrap_or_else(|_| f.display().to_string());
@@ -522,7 +522,7 @@ fn finish(plan: &Plan, shared: &Shared, tx: &Sender<Msg>) {
                     s
                 };
                 if std::fs::write(&path, text).is_ok() {
-                    let _ = tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Wiedergabeliste geschrieben: {0}"), &[("0", format!("{}", path.display()))])));
+                    let _ = tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Playlist written: {0}"), &[("0", format!("{}", path.display()))])));
                 }
             }
         }
@@ -562,7 +562,7 @@ pub fn plan_from_settings(s: &crate::settings::Settings, codec: Codec, ffmpeg: F
 
 /// The effects a run applies. Tools that only read or tag the source files ignore the
 /// converter's effect chain (a ReplayGain value must be measured on the file as it is);
-/// "Tags aktualisieren" keeps the tag processing it exists for.
+/// "Update tags" keeps the tag processing it exists for.
 pub fn effects_for(codec: Codec, effects: &[Effect]) -> Vec<Effect> {
     match codec {
         Codec::ReplayGainOnly | Codec::AudioInfo | Codec::AudioCrc | Codec::TestConversion | Codec::TagFromFilename => Vec::new(),
@@ -639,7 +639,7 @@ fn album_key(t: &Tags) -> String {
     format!("{artist} – {}", t.get("album"))
 }
 
-/// Fields "Tag-Bearbeitung" fills in by itself: the file's number and the count in its folder.
+/// Fields "Tag processing" fills in by itself: the file's number and the count in its folder.
 pub const AUTO_FIELDS: &[&str] = &["track", "track_total"];
 
 /// `<artist>`, `<album>` … in a value become the file's tags (names as in file naming).
@@ -669,7 +669,7 @@ fn expand_placeholders(value: &str, source: &Tags) -> String {
     out
 }
 
-/// "Tag-Bearbeitung": set, fill in or remove a field. Titelnummer and Titel gesamt count by
+/// "Tag processing": set, fill in or remove a field. Titelnummer and Titel gesamt count by
 /// themselves (`position`: number and count in the folder); other values may name other tags.
 fn apply_tag_processing(effects: &[Effect], t: &mut Tags, position: Option<(usize, usize)>) {
     for e in effects {
@@ -997,13 +997,13 @@ mod destination_tests {
     fn name_clash_hint_points_to_the_chips_only_when_they_name_the_file() {
         let root = Path::new("/music");
         let chips = plan(OutputMode::SingleFolder, &["title"]);
-        assert!(chips.name_clash("a.opus", None).contains("Bausteine"));
+        assert!(chips.name_clash("a.opus", None).contains("name chips"));
         let mut batch = plan(OutputMode::SingleFolder, &["title"]);
         batch.keep_structure = true;
         let msg = batch.name_clash("a.opus", Some(root));
-        assert!(!msg.contains("Bausteine") && msg.contains("a.opus"), "{msg}");
+        assert!(!msg.contains("name chips") && msg.contains("a.opus"), "{msg}");
         let keep = plan(OutputMode::PreservePath, &["title"]);
-        assert!(!keep.name_clash("a.opus", None).contains("Bausteine"));
+        assert!(!keep.name_clash("a.opus", None).contains("name chips"));
     }
 }
 
@@ -1088,12 +1088,12 @@ static READ_ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
 pub fn copy_file(src: &Path, dest: &Path, cancel: &AtomicBool, progress: impl Fn(f32)) -> Result<(), String> {
     use std::io::{Read, Write};
     let t = crate::i18n::t;
-    let size = std::fs::metadata(src).map_err(|_| t("Quelldatei ist nicht zugänglich (in einem anderen Programm geöffnet?)").to_string())?.len();
-    let mut input = std::fs::File::open(src).map_err(|_| t("Quelldatei lässt sich nicht öffnen (in einem anderen Programm geöffnet?)").to_string())?;
+    let size = std::fs::metadata(src).map_err(|_| t("Cannot access the source file (open in another program?)").to_string())?.len();
+    let mut input = std::fs::File::open(src).map_err(|_| t("Cannot open the source file (open in another program?)").to_string())?;
     let mut tmp_name = dest.as_os_str().to_owned();
     tmp_name.push(".tmp");
     let tmp = PathBuf::from(tmp_name);
-    let mut out = std::fs::File::create(&tmp).map_err(|_| t("Zieldatei kann nicht angelegt werden (Schreibrechte für den Ordner prüfen)").to_string())?;
+    let mut out = std::fs::File::create(&tmp).map_err(|_| t("Cannot create the output file (check write access to the folder)").to_string())?;
     let fail = |msg: &str| {
         let _ = std::fs::remove_file(&tmp);
         Err(t(msg).to_string())
@@ -1105,16 +1105,16 @@ pub fn copy_file(src: &Path, dest: &Path, cancel: &AtomicBool, progress: impl Fn
         while done < size {
             if cancel.load(Ordering::Relaxed) {
                 drop(out);
-                return fail("abgebrochen");
+                return fail("cancelled");
             }
             let want = COPY_BLOCK.min((size - done) as usize);
             if input.read_exact(&mut buf[..want]).is_err() {
                 drop(out);
-                return fail("Fehler beim Lesen der Quelldatei");
+                return fail("Error reading the source file");
             }
             if out.write_all(&buf[..want]).is_err() {
                 drop(out);
-                return fail("Fehler beim Schreiben der Zieldatei");
+                return fail("Error writing the output file");
             }
             done += want as u64;
             progress((done * 100 / size.max(1)) as f32 / 100.0);
@@ -1122,10 +1122,10 @@ pub fn copy_file(src: &Path, dest: &Path, cancel: &AtomicBool, progress: impl Fn
     }
     drop(out);
     if dest.exists() && std::fs::remove_file(dest).is_err() {
-        return fail("Vorhandene Zieldatei kann nicht gelöscht werden (in einem anderen Programm geöffnet?)");
+        return fail("Cannot delete the existing output file (open in another program?)");
     }
     if std::fs::rename(&tmp, dest).is_err() {
-        return fail("Temporäre Datei kann nicht zur Zieldatei umbenannt werden");
+        return fail("Cannot rename the temporary file to the output file");
     }
     Ok(())
 }
@@ -1150,28 +1150,25 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                         dest.set_extension(&src_ext);
                         // the same rules as for converted files
                         if same_path(&dest, &job.src) {
-                            return Err(crate::i18n::t("Ziel ist dieselbe Datei wie die Quelle – anderen Ordner oder Namen wählen").into());
+                            return Err(crate::i18n::t("The output is the same file as the source – choose another folder or name").into());
                         }
                         if !shared.reserved.lock().unwrap().insert(path_key(&dest)) {
                             let name = dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
                             return Err(plan.name_clash(&name, job.root.as_deref()));
                         }
                         if dest.exists() && !plan.overwrite && !plan.overwrite_list.iter().any(|o| same_path(o, &dest)) {
-                            return Ok(JobResult::Skipped(crate::i18n::t("Zieldatei gibt es schon – übersprungen").into()));
+                            return Ok(JobResult::Skipped(crate::i18n::t("Target file already exists – skipped").into()));
                         }
                         if let Some(d) = dest.parent() {
                             std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
                         }
                         copy_file(&job.src, &dest, cancel, |f| {
-                            let _ = tx.send(Msg::Progress(id, f, crate::i18n::t("Kopieren")));
+                            let _ = tx.send(Msg::Progress(id, f, crate::i18n::t("Copying")));
                         })?;
-                        return Ok(JobResult::Done { outputs: vec![dest], audio_secs: info.seconds, note: crate::i18n::t("1:1 kopiert").into() });
+                        return Ok(JobResult::Done { outputs: vec![dest], audio_secs: info.seconds, note: crate::i18n::t("copied 1:1").into() });
                     }
                 }
-                return Ok(JobResult::Skipped(crate::i18n::tf(
-                    crate::i18n::t("bedingte Umwandlung: .{want} wird übersprungen"),
-                    &[("want", want.to_string())],
-                )));
+                return Ok(JobResult::Skipped(crate::i18n::tf(crate::i18n::t("conditional encoding: .{want} is skipped"), &[("want", want.to_string())])));
             }
         }
     }
@@ -1181,13 +1178,13 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
         Codec::TagUpdate => {
             apply_tag_processing(&plan.effects, &mut t, shared.position(&job.src));
             tags::write(&job.src, &t, true)?;
-            return Ok(JobResult::Done { outputs: vec![job.src.clone()], audio_secs: info.seconds, note: crate::i18n::t("Tags aktualisiert").into() });
+            return Ok(JobResult::Done { outputs: vec![job.src.clone()], audio_secs: info.seconds, note: crate::i18n::t("Tags updated").into() });
         }
         Codec::TagFromFilename => {
             let stem = job.src.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
             let found = tags_from_scheme(&stem, &plan.tag_scheme);
             if found.is_empty() {
-                return Ok(JobResult::Skipped(crate::i18n::t("Muster passt nicht").into()));
+                return Ok(JobResult::Skipped(crate::i18n::t("Pattern does not match").into()));
             }
             let mut note = Vec::new();
             for (k, v) in found {
@@ -1202,14 +1199,14 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
 
     // decode
     let progress_decode = |f: f32| {
-        let _ = tx.send(Msg::Progress(id, f * 0.35, crate::i18n::t("Dekodieren")));
+        let _ = tx.send(Msg::Progress(id, f * 0.35, crate::i18n::t("Decoding")));
     };
     let mut a = match &job.audio {
         Some(a) => (**a).clone(),
         None => audio::decode(&job.src, env.ffmpeg.for_decode().map(|f| f.path.as_path()), cancel, &progress_decode)?,
     };
     let original_secs = a.seconds();
-    let _ = tx.send(Msg::Progress(id, 0.35, crate::i18n::t("Effekte")));
+    let _ = tx.send(Msg::Progress(id, 0.35, crate::i18n::t("Effects")));
 
     match plan.codec {
         Codec::TestConversion => {
@@ -1219,8 +1216,8 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                 note: crate::i18n::tf(
                     crate::i18n::t(crate::i18n::plural(
                         a.channels as u64,
-                        "fehlerfrei dekodiert ({0} Hz, {1} Kanal)",
-                        "fehlerfrei dekodiert ({0} Hz, {1} Kanäle)",
+                        "decoded without errors ({0} Hz, {1} channel)",
+                        "decoded without errors ({0} Hz, {1} channels)",
                     )),
                     &[("0", format!("{}", a.rate)), ("1", format!("{}", a.channels))],
                 ),
@@ -1233,8 +1230,8 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             let text = crate::i18n::tf(
                 crate::i18n::t(crate::i18n::plural(
                     a.channels as u64,
-                    "{0}\n  Länge {1} · {2} Hz · {3} Bit · {4} Kanal · {5} · Spitze {6} dBFS · Lautheit {7} LUFS",
-                    "{0}\n  Länge {1} · {2} Hz · {3} Bit · {4} Kanäle · {5} · Spitze {6} dBFS · Lautheit {7} LUFS",
+                    "{0}\n  Length {1} · {2} Hz · {3} bit · {4} channel · {5} · peak {6} dBFS · loudness {7} LUFS",
+                    "{0}\n  Length {1} · {2} Hz · {3} bit · {4} channels · {5} · peak {6} dBFS · loudness {7} LUFS",
                 )),
                 &[
                     ("0", format!("{}", job.src.display())),
@@ -1255,7 +1252,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             audio::pcm_bytes_le(&a.data, audio::PcmFormat::S16, &mut bytes);
             let crc = audio::crc32(&bytes, 0);
             let _ = tx.send(Msg::Report(crate::i18n::tf(
-                crate::i18n::t("{0}  CRC32 (16 Bit PCM): {crc}"),
+                crate::i18n::t("{0}  CRC32 (16-bit PCM): {crc}"),
                 &[("0", format!("{}", job.src.display())), ("crc", format!("{crc:08X}"))],
             )));
             return Ok(JobResult::Done { outputs: vec![], audio_secs: original_secs, note: format!("CRC {crc:08X}") });
@@ -1274,7 +1271,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
     let mut rg_written = false;
     for e in &plan.effects {
         if cancel.load(Ordering::Relaxed) {
-            return Err(crate::i18n::t("abgebrochen").into());
+            return Err(crate::i18n::t("cancelled").into());
         }
         if let Effect::ReplayGain { target_lufs, max_gain, album, clip_prevention, true_peak_ratio } = e {
             let blocks = loudness::block_energies(&a);
@@ -1282,7 +1279,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             let peak = loudness::true_peak(&a, *true_peak_ratio);
             if lufs <= -69.9 {
                 let _ = tx.send(Msg::Report(crate::i18n::tf(
-                    crate::i18n::t("{0}: Stille erkannt, kein ReplayGain-Titelwert"),
+                    crate::i18n::t("{0}: silence detected, no ReplayGain track value"),
                     &[("0", format!("{}", job.src.display()))],
                 )));
             } else {
@@ -1306,7 +1303,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
         if let Effect::Hdcd { amp_6db } = e {
             // report when HDCD was found and decoded
             if dsp::hdcd_decode(&mut a, plan.ffmpeg.for_hdcd().map(|f| f.path.as_path()), *amp_6db)? {
-                let _ = tx.send(Msg::Report(format!("{}: {}", job.src.display(), crate::i18n::t("HDCD-Titel erkannt, auf 24 Bit dekodiert"))));
+                let _ = tx.send(Msg::Report(format!("{}: {}", job.src.display(), crate::i18n::t("HDCD track detected, decoded to 24 bit"))));
             }
             continue;
         }
@@ -1360,7 +1357,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                 let label = match (a.channels, c) {
                     (2, 0) => "L".to_string(),
                     (2, 1) => "R".to_string(),
-                    _ => crate::i18n::tf(crate::i18n::t("Kanal {0}"), &[("0", format!("{}", c + 1))]),
+                    _ => crate::i18n::tf(crate::i18n::t("Channel {0}"), &[("0", format!("{}", c + 1))]),
                 };
                 (format!(" - {label}"), Audio { channels: 1, ..a.with_data(data) })
             })
@@ -1370,7 +1367,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             a.data
                 .chunks(per.max(1))
                 .enumerate()
-                .map(|(i, d)| (crate::i18n::tf(crate::i18n::t(" - Teil {0}"), &[("0", format!("{:02}", i + 1))]), a.with_data(d.to_vec())))
+                .map(|(i, d)| (crate::i18n::tf(crate::i18n::t(" - Part {0}"), &[("0", format!("{:02}", i + 1))]), a.with_data(d.to_vec())))
                 .collect()
         }
         _ => vec![(String::new(), a)],
@@ -1385,7 +1382,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
     for codec in &codecs {
         for (suffix, piece) in &pieces {
             if cancel.load(Ordering::Relaxed) {
-                return Err(crate::i18n::t("abgebrochen").into());
+                return Err(crate::i18n::t("cancelled").into());
             }
             let mut dest = plan.destination(&job.src, job.root.as_deref(), &source_tags, &info, *codec, shared.position(&job.src));
             if !suffix.is_empty() {
@@ -1393,7 +1390,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                 dest.set_file_name(format!("{stem}{suffix}.{}", codec.ext()));
             }
             if same_path(&dest, &job.src) {
-                return Err(crate::i18n::t("Ziel ist dieselbe Datei wie die Quelle – anderen Ordner oder Namen wählen").into());
+                return Err(crate::i18n::t("The output is the same file as the source – choose another folder or name").into());
             }
             if !shared.reserved.lock().unwrap().insert(path_key(&dest)) {
                 let name = dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
@@ -1405,14 +1402,14 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                 continue;
             }
             if let Some(d) = dest.parent() {
-                std::fs::create_dir_all(d).map_err(|e| crate::i18n::tf(crate::i18n::t("Ordner kann nicht angelegt werden: {e}"), &[("e", format!("{e}"))]))?;
+                std::fs::create_dir_all(d).map_err(|e| crate::i18n::tf(crate::i18n::t("Cannot create folder: {e}"), &[("e", format!("{e}"))]))?;
             }
             let tmp = tmp_name(&dest);
             let meta = if plan.copy_tags || job.tags.is_some() { tags::ffmpeg_metadata(&t) } else { Vec::new() };
             let base = 0.4 + 0.6 * step as f32 / total_steps as f32;
             let span = 0.6 / total_steps as f32;
             let prog = |f: f32| {
-                let _ = tx.send(Msg::Progress(id, base + span * f, crate::i18n::t("Kodieren")));
+                let _ = tx.send(Msg::Progress(id, base + span * f, crate::i18n::t("Encoding")));
             };
             let result = encode::encode(*codec, &plan.enc, piece, &tmp, &meta, &env, cancel, &prog);
             if let Err(e) = result {
@@ -1427,16 +1424,15 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             }
             if dest.exists() && std::fs::remove_file(&dest).is_err() {
                 let _ = std::fs::remove_file(&tmp);
-                return Err(crate::i18n::t("Vorhandene Zieldatei kann nicht gelöscht werden (in einem anderen Programm geöffnet?)").into());
+                return Err(crate::i18n::t("Cannot delete the existing output file (open in another program?)").into());
             }
-            std::fs::rename(&tmp, &dest)
-                .map_err(|e| crate::i18n::tf(crate::i18n::t("Temporäre Datei kann nicht verschoben werden: {e}"), &[("e", format!("{e}"))]))?;
+            std::fs::rename(&tmp, &dest).map_err(|e| crate::i18n::tf(crate::i18n::t("Cannot move the temporary file: {e}"), &[("e", format!("{e}"))]))?;
             outputs.push(dest);
             step += 1;
         }
     }
     if outputs.is_empty() && !kept.is_empty() {
-        return Ok(JobResult::Skipped(crate::i18n::t("Zieldatei gibt es schon – übersprungen").into()));
+        return Ok(JobResult::Skipped(crate::i18n::t("Target file already exists – skipped").into()));
     }
 
     // actions after a successful file (only on files this job wrote)
@@ -1478,13 +1474,12 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                         Ok(s) if s.success() => {}
                         Ok(s) => {
                             let _ = tx.send(Msg::Report(crate::i18n::tf(
-                                crate::i18n::t("Programm nach {0} endete mit Code {1}"),
+                                crate::i18n::t("Program for {0} ended with code {1}"),
                                 &[("0", o.display().to_string()), ("1", s.code().map(|c| c.to_string()).unwrap_or_else(|| "?".into()))],
                             )));
                         }
                         Err(e) => {
-                            let _ =
-                                tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Programm konnte nicht gestartet werden: {e}"), &[("e", e.to_string())])));
+                            let _ = tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Program could not be started: {e}"), &[("e", e.to_string())])));
                         }
                     }
                 }
@@ -1512,14 +1507,14 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
         && !outputs.iter().any(|o| same_path(o, &job.src))
     {
         if let Err(e) = discard_source(&job.src) {
-            let _ = tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Quelle konnte nicht in den Papierkorb gelegt werden: {e}"), &[("e", e.to_string())])));
+            let _ = tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Could not move the source to the recycle bin: {e}"), &[("e", e.to_string())])));
         }
     }
-    let _ = tx.send(Msg::Progress(id, 1.0, crate::i18n::t("Fertig")));
+    let _ = tx.send(Msg::Progress(id, 1.0, crate::i18n::t("Done")));
     Ok(JobResult::Done { outputs, audio_secs: original_secs, note: String::new() })
 }
 
-/// "Quelldatei löschen": into the recycle bin, so a mistake can be undone. Tests delete
+/// "Delete source file": into the recycle bin, so a mistake can be undone. Tests delete
 /// directly, so a test run leaves nothing in the user's recycle bin.
 fn discard_source(p: &Path) -> Result<(), String> {
     #[cfg(test)]

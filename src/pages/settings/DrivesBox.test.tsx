@@ -40,7 +40,7 @@ describe("drives box", () => {
     expect(await screen.findByText("Band Drive X")).toBeInTheDocument();
     expect(screen.getAllByText("+667 Samples").length).toBeGreaterThan(0);
     expect(screen.getByText("4096 KB")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Neu messen" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Measure again" })).toBeInTheDocument();
   });
 
   it("a_value_by_hand_is_replaced_only_after_asking", async () => {
@@ -50,7 +50,7 @@ describe("drives box", () => {
     await act(async () => applyMeasurement(profile(667, "Ctdb"), 2));
     expect(useSettings.getState().settings?.rip.drives[0]?.offset).toBe(600);
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Ersetzen" }));
+      fireEvent.click(screen.getByRole("button", { name: "Replace" }));
     });
     expect(useSettings.getState().settings?.rip.drives[0]?.offset).toBe(667);
     expect(useCd.getState().pendingProfile).toBeNull();

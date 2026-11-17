@@ -6,7 +6,7 @@ import type { EffectEntry } from "../../store/effects";
 import { categories, filterEffects } from "./effectSearch";
 
 /**
- * "Effekt hinzufügen": search field (focused), category chips and a list with one line of
+ * "Add effect": search field (focused), category chips and a list with one line of
  * explanation per effect. Arrow keys move, Enter adds, Escape closes.
  */
 export function EffectPicker({
@@ -49,7 +49,7 @@ export function EffectPicker({
         className="picker"
         role="dialog"
         aria-modal="true"
-        aria-label={t("Effekt hinzufügen")}
+        aria-label={t("Add effect")}
         onKeyDown={(e) => {
           if (e.key === "Escape") {
             e.stopPropagation();
@@ -58,12 +58,12 @@ export function EffectPicker({
         }}
       >
         <header className="picker-head">
-          <h2>{t("Effekt hinzufügen")}</h2>
+          <h2>{t("Add effect")}</h2>
           <button
             type="button"
             className="icon-btn"
-            aria-label={t("Schließen")}
-            title={t("Schließen")}
+            aria-label={t("Close")}
+            title={t("Close")}
             onClick={onClose}
           >
             <X size={16} />
@@ -73,8 +73,8 @@ export function EffectPicker({
           <Search size={16} />
           <input
             type="search"
-            aria-label={t("Effekt suchen")}
-            placeholder={t("Effekt suchen")}
+            aria-label={t("Search effects")}
+            placeholder={t("Search effects")}
             // the dialog exists to search: typing starts right away
             // biome-ignore lint/a11y/noAutofocus: focus moves into the dialog that just opened
             autoFocus
@@ -103,7 +103,7 @@ export function EffectPicker({
             aria-pressed={category === null}
             onClick={() => setCategory(null)}
           >
-            {t("Alle")}
+            {t("All")}
           </button>
           {categories(entries).map((c) => (
             <button
@@ -118,13 +118,13 @@ export function EffectPicker({
           ))}
         </div>
         {list.length === 0 ? (
-          <p className="picker-empty">{t("Kein Effekt passt zur Suche.")}</p>
+          <p className="picker-empty">{t("No effect matches the search.")}</p>
         ) : (
           <div
             className="picker-list"
             role="listbox"
             id={listId}
-            aria-label={t("Effekte")}
+            aria-label={t("Effects")}
             ref={listRef}
           >
             {list.map((e, i) => (

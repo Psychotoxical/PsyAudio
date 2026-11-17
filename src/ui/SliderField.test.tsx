@@ -6,7 +6,7 @@ describe("SliderField", () => {
   it("unit_inside_value_field", () => {
     render(
       <SliderField
-        label="Bitrate"
+        label="Bit rate"
         value={192}
         min={6}
         max={512}
@@ -14,14 +14,14 @@ describe("SliderField", () => {
         onChange={() => {}}
       />,
     );
-    expect(screen.getByRole("textbox", { name: "Bitrate" })).toHaveValue("192 kbit/s");
+    expect(screen.getByRole("textbox", { name: "Bit rate" })).toHaveValue("192 kbit/s");
   });
 
   it("typed_value_is_clamped", () => {
     const onChange = vi.fn();
     render(
       <SliderField
-        label="Bitrate"
+        label="Bit rate"
         value={192}
         min={6}
         max={512}
@@ -29,7 +29,7 @@ describe("SliderField", () => {
         onChange={onChange}
       />,
     );
-    const box = screen.getByRole("textbox", { name: "Bitrate" });
+    const box = screen.getByRole("textbox", { name: "Bit rate" });
     fireEvent.change(box, { target: { value: "900" } });
     fireEvent.blur(box);
     expect(onChange).toHaveBeenLastCalledWith(512);
@@ -39,14 +39,14 @@ describe("SliderField", () => {
     const onChange = vi.fn();
     render(
       <SliderField
-        label="Bitrate"
+        label="Bit rate"
         value={128}
         values={[96, 128, 160, 192]}
         unit="kbit/s"
         onChange={onChange}
       />,
     );
-    const box = screen.getByRole("textbox", { name: "Bitrate" });
+    const box = screen.getByRole("textbox", { name: "Bit rate" });
     fireEvent.change(box, { target: { value: "170 kbit/s" } });
     fireEvent.blur(box);
     expect(onChange).toHaveBeenLastCalledWith(160);

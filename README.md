@@ -52,7 +52,8 @@ The CUETools database is open: its data is public domain, and lookups need no ac
 - **36 effects**, ReplayGain and EBU R128 loudness. Tags and covers are carried over, and file and folder names can be built from tags.
 - **Batch converter:** converts a whole folder tree and keeps its structure.
 - **From the file manager:** "Convert with PsyAudio" in the right-click menu, on every system (see below).
-- **Looks:** Catppuccin Mocha (dark) and Latte (light), in English and German.
+- **Looks:** Catppuccin Mocha (dark) and Latte (light).
+- **Languages:** English, German, Spanish, French, Norwegian Bokmål, Dutch, Romanian, Russian, Chinese, Japanese, Hungarian, Polish, Bulgarian, Italian, Ukrainian and Greek; PsyAudio follows the system language until another one is chosen in the settings.
 
 ## On every system
 
@@ -93,7 +94,7 @@ Settings are kept in `settings.json` in your user folder:
 <details>
 <summary><b>Sample mode and screenshots</b></summary>
 
-`PsyAudio --demo=<konverter|stapel|cd|einstellungen|einrichtung> [--light] [--en]` opens a page with made-up sample content, in German unless `--en`, dark unless `--light`. Nothing is saved and no other PsyAudio window is asked. Any other page name opens the converter without sample files, which is handy for test runs with files passed on the command line.
+`PsyAudio --demo=<konverter|stapel|cd|einstellungen|einrichtung> [--light] [--en | --lang=<code>]` opens a page with made-up sample content, in German unless `--en` or `--lang=` names another language (`--lang=ja`), dark unless `--light`. Nothing is saved and no other PsyAudio window is asked. Any other page name opens the converter without sample files, which is handy for test runs with files passed on the command line.
 
 `node scripts/capture.mjs <page> <file.png> [options]` starts the debug build in sample mode and saves a screenshot through the WebView2 DevTools protocol (Windows only). Options, run in order: `--light`, `--en`, `--file=<path>`, `--click=<css>`, `--eval=<js>`, `--wait=<css>`, `--close` (the window's close button), `--expect-exit`, `--title`.
 
@@ -128,10 +129,10 @@ The package workflow builds it once per system and keeps it in the cache until t
 | Folder | Contents |
 |---|---|
 | `crates/core` | `psyaudio-core`: everything except the window (conversion, effects, tags, naming, CD ripping, settings, translation) |
+| `locales` | One file per interface language (`en.json`, `de.json` …), read by the core and the frontend |
 | `src-tauri` | The Tauri app: commands (`*_cmd.rs`), background work (`jobs.rs`, `run_cmd.rs`), close guard (`close.rs`), macOS menu (`mac_menu.rs`), single instance, drag and drop; `Info.plist` adds the macOS file types |
 | `src` | The React frontend: `shell/` (sidebar, step tiles, side column), `pages/` (convert, batch, cd, settings, setup), `ui/` (controls), `store/` (zustand), `ipc/` (commands and generated types) |
-| `tools` | `i18n_dict.tsv` and its generator |
-| `scripts` | `capture.mjs` |
+| `scripts` | `capture.mjs`, `i18n-report.mjs` |
 
 Core (`crates/core/src/`):
 
@@ -154,7 +155,7 @@ Core (`crates/core/src/`):
 | `scsi.rs` | Raw SCSI commands to the drive (Windows pass-through, Linux SG_IO, macOS SCSITaskLib): buffer size, cache flush size, stopping the disc (not on macOS) |
 | `macos.rs`, `macos_scsi.c` | macOS: optical drives from the I/O Registry, DiskArbitration (unmount, eject), staying awake; the C file wraps SCSITaskLib and is built by `build.rs` on macOS only |
 | `integration.rs` | Context menu (Explorer per extension, Dolphin, Finder quick action), keeping the computer awake |
-| `i18n.rs` / `i18n_dict.rs` | Translation; `i18n_dict.rs` is generated |
+| `i18n.rs` | Translation: the language files, plural categories, `t`, `tf`, `plural` |
 | `timefmt.rs` | Durations and encoding speed in words |
 
 </details>
@@ -165,9 +166,9 @@ Core (`crates/core/src/`):
 **Commands.** Every command the frontend may call is listed in `src-tauri/build.rs` (`COMMANDS`) and granted in `src-tauri/capabilities/main.json` (`allow-…`). A new command needs both entries. Long work (converting, ripping, the offset search, MusicBrainz) runs in threads and reports through Tauri channels; statuses travel as codes and are worded in the frontend.
 
 **Translation.**
-- Visible texts are written in **German** and the German text is the key, in Rust (`i18n::t("…")`, `tf(…)`) and in the frontend (`t("…")`, placeholders `{name}`).
-- English lives in `tools/i18n_dict.tsv` (German, tab, English). Regenerate both tables with `python -I tools/i18n_gen.py tools/i18n_dict.tsv crates/core/src/i18n_dict.rs src/locales/en.json`.
-- Tests check that every `t("…")` of the frontend has an English entry and that translations keep the `{…}` placeholders.
+- Visible texts are written in **English** and the English text is the key, in Rust (`i18n::t("…")`, `tf(…)`, `plural(n, one, other)`) and in the frontend (`t("…")`, `plural(…)`, placeholders `{name}`).
+- A new text goes into `locales/en.json` (`"Text": "Text"`, a count as `{"one": …, "other": …}`); the other languages get it from their translators, until then it shows in English.
+- Tests check that every `t("…")` of the frontend has an English entry, that every language file only has keys English has, keeps the `{…}` placeholders and gives the plural forms its language needs. How to translate: [Translating PsyAudio](#translating-psyaudio).
 
 **Conventions.**
 - Code comments are in English.
@@ -176,6 +177,24 @@ Core (`crates/core/src/`):
 - Every pull request adds an entry under `[Unreleased]` in the [changelog](CHANGELOG.md); the CI checks it.
 
 </details>
+
+## Translating PsyAudio
+
+Every language is one file in [`locales/`](locales): the English text on the left, the translation on the right.
+
+```json
+{
+  "Convert": "Konvertieren",
+  "Step {0} of {1}": "Schritt {0} von {1}",
+  "{0} tracks": { "one": "{0} Titel", "other": "{0} Titel" }
+}
+```
+
+- **Improve a language:** change the text on the right and open a pull request. Keep everything in `{…}` as it is; PsyAudio puts numbers and names there.
+- **Counts** are objects with one form per plural category of the language ([CLDR plural rules](https://www.unicode.org/cldr/charts/latest/supplemental/language_plural_rules.html)): `one` and `other` for most languages, `one`, `few` and `many` for Russian, Ukrainian and Polish, `one`, `few` and `other` for Romanian, only `other` for Chinese and Japanese.
+- **What is missing:** `npm run i18n:report` shows how complete every language is; `npm run i18n:report -- fr` lists the missing texts of one language. A missing or empty text shows in English.
+- **A new language:** copy `locales/en.json` to `locales/<code>.json`, translate it and add the code with its own name to `LANGUAGES` in `crates/core/src/i18n.rs` and `src/i18n.ts`; if its plural rules differ from English, add them to `category` and `categories` in `i18n.rs`.
+- `cargo test -p psyaudio-core i18n` checks the files: unknown keys, placeholders and plural forms.
 
 ## License
 
