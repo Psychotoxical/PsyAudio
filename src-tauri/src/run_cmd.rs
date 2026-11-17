@@ -46,6 +46,20 @@ mod tests {
         o.set(0, 1.0);
         assert_eq!(o.percent(), 100);
     }
+
+    #[test]
+    fn title_counts_only_the_progress_the_window_hears() {
+        let mut gate = ProgressGate::new(1);
+        let mut overall = Overall::new(1);
+        let t0 = Instant::now();
+        assert!(relay(Msg::Progress(0, 0.52, "Kodieren"), &mut gate, &mut overall, t0).is_some());
+        // too soon after the last one: the window hears nothing, so the title stays too
+        let soon = relay(Msg::Progress(0, 0.55, "Kodieren"), &mut gate, &mut overall, t0 + Duration::from_millis(20));
+        assert!(soon.is_none());
+        assert_eq!(overall.percent(), 52);
+        assert!(relay(Msg::Progress(0, 0.6, "Kodieren"), &mut gate, &mut overall, t0 + PROGRESS_EVERY).is_some());
+        assert_eq!(overall.percent(), 60);
+    }
 }
 
 /// What the window learns about a run (mirrors `convert::Msg`).
@@ -205,6 +219,36 @@ fn set_title(app: &AppHandle, text: &str) {
     }
 }
 
+/// What the window hears of one run message. `overall` counts only that, so the title shows
+/// the same percentage as the window's bar.
+fn relay(msg: Msg, gate: &mut ProgressGate, overall: &mut Overall, now: Instant) -> Option<RunEvent> {
+    match msg {
+        Msg::Started(id) => Some(RunEvent::Started { id }),
+        Msg::Progress(id, f, stage) => {
+            if !gate.due(id, now) {
+                return None;
+            }
+            overall.set(id, f);
+            Some(RunEvent::Progress { id, progress: f, stage: stage.to_string() })
+        }
+        Msg::Done { id, outputs, audio_secs, wall_secs, note } => {
+            overall.set(id, 1.0);
+            let outputs = outputs.iter().map(|o| o.to_string_lossy().into_owned()).collect();
+            Some(RunEvent::Done { id, outputs, audio_secs, wall_secs, note })
+        }
+        Msg::Skipped(id, reason) => {
+            overall.set(id, 1.0);
+            Some(RunEvent::Skipped { id, reason })
+        }
+        Msg::Failed(id, reason) => {
+            overall.set(id, 1.0);
+            Some(RunEvent::Failed { id, reason })
+        }
+        Msg::Report(text) => Some(RunEvent::Report { text }),
+        Msg::Finished => None,
+    }
+}
+
 /// Passes the run's messages to the window and keeps title and standby in step. Runs on its own
 /// thread for the whole run: Windows ties "stay awake" to the thread that asked for it.
 fn forward(app: AppHandle, handle: RunHandle, rx: Receiver<Msg>, n: usize, on: Channel<RunEvent>) {
@@ -215,32 +259,10 @@ fn forward(app: AppHandle, handle: RunHandle, rx: Receiver<Msg>, n: usize, on: C
     let mut shown = None;
     let mut window_open = true;
     for msg in rx {
-        let finished = matches!(msg, Msg::Finished);
-        let event = match msg {
-            Msg::Started(id) => Some(RunEvent::Started { id }),
-            Msg::Progress(id, f, stage) => {
-                overall.set(id, f);
-                gate.due(id, Instant::now()).then(|| RunEvent::Progress { id, progress: f, stage: stage.to_string() })
-            }
-            Msg::Done { id, outputs, audio_secs, wall_secs, note } => {
-                overall.set(id, 1.0);
-                let outputs = outputs.iter().map(|o| o.to_string_lossy().into_owned()).collect();
-                Some(RunEvent::Done { id, outputs, audio_secs, wall_secs, note })
-            }
-            Msg::Skipped(id, reason) => {
-                overall.set(id, 1.0);
-                Some(RunEvent::Skipped { id, reason })
-            }
-            Msg::Failed(id, reason) => {
-                overall.set(id, 1.0);
-                Some(RunEvent::Failed { id, reason })
-            }
-            Msg::Report(text) => Some(RunEvent::Report { text }),
-            Msg::Finished => None,
-        };
-        if finished {
+        if matches!(msg, Msg::Finished) {
             break;
         }
+        let event = relay(msg, &mut gate, &mut overall, Instant::now());
         if shown != Some(overall.percent()) {
             shown = Some(overall.percent());
             set_title(&app, &tf(t("[{0}%] PsyAudio – Umwandeln"), &[("0", overall.percent().to_string())]));
