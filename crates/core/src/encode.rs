@@ -695,14 +695,23 @@ pub fn encode(
                 _ => false,
             };
             if verify {
-                verify_lossless(out, audio, &ff.path, cancel)?;
+                verify_lossless(out, audio, verify_reader(ff, env.ffmpeg), cancel)?;
             }
             Ok(())
         }
     }
 }
 
-/// Decode the written file again, with the FFmpeg that wrote it, and compare it with what was encoded.
+/// The FFmpeg that reads a written file back: the writer, unless it lacks FFprobe and the
+/// reading FFmpeg has it (a system FFmpeg next to the shipped one).
+fn verify_reader<'a>(writer: &'a Ffmpeg, set: &'a FfmpegSet) -> &'a Path {
+    if writer.probe {
+        return &writer.path;
+    }
+    set.for_decode().filter(|f| f.probe).map_or(&writer.path, |f| &f.path)
+}
+
+/// Decode the written file again and compare it with what was encoded.
 pub fn verify_lossless(out: &Path, original: &Audio, ffmpeg: &Path, cancel: &AtomicBool) -> Result<(), String> {
     let back = audio::decode(out, Some(ffmpeg), cancel, &|_| {})?;
     if back.frames() != original.frames() || back.channels != original.channels {
@@ -775,5 +784,18 @@ mod ffmpeg_choice_tests {
         let plain = ff(Source::Bundled, &["aac"]);
         let args = ffmpeg_args(Codec::AacM4a, &s, &audio, &plain);
         assert!(!args.iter().any(|a| a == "libfdk_aac") && args.iter().any(|a| a == "aac"), "{args:?}");
+    }
+
+    /// WavPack is read back through FFmpeg and FFprobe: a system FFmpeg without FFprobe
+    /// borrows the shipped pair, a path from the settings stays on its own.
+    #[test]
+    fn verification_reads_back_with_an_ffmpeg_that_has_ffprobe() {
+        let no_probe = |source| Ffmpeg { probe: false, ..ff(source, &["wavpack"]) };
+        let set = FfmpegSet { main: Some(no_probe(Source::System)), fallback: Some(ff(Source::Bundled, &["wavpack"])) };
+        assert_eq!(verify_reader(set.main.as_ref().unwrap(), &set), Path::new("Bundled"));
+        let with_probe = FfmpegSet { main: Some(ff(Source::System, &["wavpack"])), fallback: Some(ff(Source::Bundled, &["wavpack"])) };
+        assert_eq!(verify_reader(with_probe.main.as_ref().unwrap(), &with_probe), Path::new("System"));
+        let configured = FfmpegSet { main: Some(no_probe(Source::Configured)), fallback: None };
+        assert_eq!(verify_reader(configured.main.as_ref().unwrap(), &configured), Path::new("Configured"));
     }
 }
