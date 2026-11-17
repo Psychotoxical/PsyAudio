@@ -1,8 +1,10 @@
 name: CI
 
 # Every pull request needs an entry under [Unreleased] in CHANGELOG.md.
-# Pull requests and pushes to main run only what the change needs: Lint always, the tests
-# when code changes, the packages when a pull request changes the packaging.
+# Pull requests and pushes to main run on Linux only and only what the change needs: Lint
+# always, the tests when code changes. The macOS and Windows runners (shared by every repository
+# of the account) are kept for releases: packages.yml builds there and runs the tests of those
+# systems first. A pull request that changes the packaging can be built by hand (Packages).
 # `ci-ok` sums up the run; it is the one check main requires. Releases are built by the
 # channel workflows (main → next, next → release), started by hand.
 on:
@@ -28,7 +30,6 @@ jobs:
       pull-requests: read
     outputs:
       code: ${{ steps.files.outputs.code }}
-      packaging: ${{ steps.files.outputs.packaging }}
     steps:
       - id: files
         env:
@@ -37,7 +38,6 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           BEFORE: ${{ github.event.before }}
           CODE: '^(src/|src-tauri/|crates/|locales/|scripts/|index\.html$|package(-lock)?\.json$|Cargo\.(toml|lock)$|biome\.json$|tsconfig\.json$|vite\.config\.ts$|rustfmt\.toml$|\.github/workflows/ci\.yml$)'
-          PACKAGING: '^(src-tauri/tauri\.conf\.json$|src-tauri/icons/|packaging/|\.github/workflows/packages\.yml$)'
         run: |
           case "$EVENT" in
             pull_request)
@@ -53,17 +53,11 @@ jobs:
           esac
           printf '%s\n' "$files"
           code=false
-          packaging=false
           if [ "$files" = ALL ] || grep -qE "$CODE" <<< "$files"; then
             code=true
           fi
-          # packages only for pull requests: main gets its packages through the channels
-          if [ "$EVENT" = pull_request ] && grep -qE "$PACKAGING" <<< "$files"; then
-            packaging=true
-          fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "packaging=$packaging" >> "$GITHUB_OUTPUT"
-          echo "::notice::Tests: $code, packages: $packaging"
+          echo "::notice::Tests: $code"
 
   changelog:
     name: Changelog entry
@@ -115,7 +109,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest, macos-15]
+        # Linux only; the other systems test in packages.yml when a release is built
+        os: [ubuntu-24.04]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -158,16 +153,9 @@ jobs:
         shell: bash
         run: git diff --exit-code -- src/ipc/bindings
 
-  packages:
-    name: Packages
-    needs: changes
-    if: needs.changes.outputs.packaging == 'true'
-    uses: ./.github/workflows/packages.yml
-    secrets: inherit
-
   ci-ok:
     name: ci-ok
-    needs: [changes, changelog, lint, tests, packages]
+    needs: [changes, changelog, lint, tests]
     if: always()
     runs-on: ubuntu-24.04
     steps:
