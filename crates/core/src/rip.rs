@@ -401,7 +401,9 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
         }
     }
     if rs.eject_after && !cancel.load(Ordering::Relaxed) {
-        let _ = drive.eject();
+        if let Err(e) = drive.eject() {
+            log.push(crate::i18n::tf(crate::i18n::t("CD konnte nicht ausgeworfen werden: {e}"), &[("e", e)]));
+        }
     } else {
         // the drive would keep spinning at full speed for a while: let it rest
         let _ = crate::scsi::stop_disc(letter);

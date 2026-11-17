@@ -36,6 +36,7 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 
 ### Fixed
 
+- On Linux the tray opens after a rip and with the eject button also when the drive locked it; USB drives answered the eject command but stayed shut. A failed eject now shows in the rip log.
 - "Run external program" works on Linux and macOS (it called the Windows shell), with paths quoted for the system's shell.
 - "Play a sound when done" sounds on Linux and macOS too.
 - The files of a release candidate carry its number, for example `PsyAudio-1.0.0-rc.1-x86_64.AppImage`, so they can't be mixed up with the release.

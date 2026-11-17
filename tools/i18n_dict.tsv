@@ -822,6 +822,7 @@ FFmpeg fehlt. Ohne FFmpeg schreibt PsyAudio nur WAV und AIFF. So installieren Si
 Befehl kopieren	Copy command
 Befehl kopiert	Command copied
 ffmpeg.org öffnen	Open ffmpeg.org
+CD konnte nicht ausgeworfen werden: {e}	Could not eject the CD: {e}
 Gilt für jede Datei. Ein Knopf fügt den Wert eines anderen Tags ein, z. B. wird <artist> zum Interpreten der Datei.	Applies to every file. A button inserts the value of another tag; <artist>, for example, becomes the file's artist.
 Die neue Datei bekommt das Änderungsdatum der Quelle statt des heutigen.	The new file gets the source's modification date instead of today's.
 Liegt im Quellordner ein folder.jpg oder cover.jpg, kommt es mit in den Zielordner; ein vorhandenes Bild dort bleibt.	A folder.jpg or cover.jpg in the source folder is copied to the output folder; an image already there is kept.
