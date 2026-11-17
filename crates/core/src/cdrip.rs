@@ -202,11 +202,8 @@ fn credit(v: &serde_json::Value) -> String {
 pub fn musicbrainz_lookup(toc: &Toc) -> Result<Vec<DiscMeta>, String> {
     let id = musicbrainz_id(toc);
     let get = |url: &str| -> Result<serde_json::Value, String> {
-        let mut resp = ureq::get(url)
-            .header("User-Agent", "PsyAudio/1.0 (CD-Ripper)")
-            .header("Accept", "application/json")
-            .call()
-            .map_err(|e| format!("MusicBrainz: {e}"))?;
+        let mut resp =
+            ureq::get(url).header("User-Agent", crate::USER_AGENT).header("Accept", "application/json").call().map_err(|e| format!("MusicBrainz: {e}"))?;
         let text = resp.body_mut().read_to_string().map_err(|e| e.to_string())?;
         serde_json::from_str(&text).map_err(|e| e.to_string())
     };
@@ -268,7 +265,7 @@ pub fn cover_art(release_id: &str) -> Option<Vec<u8>> {
     if release_id.is_empty() {
         return None;
     }
-    let mut resp = ureq::get(&format!("https://coverartarchive.org/release/{release_id}/front-500")).header("User-Agent", "PsyAudio/1.0").call().ok()?;
+    let mut resp = ureq::get(&format!("https://coverartarchive.org/release/{release_id}/front-500")).header("User-Agent", crate::USER_AGENT).call().ok()?;
     resp.body_mut().read_to_vec().ok()
 }
 

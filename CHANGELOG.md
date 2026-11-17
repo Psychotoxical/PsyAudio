@@ -6,6 +6,7 @@ Every version has its own section. The section of a version becomes the text of 
 
 ### Changed
 
+- PsyAudio introduces itself to MusicBrainz, the Cover Art Archive and the CUETools database with its real version and the project address, as MusicBrainz asks of every application.
 - The README opens with links to the other apps of the Psy Suite: Psysonic, Psysonic Mobile and PsyTags.
 
 ## [1.0.0] - 2026-11-17
