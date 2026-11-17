@@ -5,9 +5,9 @@ import { InlineText } from "./InlineText";
 describe("inline text", () => {
   it("enter_commits", () => {
     const onCommit = vi.fn();
-    render(<InlineText label="Titel" value="Lied" onCommit={onCommit} />);
-    fireEvent.click(screen.getByRole("button", { name: "Titel" }));
-    const box = screen.getByRole("textbox", { name: "Titel" });
+    render(<InlineText label="Title" value="Lied" onCommit={onCommit} />);
+    fireEvent.click(screen.getByRole("button", { name: "Title" }));
+    const box = screen.getByRole("textbox", { name: "Title" });
     fireEvent.change(box, { target: { value: "Neues Lied" } });
     fireEvent.keyDown(box, { key: "Enter" });
     expect(onCommit).toHaveBeenCalledWith("Neues Lied");
@@ -16,13 +16,13 @@ describe("inline text", () => {
 
   it("escape_reverts", () => {
     const onCommit = vi.fn();
-    render(<InlineText label="Titel" value="Lied" onCommit={onCommit} />);
-    fireEvent.click(screen.getByRole("button", { name: "Titel" }));
-    const box = screen.getByRole("textbox", { name: "Titel" });
+    render(<InlineText label="Title" value="Lied" onCommit={onCommit} />);
+    fireEvent.click(screen.getByRole("button", { name: "Title" }));
+    const box = screen.getByRole("textbox", { name: "Title" });
     fireEvent.change(box, { target: { value: "Falsch" } });
     fireEvent.keyDown(box, { key: "Escape" });
     expect(onCommit).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Titel" })).toHaveTextContent("Lied");
+    expect(screen.getByRole("button", { name: "Title" })).toHaveTextContent("Lied");
   });
 
   it("tab_moves_to_next_cell", () => {

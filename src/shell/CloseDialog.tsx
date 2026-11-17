@@ -9,7 +9,7 @@ async function quit() {
   await confirmClose(true);
 }
 
-/** "PsyAudio beenden?" when the window is closed while converting or ripping (as in egui). */
+/** "Quit PsyAudio?" when the window is closed while converting or ripping (as in egui). */
 export function CloseDialog() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -35,22 +35,20 @@ export function CloseDialog() {
         className="picker close-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label={t("PsyAudio beenden?")}
+        aria-label={t("Quit PsyAudio?")}
         onKeyDown={(e) => {
           if (e.key === "Escape") answer(false);
         }}
       >
         <header className="picker-head">
-          <h2>{t("PsyAudio beenden?")}</h2>
+          <h2>{t("Quit PsyAudio?")}</h2>
         </header>
         <p className="dialog-text">
-          {t(
-            "Es wird noch umgewandelt oder gerippt. Beim Beenden wird die Arbeit abgebrochen; fertige Dateien bleiben.",
-          )}
+          {t("Converting or ripping is still running. Quitting cancels it; finished files stay.")}
         </p>
         <div className="dialog-actions">
           <button type="button" className="btn" onClick={() => answer(true)}>
-            {t("Abbrechen und beenden")}
+            {t("Cancel and quit")}
           </button>
           <button
             type="button"
@@ -59,7 +57,7 @@ export function CloseDialog() {
             autoFocus
             onClick={() => answer(false)}
           >
-            {t("Weiterarbeiten")}
+            {t("Keep working")}
           </button>
         </div>
       </div>

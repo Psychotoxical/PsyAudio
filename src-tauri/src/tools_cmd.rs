@@ -3,18 +3,32 @@
 use crate::state::AppState;
 use psyaudio_core::audio::{self, PcmFormat};
 use psyaudio_core::encode::{self, Codec, EncSettings, Env};
+use psyaudio_core::ffmpeg::{self, FfmpegSet, Source};
 use psyaudio_core::settings::Settings;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use tauri::State;
 
-/// FFmpeg as found for the configured path, with its encoders (asking FFmpeg takes a moment).
+/// The FFmpeg found for the configured path, with what each can do (asking FFmpeg takes a moment).
 #[derive(Clone, Default)]
 pub struct ToolCache {
     configured: String,
-    pub(crate) ffmpeg: Option<PathBuf>,
-    pub(crate) encoders: Vec<String>,
+    /// The shipped FFmpeg's folder as known when this was filled (unset before the app's setup ran).
+    bundled: Option<Option<PathBuf>>,
+    pub(crate) set: FfmpegSet,
+}
+
+/// The folder of the FFmpeg shipped in the package; None in a build without one.
+pub fn bundled_ffmpeg_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
+    // macOS: Tauri puts external binaries beside the app's own program and signs them there
+    let dir = if cfg!(target_os = "macos") {
+        std::env::current_exe().ok()?.parent()?.to_path_buf()
+    } else {
+        use tauri::Manager;
+        app.path().resource_dir().ok()?.join("ffmpeg")
+    };
+    ffmpeg::bundled_in(&dir).map(|_| dir)
 }
 
 #[derive(Serialize)]
@@ -101,35 +115,57 @@ pub fn encode_options() -> EncodeOptions {
 }
 
 /// FFmpeg for the configured path; looked up again when the path changed or `refresh` is set.
+/// `PSYAUDIO_FFMPEG=bundled` takes only the shipped one (for tests).
 pub(crate) fn ffmpeg(state: &AppState, configured: &str, refresh: bool) -> ToolCache {
+    let bundled = state.bundled_ffmpeg.get().cloned();
     let mut cache = state.tools.lock().unwrap_or_else(|e| e.into_inner());
-    let stale = cache.as_ref().is_none_or(|c| c.configured != configured);
+    let stale = cache.as_ref().is_none_or(|c| c.configured != configured || c.bundled != bundled);
     if refresh || stale {
-        let ffmpeg = audio::find_tool(configured, "ffmpeg");
-        let encoders = ffmpeg.as_deref().map(audio::ffmpeg_encoders).unwrap_or_default();
-        *cache = Some(ToolCache { configured: configured.to_string(), ffmpeg, encoders });
+        let force = std::env::var("PSYAUDIO_FFMPEG").is_ok_and(|v| v == "bundled");
+        let set = FfmpegSet::find(configured, bundled.clone().flatten().as_deref(), force);
+        *cache = Some(ToolCache { configured: configured.to_string(), bundled, set });
     }
     cache.clone().unwrap_or_default()
 }
 
 #[derive(Serialize)]
 pub struct ToolStatus {
+    /// The FFmpeg that does the work.
     ffmpeg: Option<String>,
     encoders: usize,
+    source: Option<Source>,
+    /// The shipped FFmpeg when it only stands by.
+    fallback: Option<String>,
 }
 
-/// Whether FFmpeg was found (for the sidebar and the settings page).
+fn status_of(set: &FfmpegSet) -> ToolStatus {
+    let show = |p: &Path| p.to_string_lossy().into_owned();
+    ToolStatus {
+        ffmpeg: set.main.as_ref().map(|f| show(&f.path)),
+        encoders: set.main.as_ref().map_or(0, |f| f.encoders.len()),
+        source: set.main.as_ref().map(|f| f.source),
+        fallback: set.fallback.as_ref().map(|f| show(&f.path)),
+    }
+}
+
+/// Opens FFmpeg's download page in the browser (shown when no FFmpeg is found); only that page.
+#[tauri::command]
+pub fn open_ffmpeg_download() -> Result<(), String> {
+    let url = "https://ffmpeg.org/download.html";
+    audio::open_external(url.as_ref())
+}
+
+/// Which FFmpeg works and which stands by (for the sidebar and the settings page).
 #[tauri::command]
 pub async fn tool_status(state: State<'_, AppState>, settings: Settings, refresh: bool) -> Result<ToolStatus, String> {
-    let cache = ffmpeg(&state, &settings.tools.ffmpeg, refresh);
-    Ok(ToolStatus { ffmpeg: cache.ffmpeg.map(|p| p.to_string_lossy().into_owned()), encoders: cache.encoders.len() })
+    Ok(status_of(&ffmpeg(&state, &settings.tools.ffmpeg, refresh).set))
 }
 
 /// Formats that cannot run with the programs found, with the reason.
 #[tauri::command]
 pub async fn codec_problems(state: State<'_, AppState>, settings: Settings) -> Result<BTreeMap<String, String>, String> {
     let cache = ffmpeg(&state, &settings.tools.ffmpeg, false);
-    let env = Env { ffmpeg: cache.ffmpeg.as_deref(), ffmpeg_encoders: &cache.encoders, tools: &settings.tools, temp: Path::new("") };
+    let env = Env { ffmpeg: &cache.set, tools: &settings.tools, temp: Path::new("") };
     let mut out = BTreeMap::new();
     for c in LOSSLESS.iter().chain(COMPRESSED.iter()) {
         if let Some(why) = encode::missing_requirement(*c, &env) {
@@ -143,7 +179,7 @@ pub async fn codec_problems(state: State<'_, AppState>, settings: Settings) -> R
 #[tauri::command]
 pub async fn plan_requirement(state: State<'_, AppState>, settings: Settings, codec: Codec) -> Result<Option<String>, String> {
     let cache = ffmpeg(&state, &settings.tools.ffmpeg, false);
-    let env = Env { ffmpeg: cache.ffmpeg.as_deref(), ffmpeg_encoders: &cache.encoders, tools: &settings.tools, temp: Path::new("") };
+    let env = Env { ffmpeg: &cache.set, tools: &settings.tools, temp: Path::new("") };
     Ok(encode::plan_requirement(codec, &settings.enc, &env))
 }
 
@@ -180,7 +216,29 @@ fn program_list(tools: &encode::Tools, ffmpeg: Option<PathBuf>) -> Vec<Program> 
 #[tauri::command]
 pub async fn programs(state: State<'_, AppState>, settings: Settings, refresh: bool) -> Result<Vec<Program>, String> {
     let cache = ffmpeg(&state, &settings.tools.ffmpeg, refresh);
-    Ok(program_list(&settings.tools, cache.ffmpeg))
+    Ok(program_list(&settings.tools, cache.set.main.map(|f| f.path)))
+}
+
+#[cfg(test)]
+mod status_tests {
+    use super::*;
+    use psyaudio_core::ffmpeg::{Ffmpeg, FfmpegSet, Source};
+
+    fn ff(path: &str, source: Source) -> Ffmpeg {
+        Ffmpeg { path: PathBuf::from(path), source, encoders: vec!["aac".into(), "flac".into()], probe: true, hdcd: true }
+    }
+
+    #[test]
+    fn tool_status_names_source_and_fallback() {
+        let both = FfmpegSet { main: Some(ff("sys", Source::System)), fallback: Some(ff("shipped", Source::Bundled)) };
+        let s = status_of(&both);
+        assert_eq!((s.ffmpeg.as_deref(), s.encoders, s.source, s.fallback.as_deref()), (Some("sys"), 2, Some(Source::System), Some("shipped")));
+        let shipped = FfmpegSet { main: Some(ff("shipped", Source::Bundled)), fallback: None };
+        let s = status_of(&shipped);
+        assert_eq!((s.source, s.fallback), (Some(Source::Bundled), None));
+        let none = status_of(&FfmpegSet::default());
+        assert_eq!((none.ffmpeg, none.encoders, none.source, none.fallback), (None, 0, None, None));
+    }
 }
 
 #[cfg(test)]

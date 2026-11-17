@@ -34,9 +34,9 @@ pub fn load_settings(state: State<'_, AppState>) -> LoadedSettings {
     LoadedSettings { settings, warning }
 }
 
-/// The sample mode's settings: the defaults, in German unless `--en`, Mocha unless `--light`.
+/// The sample mode's settings: the defaults in the demo's language, Mocha unless `--light`.
 fn demo_settings(demo: &Demo) -> Settings {
-    Settings { lang: if demo.en { "en" } else { "de" }.into(), dark: !demo.light, ..Settings::default() }
+    Settings { lang: demo.lang.clone(), dark: !demo.light, ..Settings::default() }
 }
 
 /// Hand the old single offset to the drive `key` (the first one attached); true when it moved.
@@ -71,9 +71,9 @@ mod tests {
 
     #[test]
     fn english_demo_speaks_english() {
-        let demo = |en| Demo { page: "cd".into(), light: false, en };
-        assert_eq!(demo_settings(&demo(true)).lang, "en");
-        assert_eq!(demo_settings(&demo(false)).lang, "de");
+        let demo = |lang: &str| Demo { page: "cd".into(), light: false, lang: lang.into() };
+        assert_eq!(demo_settings(&demo("en")).lang, "en");
+        assert_eq!(demo_settings(&demo("de")).lang, "de");
     }
 
     #[test]
@@ -101,7 +101,7 @@ mod tests {
     }
 }
 
-/// "Alle Einstellungen auf Standard": the defaults, with the profiles kept (the window saves them).
+/// "Reset all settings to default": the defaults, with the profiles kept (the window saves them).
 #[tauri::command]
 pub fn reset_settings(mut settings: Settings) -> Settings {
     settings.reset_keep_profiles();

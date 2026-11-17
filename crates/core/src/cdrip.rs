@@ -57,7 +57,7 @@ impl Toc {
 /// bytes 4–7 address); track 0xAA is the lead-out, control bit 4 marks a data track.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn parse_formatted_toc(buf: &[u8]) -> Result<Toc, String> {
-    let no_tracks = || crate::i18n::t("Keine Titel auf der CD").to_string();
+    let no_tracks = || crate::i18n::t("No tracks on the CD").to_string();
     let len = buf.get(0..2).map(|b| u16::from_be_bytes([b[0], b[1]]) as usize + 2).ok_or_else(no_tracks)?;
     let body = buf.get(4..len.min(buf.len())).ok_or_else(no_tracks)?;
     let mut toc = Toc::default();
@@ -79,7 +79,7 @@ pub fn parse_formatted_toc(buf: &[u8]) -> Result<Toc, String> {
 /// A disc with only data tracks is no audio CD (same message as an empty drive).
 pub fn require_audio(toc: &Toc) -> Result<(), String> {
     if toc.audio_tracks().is_empty() {
-        return Err(crate::i18n::t("Keine Audio-CD im Laufwerk").into());
+        return Err(crate::i18n::t("No audio CD in the drive").into());
     }
     Ok(())
 }
@@ -258,7 +258,7 @@ pub fn musicbrainz_lookup(toc: &Toc) -> Result<Vec<DiscMeta>, String> {
         });
     }
     if out.is_empty() {
-        Err(crate::i18n::t("Keine Treffer bei MusicBrainz").into())
+        Err(crate::i18n::t("No matches on MusicBrainz").into())
     } else {
         Ok(out)
     }
@@ -350,7 +350,7 @@ mod win {
                 CreateFileW(name.as_ptr(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, std::ptr::null(), OPEN_EXISTING, 0, std::ptr::null_mut())
             };
             if h == INVALID_HANDLE_VALUE || h.is_null() {
-                return Err(crate::i18n::tf(crate::i18n::t("Laufwerk {0} kann nicht geöffnet werden"), &[("0", drive_name(letter))]));
+                return Err(crate::i18n::tf(crate::i18n::t("Cannot open drive {0}"), &[("0", drive_name(letter))]));
             }
             Ok(Drive { h })
         }
@@ -370,7 +370,7 @@ mod win {
                 )
             };
             if ok == 0 {
-                Err(crate::i18n::tf(crate::i18n::t("Laufwerksbefehl fehlgeschlagen (Fehler {0})"), &[("0", format!("{}", std::io::Error::last_os_error()))]))
+                Err(crate::i18n::tf(crate::i18n::t("Drive command failed (error {0})"), &[("0", format!("{}", std::io::Error::last_os_error()))]))
             } else {
                 Ok(ret)
             }
@@ -387,7 +387,7 @@ mod win {
 
         pub fn toc(&self) -> Result<Toc, String> {
             let mut buf = vec![0u8; 804];
-            self.ioctl(IOCTL_CDROM_READ_TOC, &[], &mut buf).map_err(|_| crate::i18n::t("Keine Audio-CD im Laufwerk").to_string())?;
+            self.ioctl(IOCTL_CDROM_READ_TOC, &[], &mut buf).map_err(|_| crate::i18n::t("No audio CD in the drive").to_string())?;
             let first = buf[2];
             let last = buf[3];
             let mut toc = Toc::default();
@@ -404,7 +404,7 @@ mod win {
                 }
             }
             if toc.tracks.is_empty() {
-                return Err(crate::i18n::t("Keine Titel auf der CD").into());
+                return Err(crate::i18n::t("No tracks on the CD").into());
             }
             Ok(toc)
         }
@@ -440,6 +440,7 @@ mod lin {
     const CDROMREADTOCHDR: libc::c_ulong = 0x5305;
     const CDROMREADTOCENTRY: libc::c_ulong = 0x5306;
     const CDROMEJECT: libc::c_ulong = 0x5309;
+    const CDROM_LOCKDOOR: libc::c_ulong = 0x5329;
     const CDROMREADAUDIO: libc::c_ulong = 0x530e;
     const CDROM_LBA: u8 = 0x01;
     const CDROM_LEADOUT: u8 = 0xAA;
@@ -491,12 +492,12 @@ mod lin {
                 .custom_flags(libc::O_NONBLOCK)
                 .open(path(d))
                 .map(|f| Drive { fd: f.into() })
-                .map_err(|_| crate::i18n::tf(crate::i18n::t("Laufwerk {0} kann nicht geöffnet werden"), &[("0", path(d))]))
+                .map_err(|_| crate::i18n::tf(crate::i18n::t("Cannot open drive {0}"), &[("0", path(d))]))
         }
 
         fn ioctl<T>(&self, code: libc::c_ulong, arg: *mut T) -> Result<(), String> {
             if unsafe { libc::ioctl(self.fd.as_raw_fd(), code as _, arg) } < 0 {
-                Err(crate::i18n::tf(crate::i18n::t("Laufwerksbefehl fehlgeschlagen (Fehler {0})"), &[("0", format!("{}", std::io::Error::last_os_error()))]))
+                Err(crate::i18n::tf(crate::i18n::t("Drive command failed (error {0})"), &[("0", format!("{}", std::io::Error::last_os_error()))]))
             } else {
                 Ok(())
             }
@@ -510,7 +511,7 @@ mod lin {
 
         pub fn toc(&self) -> Result<Toc, String> {
             let mut h = TocHeader::default();
-            self.ioctl(CDROMREADTOCHDR, &mut h).map_err(|_| crate::i18n::t("Keine Audio-CD im Laufwerk").to_string())?;
+            self.ioctl(CDROMREADTOCHDR, &mut h).map_err(|_| crate::i18n::t("No audio CD in the drive").to_string())?;
             let mut toc = Toc::default();
             for n in h.first..=h.last {
                 let e = self.entry(n)?;
@@ -519,7 +520,7 @@ mod lin {
             }
             toc.leadout = self.entry(CDROM_LEADOUT)?.lba.max(0) as u32;
             if toc.tracks.is_empty() {
-                return Err(crate::i18n::t("Keine Titel auf der CD").into());
+                return Err(crate::i18n::t("No tracks on the CD").into());
             }
             Ok(toc)
         }
@@ -532,7 +533,11 @@ mod lin {
             Ok(out)
         }
 
+        /// Unlock the tray first, as util-linux `eject` does: with the door locked (Linux locks it
+        /// for some openers) a USB drive answers the eject command with success and stays shut.
         pub fn eject(&self) -> Result<(), String> {
+            // the argument is the int 0 ("unlock"), passed in the pointer slot
+            let _ = self.ioctl::<u8>(CDROM_LOCKDOOR, std::ptr::null_mut());
             self.ioctl::<u8>(CDROMEJECT, std::ptr::null_mut())
         }
     }
@@ -541,6 +546,26 @@ mod lin {
     mod tests {
         use super::*;
         use std::mem::{offset_of, size_of};
+
+        /// With a real drive and a disc only (PSYAUDIO_HW_TEST=1): a locked tray still opens.
+        #[test]
+        #[ignore = "needs a CD drive with a disc: PSYAUDIO_HW_TEST=1 cargo test -- --ignored locked_tray"]
+        fn a_locked_tray_still_opens() {
+            const CDROMCLOSETRAY: libc::c_ulong = 0x5319;
+            const CDROM_DRIVE_STATUS: libc::c_ulong = 0x5326;
+            if std::env::var("PSYAUDIO_HW_TEST").is_err() {
+                return;
+            }
+            let d = Drive::open('0').expect("no /dev/sr0");
+            let status = |d: &Drive| unsafe { libc::ioctl(d.fd.as_raw_fd(), CDROM_DRIVE_STATUS as _, 0) };
+            let _ = d.ioctl::<u8>(CDROMCLOSETRAY, std::ptr::null_mut());
+            std::thread::sleep(std::time::Duration::from_secs(8));
+            assert_eq!(status(&d), 4, "disc not ready");
+            unsafe { libc::ioctl(d.fd.as_raw_fd(), CDROM_LOCKDOOR as _, 1) };
+            d.eject().unwrap();
+            std::thread::sleep(std::time::Duration::from_secs(4));
+            assert_eq!(status(&d), 2, "tray did not open");
+        }
 
         /// The structs must match `<linux/cdrom.h>` byte for byte.
         #[test]
@@ -587,7 +612,7 @@ mod mac {
     pub fn name(d: char) -> String {
         match drive(d).and_then(|o| o.bsd) {
             Some(bsd) => format!("/dev/{bsd}"),
-            None => crate::i18n::tf(crate::i18n::t("Laufwerk {0}"), &[("0", (d.to_digit(36).unwrap_or(0) + 1).to_string())]),
+            None => crate::i18n::tf(crate::i18n::t("Drive {0}"), &[("0", (d.to_digit(36).unwrap_or(0) + 1).to_string())]),
         }
     }
 
@@ -603,7 +628,7 @@ mod mac {
 
     impl Drive {
         pub fn open(d: char) -> Result<Drive, String> {
-            let no_disc = || crate::i18n::t("Keine Audio-CD im Laufwerk").to_string();
+            let no_disc = || crate::i18n::t("No audio CD in the drive").to_string();
             let bsd = drive(d).and_then(|o| o.bsd).ok_or_else(no_disc)?;
             let path = format!("/dev/r{bsd}");
             std::fs::OpenOptions::new()
@@ -611,14 +636,14 @@ mod mac {
                 .custom_flags(libc::O_NONBLOCK)
                 .open(&path)
                 .map(|f| Drive { fd: std::sync::Mutex::new(Some(f.into())), bsd })
-                .map_err(|_| crate::i18n::tf(crate::i18n::t("Laufwerk {0} kann nicht geöffnet werden"), &[("0", path)]))
+                .map_err(|_| crate::i18n::tf(crate::i18n::t("Cannot open drive {0}"), &[("0", path)]))
         }
 
         fn ioctl<T>(&self, code: u64, arg: &mut T) -> Result<(), String> {
             let fd = self.fd.lock().unwrap_or_else(|e| e.into_inner());
             let raw = fd.as_ref().map(|f| f.as_raw_fd()).unwrap_or(-1);
             if unsafe { libc::ioctl(raw, code as libc::c_ulong, arg as *mut T) } < 0 {
-                Err(crate::i18n::tf(crate::i18n::t("Laufwerksbefehl fehlgeschlagen (Fehler {0})"), &[("0", format!("{}", std::io::Error::last_os_error()))]))
+                Err(crate::i18n::tf(crate::i18n::t("Drive command failed (error {0})"), &[("0", format!("{}", std::io::Error::last_os_error()))]))
             } else {
                 Ok(())
             }
@@ -627,7 +652,7 @@ mod mac {
         pub fn toc(&self) -> Result<Toc, String> {
             let mut buf = vec![0u8; 4 + 100 * 8];
             let mut req = CdReadToc { format: 0, format_as_time: 0, buffer_length: buf.len() as u16, buffer: buf.as_mut_ptr() as usize, ..Default::default() };
-            self.ioctl(macos::DKIOCCDREADTOC, &mut req).map_err(|_| crate::i18n::t("Keine Audio-CD im Laufwerk").to_string())?;
+            self.ioctl(macos::DKIOCCDREADTOC, &mut req).map_err(|_| crate::i18n::t("No audio CD in the drive").to_string())?;
             parse_formatted_toc(&buf)
         }
 
@@ -645,7 +670,7 @@ mod mac {
             self.ioctl(macos::DKIOCCDREAD, &mut req)?;
             out.truncate(req.buffer_length as usize);
             if out.len() < count as usize * SECTOR {
-                return Err(crate::i18n::tf(crate::i18n::t("Laufwerksbefehl fehlgeschlagen (Fehler {0})"), &[("0", "short read".into())]));
+                return Err(crate::i18n::tf(crate::i18n::t("Drive command failed (error {0})"), &[("0", "short read".into())]));
             }
             Ok(out)
         }
@@ -739,13 +764,13 @@ pub struct Drive;
 #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 impl Drive {
     pub fn open(_l: char) -> Result<Drive, String> {
-        Err(crate::i18n::t("CD-Lesen ist auf diesem System nicht verfügbar").into())
+        Err(crate::i18n::t("CD reading is not available on this system").into())
     }
     pub fn toc(&self) -> Result<Toc, String> {
-        Err(crate::i18n::t("nicht unterstützt").into())
+        Err(crate::i18n::t("not supported").into())
     }
     pub fn read(&self, _lba: u32, _c: u32) -> Result<Vec<u8>, String> {
-        Err(crate::i18n::t("nicht unterstützt").into())
+        Err(crate::i18n::t("not supported").into())
     }
     pub fn eject(&self) -> Result<(), String> {
         Ok(())
@@ -794,7 +819,7 @@ pub(crate) fn read_range(
     let mut lba = s_lo;
     while lba < s_hi {
         if cancel.load(Ordering::Relaxed) {
-            return Err(crate::i18n::t("abgebrochen").into());
+            return Err(crate::i18n::t("cancelled").into());
         }
         let n = READ_SECTORS.min(s_hi - lba);
         let (data, bad) = read_block_lenient(drive, lba, n, max_lba, cancel)?;
@@ -817,7 +842,7 @@ pub(crate) fn read_block_lenient(drive: &dyn SectorRead, lba: i64, n: i64, max_l
     let mut bad = Vec::new();
     for l in lba..lba + n {
         if cancel.load(Ordering::Relaxed) {
-            return Err(crate::i18n::t("abgebrochen").into());
+            return Err(crate::i18n::t("cancelled").into());
         }
         match read_block(drive, l, 1, max_lba) {
             Ok(d) => out.extend_from_slice(&d),
@@ -844,7 +869,7 @@ pub(crate) fn read_block(drive: &dyn SectorRead, lba: i64, n: i64, max_lba: i64)
             match drive.read(lo as u32, (hi - lo) as u32) {
                 Ok(d) if d.len() == want => break d,
                 Ok(_) | Err(_) if tries < 3 => tries += 1,
-                Ok(_) => return Err(crate::i18n::t("Laufwerk lieferte zu wenig Daten").into()),
+                Ok(_) => return Err(crate::i18n::t("The drive returned too little data").into()),
                 Err(e) => return Err(e),
             }
         };

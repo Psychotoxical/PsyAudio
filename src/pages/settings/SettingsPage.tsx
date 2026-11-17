@@ -1,8 +1,8 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { CircleCheck, CircleX, RefreshCw } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { Fragment, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { plural, setLanguage } from "../../i18n";
+import { LANGUAGES, plural, resolveLanguage, setLanguage } from "../../i18n";
 import type { Tools } from "../../ipc/bindings/Tools";
 import { refreshEncode } from "../../ipc/encode";
 import { fileManagerMenu } from "../../ipc/events";
@@ -18,16 +18,17 @@ import { useEncode } from "../../store/encode";
 import { useSettings } from "../../store/settings";
 import { useUi } from "../../store/ui";
 import { CollapsibleBox } from "../../ui/CollapsibleBox";
-import { Check, Hint, Segmented } from "../../ui/controls";
+import { Check, Hint, Segmented, Select } from "../../ui/controls";
 import { SliderField } from "../../ui/SliderField";
 import { DrivesBox } from "./DrivesBox";
+import { FfmpegInstallHint } from "./FfmpegInstallHint";
 import "./settings.css";
 
 const PROGRAM_LABELS: Record<Program["key"], string> = {
   ffmpeg: "FFmpeg",
   mac: "Monkey's Audio (mac.exe)",
   mpcenc: "Musepack (mpcenc.exe)",
-  sox: "SoX für DSD (sox.exe)",
+  sox: "SoX for DSD (sox.exe)",
 };
 
 /** One program: its path (typed or picked), where it was found, and whether it was. */
@@ -36,6 +37,9 @@ function ProgramRow({ program }: { program: Program }) {
   const id = useId();
   const configured = useSettings((s) => s.settings?.tools[program.key] ?? "");
   const update = useSettings((s) => s.update);
+  // the shipped FFmpeg's path changes with every AppImage start: name it instead
+  const shipped = useEncode((s) => program.key === "ffmpeg" && s.ffmpegSource === "bundled");
+  const found = program.found && shipped ? t("bundled") : program.found;
   const [draft, setDraft] = useState<string | null>(null);
   const commit = (value: string) => {
     setDraft(null);
@@ -63,7 +67,7 @@ function ProgramRow({ program }: { program: Program }) {
           className="text-field"
           type="text"
           value={draft ?? configured}
-          placeholder={program.found ?? t("nicht gefunden")}
+          placeholder={found ?? t("not found")}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => draft !== null && commit(draft)}
           onKeyDown={(e) => {
@@ -73,15 +77,15 @@ function ProgramRow({ program }: { program: Program }) {
         <button
           type="button"
           className="icon-btn"
-          aria-label={t("Programm auswählen")}
-          title={t("Programm auswählen")}
+          aria-label={t("Choose program")}
+          title={t("Choose program")}
           onClick={() => void pick()}
         >
           …
         </button>
         <span
           className={program.found ? "prog-state ok" : "prog-state bad"}
-          title={program.found ?? t("nicht gefunden")}
+          title={found ?? t("not found")}
         >
           {program.found ? <CircleCheck size={18} /> : <CircleX size={18} />}
         </span>
@@ -123,37 +127,48 @@ function ProgramsBox() {
   return (
     <CollapsibleBox
       id="programs"
-      title={t("Encoder-Programme")}
-      summary={t("{0} von {1} gefunden", { 0: String(found), 1: String(progs.list.length) })}
+      title={t("Encoder programs")}
+      summary={t("{0} of {1} found", { 0: String(found), 1: String(progs.list.length) })}
     >
       <ProgramsFields {...progs} />
     </CollapsibleBox>
   );
 }
 
-/** What each program is for, one row per program, and "Erneut suchen". */
+/** What each program is for, one row per program, and "Search again". */
 export function ProgramsFields({ list, again }: ReturnType<typeof usePrograms>) {
   const { t } = useTranslation();
   const ffmpeg = useEncode((s) => s.ffmpeg);
   const encoders = useEncode((s) => s.encoders);
+  const source = useEncode((s) => s.ffmpegSource);
+  const fallback = useEncode((s) => s.ffmpegFallback);
   return (
     <>
       <Hint>
         {t(
-          "WAV und AIFF schreibt PsyAudio selbst. MP3, FLAC, AAC, ALAC, Opus, Vorbis, WavPack, WMA und Speex laufen über FFmpeg; Monkey's Audio, Musepack und DSD über ihre eigenen Programme.",
+          "PsyAudio writes WAV and AIFF itself. MP3, FLAC, AAC, ALAC, Opus, Vorbis, WavPack, WMA and Speex go through FFmpeg; Monkey's Audio, Musepack and DSD through their own programs.",
         )}
       </Hint>
       {list.map((p) => (
-        <ProgramRow key={p.key} program={p} />
+        <Fragment key={p.key}>
+          <ProgramRow program={p} />
+          {/* null: looked for and not found (undefined: still looking) */}
+          {p.key === "ffmpeg" && ffmpeg === null && <FfmpegInstallHint />}
+        </Fragment>
       ))}
       {ffmpeg && (
         <p className="muted small">
-          {t("FFmpeg: {0} ({1} Encoder)", { 0: ffmpeg, 1: String(encoders) })}
+          {source === "bundled"
+            ? t("FFmpeg: bundled ({1} encoders)", { 1: String(encoders) })
+            : t("FFmpeg: {0} ({1} encoders)", { 0: ffmpeg, 1: String(encoders) })}
         </p>
+      )}
+      {ffmpeg && fallback && (
+        <p className="muted small">{t("The bundled FFmpeg stands by as a fallback.")}</p>
       )}
       <button type="button" className="btn" onClick={() => void again()}>
         <RefreshCw size={15} />
-        {t("Erneut suchen")}
+        {t("Search again")}
       </button>
     </>
   );
@@ -166,7 +181,7 @@ function PerformanceBox({ info }: { info: SystemInfo | null }) {
   if (!s) return null;
   const cores = info?.cores ?? 8;
   const max = Math.min(cores * 2, 64);
-  const kerne = (n: number) => t(plural(n, "{0} Kern", "{0} Kerne"), { 0: String(n) });
+  const kerne = (n: number) => t(plural(n, "{0} core", "{0} cores"), { 0: String(n) });
   const chooseTemp = async () => {
     const picked = await open({
       directory: true,
@@ -180,12 +195,12 @@ function PerformanceBox({ info }: { info: SystemInfo | null }) {
   return (
     <CollapsibleBox
       id="performance"
-      title={t("Leistung")}
-      summary={t("{0} gleichzeitig", { 0: kerne(s.threads) })}
+      title={t("Performance")}
+      summary={t("{0} at a time", { 0: kerne(s.threads) })}
     >
       <div className="field">
         <SliderField
-          label={t("Gleichzeitige Umwandlungen")}
+          label={t("Simultaneous conversions")}
           min={1}
           max={max}
           value={Math.min(s.threads, max)}
@@ -197,14 +212,14 @@ function PerformanceBox({ info }: { info: SystemInfo | null }) {
           }
         />
         <Hint>
-          {t("Dieser Rechner hat {0}; mehr gleichzeitige Umwandlungen bringen selten etwas.", {
+          {t("This computer has {0}; more simultaneous conversions rarely help.", {
             0: kerne(cores),
           })}
         </Hint>
       </div>
       <div className="field">
         <Check
-          label={t("Mit niedriger Priorität arbeiten (PC bleibt flüssig)")}
+          label={t("Work at low priority (PC stays responsive)")}
           checked={s.low_priority}
           onChange={(v) =>
             update((x) => {
@@ -215,7 +230,7 @@ function PerformanceBox({ info }: { info: SystemInfo | null }) {
       </div>
       <div className="field">
         <label className="lbl" htmlFor="temp-folder">
-          {t("Temporärer Ordner")}
+          {t("Temporary folder")}
         </label>
         <div className="row">
           <input
@@ -228,7 +243,7 @@ function PerformanceBox({ info }: { info: SystemInfo | null }) {
             onClick={() => void chooseTemp()}
           />
           <button type="button" className="btn" onClick={() => void chooseTemp()}>
-            {t("Ändern")}
+            {t("Change")}
           </button>
           {s.temp_folder && (
             <button
@@ -240,13 +255,11 @@ function PerformanceBox({ info }: { info: SystemInfo | null }) {
                 })
               }
             >
-              {t("Standard")}
+              {t("Default")}
             </button>
           )}
         </div>
-        <Hint>
-          {t("Hier entstehen Zwischendateien, etwa für Monkey's Audio, Musepack und DSD.")}
-        </Hint>
+        <Hint>{t("Intermediate files go here, e.g. for Monkey's Audio, Musepack and DSD.")}</Hint>
       </div>
     </CollapsibleBox>
   );
@@ -254,7 +267,9 @@ function PerformanceBox({ info }: { info: SystemInfo | null }) {
 
 /** "Deutsch · Mocha": language and theme in one line. */
 export function lookSummary(lang: string, dark: boolean): string {
-  return `${lang === "de" ? "Deutsch" : "English"} · ${dark ? "Mocha" : "Latte"}`;
+  const code = resolveLanguage(lang);
+  const name = LANGUAGES.find(([c]) => c === code)?.[1] ?? "English";
+  return `${name} · ${dark ? "Mocha" : "Latte"}`;
 }
 
 function LookBox() {
@@ -262,7 +277,7 @@ function LookBox() {
   const s = useSettings((x) => x.settings);
   if (!s) return null;
   return (
-    <CollapsibleBox id="look" title={t("Aussehen")} summary={lookSummary(s.lang, s.dark)}>
+    <CollapsibleBox id="look" title={t("Appearance")} summary={lookSummary(s.lang, s.dark)}>
       <LookFields />
     </CollapsibleBox>
   );
@@ -274,30 +289,35 @@ export function LookFields() {
   const s = useSettings((x) => x.settings);
   const update = useSettings((x) => x.update);
   if (!s) return null;
-  const lang = s.lang === "de" ? "de" : "en";
+  const lang = LANGUAGES.some(([c]) => c === s.lang) ? s.lang : "";
   return (
     <>
-      <Segmented<"en" | "de">
-        label={t("Sprache")}
+      <Select<string>
+        label={t("Language")}
         value={lang}
         options={[
-          ["en", "English"],
-          ["de", "Deutsch"],
+          [
+            "",
+            t("System language ({0})", {
+              0: LANGUAGES.find(([c]) => c === resolveLanguage(""))?.[1] ?? "",
+            }),
+          ],
+          ...LANGUAGES,
         ]}
         onChange={(v) => {
           update((x) => {
             x.lang = v;
           });
           // the window switches at once; Rust follows with the next format lists (App)
-          void setLanguage(v);
+          void setLanguage(resolveLanguage(v));
         }}
       />
       <Segmented<boolean>
-        label={t("Thema")}
+        label={t("Theme")}
         value={s.dark}
         options={[
-          [true, t("Mocha, dunkel")],
-          [false, t("Latte, hell")],
+          [true, t("Mocha, dark")],
+          [false, t("Latte, light")],
         ]}
         onChange={(v) =>
           update((x) => {
@@ -313,18 +333,18 @@ function IntegrationBox({ info }: { info: SystemInfo | null }) {
   const { t } = useTranslation();
   if (!info) return null;
   const title = {
-    windows: t("Windows-Integration"),
-    linux: t("Dolphin-Integration"),
-    macos: t("Finder-Integration"),
+    windows: t("Windows integration"),
+    linux: t("Dolphin integration"),
+    macos: t("Finder integration"),
   }[info.os];
   return (
-    <CollapsibleBox id="integration" title={title} summary={t("Kontextmenü")}>
+    <CollapsibleBox id="integration" title={title} summary={t("Context menu")}>
       <IntegrationFields info={info} />
     </CollapsibleBox>
   );
 }
 
-/** Adds or removes "Mit PsyAudio konvertieren" in the file manager; `onDone` hears which worked. */
+/** Adds or removes "Convert with PsyAudio" in the file manager; `onDone` hears which worked. */
 export function IntegrationFields({
   info,
   onDone,
@@ -342,13 +362,13 @@ export function IntegrationFields({
       .catch((e: unknown) => useUi.getState().notify(String(e)));
   const hint = {
     windows: t(
-      "Fügt im Explorer-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).",
+      "Adds “Convert with PsyAudio” to the Explorer right-click menu of audio files (for your user account only).",
     ),
     linux: t(
-      "Fügt im Dolphin-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).",
+      "Adds “Convert with PsyAudio” to the Dolphin right-click menu of audio files (for your user account only).",
     ),
     macos: t(
-      "Fügt im Finder-Rechtsklickmenü von Audiodateien die Schnellaktion „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).",
+      "Adds the quick action “Convert with PsyAudio” to the Finder right-click menu of audio files (for your user account only).",
     ),
   }[info.os];
   return (
@@ -356,10 +376,10 @@ export function IntegrationFields({
       <Hint>{hint}</Hint>
       <div className="row">
         <button type="button" className="btn" onClick={() => void menu(true)}>
-          {t("Kontextmenü einrichten")}
+          {t("Set up context menu")}
         </button>
         <button type="button" className="btn" onClick={() => void menu(false)}>
-          {t("Kontextmenü entfernen")}
+          {t("Remove context menu")}
         </button>
       </div>
     </>
@@ -378,8 +398,8 @@ function ResetBox() {
       update((x) => {
         Object.assign(x, fresh);
       });
-      void setLanguage(fresh.lang === "de" ? "de" : "en");
-      useUi.getState().notify(t("Einstellungen zurückgesetzt"));
+      void setLanguage(resolveLanguage(fresh.lang));
+      useUi.getState().notify(t("Settings reset"));
     } catch (e) {
       useUi.getState().notify(String(e));
     } finally {
@@ -387,27 +407,27 @@ function ResetBox() {
     }
   };
   return (
-    <CollapsibleBox id="reset" title={t("Zurücksetzen")} defaultOpen={false}>
+    <CollapsibleBox id="reset" title={t("Reset")} defaultOpen={false}>
       {asking ? (
         <div className="confirm">
           <p>
             {t(
-              "Alle Einstellungen außer den Profilen gehen auf Standard zurück, auch Sprache und Thema.",
+              "All settings except the profiles go back to their defaults, language and theme too.",
             )}
           </p>
           <div className="row">
             <button type="button" className="btn danger" onClick={() => void reset()}>
-              {t("Jetzt zurücksetzen")}
+              {t("Reset now")}
             </button>
             <button type="button" className="btn" onClick={() => setAsking(false)}>
-              {t("Abbrechen")}
+              {t("Cancel")}
             </button>
           </div>
         </div>
       ) : (
         <div className="row">
           <button type="button" className="btn" onClick={() => setAsking(true)}>
-            {t("Alle Einstellungen auf Standard")}
+            {t("Reset all settings to default")}
           </button>
         </div>
       )}
@@ -433,7 +453,7 @@ export function SettingsPage() {
   return (
     <div className="page">
       <div className="page-main">
-        <PageHeader title={t("Einstellungen")} />
+        <PageHeader title={t("Settings")} />
         {/* two groups: one under the other, side by side once the window is wide (settings.css) */}
         <div className="content settings">
           <div className="settings-grid">

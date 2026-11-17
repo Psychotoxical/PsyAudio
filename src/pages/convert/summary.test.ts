@@ -33,37 +33,37 @@ describe("format tile summary", () => {
   });
 
   it("flac_shows_level", () => {
-    expect(codecSummary("Flac", enc({ flac_level: 5 }), options, t)).toBe("FLAC · Stufe 5");
+    expect(codecSummary("Flac", enc({ flac_level: 5 }), options, t)).toBe("FLAC · Level 5");
   });
 
   it("save_summary_names_the_place", () => {
     const s = { output_mode: "SourceFolder", output_folder: "C:\\Ziel" } as Settings;
-    expect(saveSummary(s, t)).toBe("Neben der Quelle");
+    expect(saveSummary(s, t)).toBe("Next to the source");
     expect(saveSummary({ ...s, output_mode: "SingleFolder" }, t)).toBe("C:\\Ziel");
   });
 
   it("naming_summary_names_the_preset", () => {
     const naming = {
-      presets: [{ name: "Track – Titel", scheme: ["track", " - ", "title"] }],
+      presets: [{ name: "Track – Title", scheme: ["track", " - ", "title"] }],
     } as NamingOptions;
     const s = { output_mode: "SingleFolder", name_scheme: ["track", " - ", "title"] } as Settings;
-    expect(namingSummary(s, naming, t)).toBe("Track – Titel");
+    expect(namingSummary(s, naming, t)).toBe("Track – Title");
     expect(namingSummary({ ...s, name_scheme: ["artist", "title"] }, naming, t)).toBe(
-      "2 Bausteine",
+      "2 building blocks",
     );
-    expect(namingSummary({ ...s, output_mode: "PreservePath" }, naming, t)).toBe("Wie die Quelle");
+    expect(namingSummary({ ...s, output_mode: "PreservePath" }, naming, t)).toBe("As the source");
   });
 
   it("effects_summary_lists_names", () => {
     const entries = [
-      { category: "Filter", label: "Tiefpass", description: "", effect: { Lowpass: { hz: 1 } } },
-      { category: "Bearbeiten", label: "Rückwärts", description: "", effect: "Reverse" },
+      { category: "Filter", label: "Low-pass", description: "", effect: { Lowpass: { hz: 1 } } },
+      { category: "Filter", label: "De-Emphasis", description: "", effect: "DeEmphasis" },
     ] as EffectEntry[];
-    expect(effectsSummary([], entries, t)).toBe("Keine");
-    expect(effectsSummary(["Reverse"], entries, t)).toBe("Rückwärts");
+    expect(effectsSummary([], entries, t)).toBe("None");
+    expect(effectsSummary(["DeEmphasis"], entries, t)).toBe("De-Emphasis");
     // the tile shows one line: the count comes first so a cut-off line still says it
-    expect(effectsSummary(["Reverse", { Lowpass: { hz: 500 } }], entries, t)).toBe(
-      "2 Effekte · Rückwärts, Tiefpass",
+    expect(effectsSummary(["DeEmphasis", { Lowpass: { hz: 500 } }], entries, t)).toBe(
+      "2 effects · De-Emphasis, Low-pass",
     );
   });
 });

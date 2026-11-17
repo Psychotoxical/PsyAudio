@@ -7,36 +7,36 @@ type T = (key: string, values?: Record<string, string>) => string;
 export function statusText(s: TrackStatus, t: T): string {
   switch (s.kind) {
     case "Secure":
-      if (s.verified_first_pass) return t("Sicher (1 Durchgang, von CTDB bestätigt)");
+      if (s.verified_first_pass) return t("Secure (1 pass, confirmed by CTDB)");
       if (s.rereads > 0)
         return t(
           plural(
             s.rereads,
-            "Sicher (Warnung: {0} Durchgänge, {1} Block neu gelesen)",
-            "Sicher (Warnung: {0} Durchgänge, {1} Blöcke neu gelesen)",
+            "Secure (warning: {0} passes, {1} block re-read)",
+            "Secure (warning: {0} passes, {1} blocks re-read)",
           ),
           {
             0: String(s.passes),
             1: String(s.rereads),
           },
         );
-      return t("Sicher ({0} Durchgänge identisch)", { 0: String(s.passes) });
+      return t("Secure ({0} passes identical)", { 0: String(s.passes) });
     case "Burst":
-      return t("Gerippt (Burst)");
+      return t("Ripped (burst)");
     case "Insecure":
-      return t(plural(s.sectors, "Unsicher ({0} Sektor)", "Unsicher ({0} Sektoren)"), {
+      return t(plural(s.sectors, "Insecure ({0} sector)", "Insecure ({0} sectors)"), {
         0: String(s.sectors),
       });
     case "Marked":
       return s.unconfirmed
-        ? t("Fehler – nicht von CTDB bestätigt ({status})", { status: statusText(s.was, t) })
-        : t("Fehler – {status}", { status: statusText(s.was, t) });
+        ? t("Error – not confirmed by CTDB ({status})", { status: statusText(s.was, t) })
+        : t("Error – {status}", { status: statusText(s.was, t) });
     case "Failed":
       return s.encoding
-        ? t("Fehler beim Kodieren: {e}", { e: s.reason })
-        : t("Fehler: {e}", { e: s.reason });
+        ? t("Error while encoding: {e}", { e: s.reason })
+        : t("Error: {e}", { e: s.reason });
     case "Cancelled":
-      return t("Abgebrochen");
+      return t("Cancelled");
   }
 }
 
@@ -47,13 +47,13 @@ export function summaryText(s: RipSummary, t: T): string {
       return t(
         plural(
           s.files,
-          "Fertig: {0} Datei, {accurate} von CTDB bestätigt",
-          "Fertig: {0} Dateien, {accurate} von CTDB bestätigt",
+          "Done: {0} file, {accurate} confirmed by CTDB",
+          "Done: {0} files, {accurate} confirmed by CTDB",
         ),
         { 0: String(s.files), accurate: String(s.accurate) },
       );
     case "Cancelled":
-      return t("Abgebrochen");
+      return t("Cancelled");
     case "Failed":
       return s.reason;
   }
@@ -63,12 +63,12 @@ export function summaryText(s: RipSummary, t: T): string {
 export function ctdbText(c: CtdbResult, t: T): string {
   if (c.unavailable) return `CTDB: ${c.unavailable}`;
   if (c.confirmed)
-    return t("CTDB: bestätigt ({c} von {total})", {
+    return t("CTDB: confirmed ({c} of {total})", {
       c: String(c.confidence),
       total: String(c.total),
     });
-  if (c.in_db) return t("CTDB: nicht bestätigt");
-  return t("CTDB: CD nicht in der Datenbank");
+  if (c.in_db) return t("CTDB: not confirmed");
+  return t("CTDB: disc not in the database");
 }
 
 export type Tone = "ok" | "warn" | "bad" | "muted";
@@ -83,7 +83,7 @@ export function statusChip(
   let tone: Tone;
   switch (s.kind) {
     case "Secure":
-      text = t("Sicher");
+      text = t("Secure");
       tone = "ok";
       break;
     case "Burst":
@@ -94,18 +94,18 @@ export function statusChip(
       return { text: statusText(s, t), tone: "warn" };
     case "Marked":
     case "Failed":
-      return { text: t("Fehler"), tone: "bad" };
+      return { text: t("Error"), tone: "bad" };
     case "Cancelled":
-      return { text: t("Abgebrochen"), tone: "muted" };
+      return { text: t("Cancelled"), tone: "muted" };
   }
   if (ctdb?.confirmed) return { text: `${text} · CTDB ${ctdb.confidence}`, tone };
   if (ctdb && !ctdb.unavailable && ctdb.in_db)
-    return { text: `${text} · ${t("CTDB nicht bestätigt")}`, tone: "warn" };
+    return { text: `${text} · ${t("CTDB not confirmed")}`, tone: "warn" };
   return { text, tone };
 }
 
-/** "Lesen 63 %" / "Kodieren…" while a track runs. */
+/** "Reading 63 %" / "Encoding…" while a track runs. */
 export function phaseText(p: RipPhase, t: T): string {
-  if (p.kind === "Encoding") return t("Kodieren…");
-  return p.done <= 0 ? t("Lesen…") : t("Lesen {0} %", { 0: String(Math.round(p.done * 100)) });
+  if (p.kind === "Encoding") return t("Encoding…");
+  return p.done <= 0 ? t("Reading…") : t("Reading {0} %", { 0: String(Math.round(p.done * 100)) });
 }

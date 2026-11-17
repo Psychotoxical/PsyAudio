@@ -113,7 +113,7 @@ export function applyEvent(run: Run, e: RunEvent): Run {
   }
 }
 
-/** "Fehlgeschlagene erneut umwandeln" is offered once the run is over and something failed. */
+/** "Convert failed files again" is offered once the run is over and something failed. */
 export function canRetry(run: Run): boolean {
   return run.elapsed !== null && run.jobs.some((j) => j.state === "failed");
 }
@@ -122,7 +122,7 @@ export function failedItems(run: Run): [string, string | null][] {
   return run.jobs.filter((j) => j.state === "failed").map((j) => [j.path, j.root]);
 }
 
-/** An open "Dateien sind schon vorhanden" question (converter or batch page). */
+/** An open "Files already exist" question (converter or batch page). */
 export interface OverwriteAsk {
   items: [string, string | null][];
   codec: Codec;

@@ -25,7 +25,7 @@ function defaultMeta(disc: DiscInfo) {
   return {
     ...emptyMeta(),
     tracks: disc.tracks.map((tr) => ({
-      title: t("Titel {0}", { 0: String(tr.number).padStart(2, "0") }),
+      title: t("Track {0}", { 0: String(tr.number).padStart(2, "0") }),
       artist: "",
       isrc: "",
     })),
@@ -95,7 +95,7 @@ function applyLookup(e: LookupEvent) {
   }
 }
 
-/** "Titel-Infos suchen" (MusicBrainz), and after reading the CUETools database too. */
+/** "Look up track info" (MusicBrainz), and after reading the CUETools database too. */
 export async function searchInfo(ctdb = false): Promise<void> {
   useCd.setState((s) => ({
     lookup: "busy",
@@ -108,7 +108,7 @@ export async function searchInfo(ctdb = false): Promise<void> {
   }
 }
 
-/** "CD lesen": drives again, the table of contents, then the lookups. */
+/** "Read CD": drives again, the table of contents, then the lookups. */
 export async function readCd(): Promise<void> {
   await scanDrives();
   const drive = useCd.getState().drive;
@@ -237,5 +237,5 @@ function measureIfUnknown(total: number): void {
   if (!settings?.rip.ctdb || !drive || !current || offset.busy || rip?.running) return;
   if (settings.rip.drives.some((p) => p.model === driveKey(current))) return;
   if (total > 0) void measure(drive, true);
-  else notify(t("Diese CD kennt CTDB nicht – PsyAudio misst den Versatz mit der nächsten CD"));
+  else notify(t("CTDB does not know this CD – PsyAudio measures the offset with the next CD"));
 }

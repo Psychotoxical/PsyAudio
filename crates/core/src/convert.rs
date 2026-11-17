@@ -1,13 +1,14 @@
 //! The conversion run: a pool of workers that decode, process, encode and tag each file.
 
 use crate::audio::{self, Audio};
-use crate::dsp::{self, Effect, Outcome};
+use crate::dsp::{self, Effect};
 use crate::encode::{self, Codec, EncSettings, Env, Tools};
+use crate::ffmpeg::FfmpegSet;
 use crate::loudness;
 use crate::naming;
 use crate::settings::OutputMode;
 use crate::tags::{self, Tags};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
@@ -43,8 +44,8 @@ pub struct Plan {
     pub copy_art: bool,
     pub threads: usize,
     pub low_priority: bool,
-    pub ffmpeg: Option<PathBuf>,
-    pub ffmpeg_encoders: Vec<String>,
+    /// The FFmpeg for each job.
+    pub ffmpeg: FfmpegSet,
     pub tools: Tools,
     pub temp: PathBuf,
     /// Chips for "tags from file name".
@@ -80,15 +81,15 @@ pub fn output_location_problem(folder: &Path) -> Option<String> {
         let wide: Vec<u16> = root.encode_utf16().chain(std::iter::once(0)).collect();
         let mask = unsafe { GetLogicalDrives() };
         if mask & (1 << (letter - b'A')) == 0 {
-            return Some(crate::i18n::tf(crate::i18n::t("Ziellaufwerk {0} gibt es nicht"), &[("0", root.clone())]));
+            return Some(crate::i18n::tf(crate::i18n::t("Output drive {0} does not exist"), &[("0", root.clone())]));
         }
         if unsafe { GetDriveTypeW(wide.as_ptr()) } == 5 {
-            return Some(crate::i18n::tf(crate::i18n::t("Ziellaufwerk {0} ist ein CD-Laufwerk"), &[("0", root.clone())]));
+            return Some(crate::i18n::tf(crate::i18n::t("Output drive {0} is a CD drive"), &[("0", root.clone())]));
         }
         let (mut avail, mut total, mut free) = (0u64, 0u64, 0u64);
         let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut avail, &mut total, &mut free) } != 0;
         if ok && free < OUTPUT_MIN_FREE {
-            return Some(crate::i18n::tf(crate::i18n::t("Ziellaufwerk {0} ist voll"), &[("0", root.clone())]));
+            return Some(crate::i18n::tf(crate::i18n::t("Output drive {0} is full"), &[("0", root.clone())]));
         }
     }
     // the folder may not exist yet: test the nearest folder that does
@@ -105,7 +106,7 @@ pub fn output_location_problem(folder: &Path) -> Option<String> {
             let _ = std::fs::remove_file(&probe);
             None
         }
-        Err(_) => Some(crate::i18n::t("In den Zielordner kann nicht geschrieben werden – ist er schreibgeschützt oder fehlen Schreibrechte?").to_string()),
+        Err(_) => Some(crate::i18n::t("Cannot write to the output folder – is it read-only, or is write permission missing?").to_string()),
     }
 }
 
@@ -114,7 +115,7 @@ pub const OUTPUT_MIN_FREE: u64 = 256_000;
 
 impl Plan {
     fn env(&self) -> Env<'_> {
-        Env { ffmpeg: self.ffmpeg.as_deref(), ffmpeg_encoders: &self.ffmpeg_encoders, tools: &self.tools, temp: &self.temp }
+        Env { ffmpeg: &self.ffmpeg, tools: &self.tools, temp: &self.temp }
     }
 
     /// Codecs that produce files in this run.
@@ -141,19 +142,20 @@ impl Plan {
     pub fn name_clash(&self, name: &str, root: Option<&Path>) -> String {
         let source_names = (self.keep_structure && root.is_some()) || self.output_mode == OutputMode::PreservePath;
         let text = if source_names {
-            "Eine andere Datei dieses Laufs bekommt schon den Namen {0} – die Quelle enthält diesen Namen zweimal, nur mit anderer Endung"
+            "Another file in this run already gets the name {0} – the source has this name twice, only with another extension"
         } else {
-            "Eine andere Datei dieses Laufs bekommt schon den Namen {0} – Bausteine für die Namen anpassen"
+            "Another file in this run already gets the name {0} – adjust the name chips"
         };
         crate::i18n::tf(crate::i18n::t(text), &[("0", name.to_string())])
     }
 
     /// `t` are the source's own tags: names follow them after the run's tag processing, also
     /// when the output gets no tags, so preview, overwrite question and worker agree.
-    pub fn destination(&self, src: &Path, root: Option<&Path>, t: &Tags, info: &tags::Info, codec: Codec) -> PathBuf {
+    /// `position` is the source's number and count in its folder (see [`folder_positions`]).
+    pub fn destination(&self, src: &Path, root: Option<&Path>, t: &Tags, info: &tags::Info, codec: Codec, position: Option<(usize, usize)>) -> PathBuf {
         let _ = info;
         let mut processed = t.clone();
-        apply_tag_processing(&self.effects, &mut processed);
+        apply_tag_processing(&self.effects, &mut processed, position);
         let t = &processed;
         let stem = || {
             let s = naming::clean_value(&src.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default());
@@ -233,8 +235,17 @@ fn tmp_name(dest: &Path) -> PathBuf {
 /// Per album: its loudness blocks, its peak and the files written, for album gain at the end.
 type AlbumBlocks = BTreeMap<String, (Vec<f64>, f32, Vec<PathBuf>)>;
 
+/// (album, artist) of each source in one folder, filled once by whichever thread comes first.
+type FolderAlbums = std::sync::OnceLock<Vec<(String, String)>>;
+
 struct Shared {
     queue: Mutex<VecDeque<Job>>,
+    /// Number and count of each source in its folder, in list order (see [`folder_positions`]).
+    positions: HashMap<String, (usize, usize)>,
+    /// The sources of each folder with the tags the ripper handed over, for the album artist.
+    by_folder: HashMap<PathBuf, Vec<(PathBuf, Option<Tags>)>>,
+    /// (album, artist) of every source per folder after the tag processing, read once per folder.
+    folder_albums: Mutex<HashMap<PathBuf, Arc<FolderAlbums>>>,
     album_blocks: Mutex<AlbumBlocks>,
     playlist: Mutex<Vec<(usize, PathBuf)>>,
     /// Destinations already taken in this run (`path_key`), so two sources never share one.
@@ -243,7 +254,14 @@ struct Shared {
 
 impl Shared {
     fn new(jobs: Vec<Job>) -> Shared {
+        let mut by_folder: HashMap<PathBuf, Vec<(PathBuf, Option<Tags>)>> = HashMap::new();
+        for j in &jobs {
+            by_folder.entry(j.src.parent().map(Path::to_path_buf).unwrap_or_default()).or_default().push((j.src.clone(), j.tags.clone()));
+        }
         Shared {
+            positions: folder_positions(jobs.iter().map(|j| j.src.as_path())),
+            by_folder,
+            folder_albums: Mutex::new(HashMap::new()),
             queue: Mutex::new(jobs.into_iter().collect()),
             album_blocks: Mutex::new(BTreeMap::new()),
             playlist: Mutex::new(Vec::new()),
@@ -251,6 +269,78 @@ impl Shared {
         }
     }
 }
+
+impl Shared {
+    fn position(&self, src: &Path) -> Option<(usize, usize)> {
+        position_of(&self.positions, src)
+    }
+
+    /// The album artist for a source without one: the artist when every track of its album in
+    /// the folder has the same one, otherwise "Various Artists"; without an album its own artist.
+    /// All tags are compared as the run writes them, after the tag processing in `effects`.
+    fn album_artist(&self, src: &Path, t: &Tags, effects: &[Effect]) -> String {
+        let album = t.get("album").trim().to_string();
+        let own = t.get("artist").trim().to_string();
+        if album.is_empty() {
+            return own;
+        }
+        let dir = src.parent().map(Path::to_path_buf).unwrap_or_default();
+        let cell = self.folder_albums.lock().unwrap().entry(dir.clone()).or_default().clone();
+        let entries = cell.get_or_init(|| {
+            self.by_folder
+                .get(&dir)
+                .map(|files| {
+                    files
+                        .iter()
+                        .map(|(p, given)| {
+                            let mut other = given.clone().unwrap_or_else(|| tags::read(p).0);
+                            apply_tag_processing(effects, &mut other, self.position(p));
+                            (other.get("album").trim().to_string(), other.get("artist").trim().to_string())
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        });
+        let mut artists: std::collections::BTreeSet<&str> =
+            entries.iter().filter(|(al, ar)| *al == album && !ar.is_empty()).map(|(_, ar)| ar.as_str()).collect();
+        if !own.is_empty() {
+            artists.insert(&own);
+        }
+        match artists.len() {
+            0 => String::new(),
+            1 => artists.into_iter().next().unwrap_or_default().to_string(),
+            _ => VARIOUS_ARTISTS.to_string(),
+        }
+    }
+}
+
+/// Whether the tag processing removes the album artist (then it is not filled in again).
+fn removes_album_artist(effects: &[Effect]) -> bool {
+    effects.iter().any(|e| matches!(e, Effect::TagProcessing { field, mode: 1, .. } if matches!(field.trim(), "album artist" | "*" | "alle")))
+}
+
+/// Number and count of each source within its folder, in list order (key: `path_key`).
+pub fn folder_positions<'a>(sources: impl IntoIterator<Item = &'a Path>) -> HashMap<String, (usize, usize)> {
+    let mut by_dir: HashMap<PathBuf, Vec<&Path>> = HashMap::new();
+    for p in sources {
+        by_dir.entry(p.parent().map(Path::to_path_buf).unwrap_or_default()).or_default().push(p);
+    }
+    let mut out = HashMap::new();
+    for files in by_dir.values() {
+        for (i, p) in files.iter().enumerate() {
+            out.insert(path_key(p), (i + 1, files.len()));
+        }
+    }
+    out
+}
+
+/// The position of `src` in a map from [`folder_positions`].
+pub fn position_of(positions: &HashMap<String, (usize, usize)>, src: &Path) -> Option<(usize, usize)> {
+    positions.get(&path_key(src)).copied()
+}
+
+/// What the album artist of a compilation is set to (the name MusicBrainz uses).
+pub const VARIOUS_ARTISTS: &str = "Various Artists";
 
 /// One file at a time from the caller's thread (used by the CD ripper).
 pub struct Batch {
@@ -266,6 +356,10 @@ impl Default for Batch {
 impl Batch {
     pub fn new() -> Batch {
         Batch { shared: Shared::new(Vec::new()) }
+    }
+    /// A batch that knows all files of the run (the album artist compares them).
+    pub fn with_jobs(jobs: Vec<Job>) -> Batch {
+        Batch { shared: Shared::new(jobs) }
     }
     pub fn run(&self, plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>) -> Result<Vec<PathBuf>, String> {
         match run_job(plan, job, cancel, tx, &self.shared)? {
@@ -288,7 +382,7 @@ pub fn start(plan: Plan, jobs: Vec<Job>, cancel: Arc<AtomicBool>, tx: Sender<Msg
         for _ in 0..n {
             let (plan, shared, cancel, tx) = (plan.clone(), shared.clone(), cancel.clone(), tx.clone());
             handles.push(std::thread::spawn(move || {
-                if plan.low_priority || plan.effects.contains(&Effect::CpuThrottle) {
+                if plan.low_priority {
                     lower_priority();
                 }
                 loop {
@@ -332,10 +426,37 @@ fn lower_priority() {
     }
 }
 
+/// The "done" sound of the system: Windows' message beep, the Glass sound on macOS, the
+/// freedesktop "complete" sound on Linux (through whichever player the desktop has).
 pub fn beep() {
     #[cfg(windows)]
     unsafe {
         windows_sys::Win32::System::Diagnostics::Debug::MessageBeep(0x40);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let mut cmd = std::process::Command::new("afplay");
+        cmd.arg("/System/Library/Sounds/Glass.aiff");
+        if let Ok(mut child) = audio::hidden(&mut cmd).spawn() {
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+        }
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let sound = "/usr/share/sounds/freedesktop/stereo/complete.oga";
+        let tries: [(&str, &[&str]); 3] = [("canberra-gtk-play", &["-i", "complete"]), ("paplay", &[sound]), ("pw-play", &[sound])];
+        for (prog, args) in tries {
+            let mut cmd = std::process::Command::new(prog);
+            cmd.args(args).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+            if let Ok(mut child) = audio::hidden(&mut cmd).spawn() {
+                std::thread::spawn(move || {
+                    let _ = child.wait();
+                });
+                break;
+            }
+        }
     }
 }
 
@@ -365,8 +486,8 @@ fn finish(plan: &Plan, shared: &Shared, tx: &Sender<Msg>) {
                 let _ = tx.send(Msg::Report(crate::i18n::tf(
                     crate::i18n::t(crate::i18n::plural(
                         files.len() as u64,
-                        "Album-ReplayGain „{name}“: {lufs} LUFS » {gain} dB ({0} Datei)",
-                        "Album-ReplayGain „{name}“: {lufs} LUFS » {gain} dB ({0} Dateien)",
+                        "Album ReplayGain “{name}”: {lufs} LUFS » {gain} dB ({0} file)",
+                        "Album ReplayGain “{name}”: {lufs} LUFS » {gain} dB ({0} files)",
                     )),
                     &[("name", name.to_string()), ("lufs", format!("{lufs:.2}")), ("gain", format!("{gain:+.2}")), ("0", format!("{}", files.len()))],
                 )));
@@ -383,7 +504,7 @@ fn finish(plan: &Plan, shared: &Shared, tx: &Sender<Msg>) {
                 by_folder.entry(key).or_default().push(p);
             }
             for (folder, files) in by_folder {
-                let name = folder.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| crate::i18n::t("Wiedergabeliste").into());
+                let name = folder.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| crate::i18n::t("Playlist").into());
                 let ext = ["m3u8", "m3u", "pls"][*kind as usize % 3];
                 let path = folder.join(format!("{name}.{ext}"));
                 let rel = |f: &PathBuf| f.strip_prefix(&folder).map(|r| r.display().to_string()).unwrap_or_else(|_| f.display().to_string());
@@ -401,7 +522,7 @@ fn finish(plan: &Plan, shared: &Shared, tx: &Sender<Msg>) {
                     s
                 };
                 if std::fs::write(&path, text).is_ok() {
-                    let _ = tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Wiedergabeliste geschrieben: {0}"), &[("0", format!("{}", path.display()))])));
+                    let _ = tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Playlist written: {0}"), &[("0", format!("{}", path.display()))])));
                 }
             }
         }
@@ -417,7 +538,7 @@ enum JobResult {
 }
 
 /// The plan for a run with the current settings (a batch sets `keep_structure` afterwards).
-pub fn plan_from_settings(s: &crate::settings::Settings, codec: Codec, ffmpeg: Option<PathBuf>, encoders: Vec<String>) -> Plan {
+pub fn plan_from_settings(s: &crate::settings::Settings, codec: Codec, ffmpeg: FfmpegSet) -> Plan {
     Plan {
         codec,
         enc: s.enc.clone(),
@@ -433,7 +554,6 @@ pub fn plan_from_settings(s: &crate::settings::Settings, codec: Codec, ffmpeg: O
         threads: s.threads.max(1),
         low_priority: s.low_priority,
         ffmpeg,
-        ffmpeg_encoders: encoders,
         tools: s.tools.clone(),
         temp: s.temp_dir(),
         tag_scheme: s.tag_scheme.clone(),
@@ -442,7 +562,7 @@ pub fn plan_from_settings(s: &crate::settings::Settings, codec: Codec, ffmpeg: O
 
 /// The effects a run applies. Tools that only read or tag the source files ignore the
 /// converter's effect chain (a ReplayGain value must be measured on the file as it is);
-/// "Tags aktualisieren" keeps the tag processing it exists for.
+/// "Update tags" keeps the tag processing it exists for.
 pub fn effects_for(codec: Codec, effects: &[Effect]) -> Vec<Effect> {
     match codec {
         Codec::ReplayGainOnly | Codec::AudioInfo | Codec::AudioCrc | Codec::TestConversion | Codec::TagFromFilename => Vec::new(),
@@ -519,28 +639,67 @@ fn album_key(t: &Tags) -> String {
     format!("{artist} – {}", t.get("album"))
 }
 
-fn apply_tag_processing(effects: &[Effect], t: &mut Tags) {
+/// Fields "Tag processing" fills in by itself: the file's number and the count in its folder.
+pub const AUTO_FIELDS: &[&str] = &["track", "track_total"];
+
+/// `<artist>`, `<album>` … in a value become the file's tags (names as in file naming).
+fn expand_placeholders(value: &str, source: &Tags) -> String {
+    let mut out = String::new();
+    let mut rest = value;
+    while let Some(open) = rest.find('<') {
+        out.push_str(&rest[..open]);
+        let after = &rest[open + 1..];
+        let Some(close) = after.find('>') else {
+            out.push_str(&rest[open..]);
+            return out;
+        };
+        let name = after[..close].trim().to_ascii_lowercase();
+        match crate::naming::tag_key(&name).or_else(|| tags::FIELDS.iter().find(|f| f.0 == name).map(|f| f.0)) {
+            Some(key) => out.push_str(source.get(key)),
+            None => {
+                // not a tag: keep the "<" and look again right after it ("a <3 <artist>")
+                out.push('<');
+                rest = after;
+                continue;
+            }
+        }
+        rest = &after[close + 1..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// "Tag processing": set, fill in or remove a field. Titelnummer and Titel gesamt count by
+/// themselves (`position`: number and count in the folder); other values may name other tags.
+fn apply_tag_processing(effects: &[Effect], t: &mut Tags, position: Option<(usize, usize)>) {
     for e in effects {
         if let Effect::TagProcessing { field, value, mode } = e {
             let f = field.trim().to_ascii_lowercase();
-            match mode {
-                1 => {
-                    if f == "*" || f == "alle" {
-                        t.fields.clear();
-                        t.art.clear();
-                    } else if f == "cover" || f == "bild" {
-                        t.art.clear();
-                    } else {
-                        t.fields.remove(&f);
-                    }
+            if *mode == 1 {
+                if f == "*" || f == "alle" {
+                    t.fields.clear();
+                    t.art.clear();
+                } else if f == "cover" || f == "bild" {
+                    t.art.clear();
+                } else {
+                    t.fields.remove(&f);
                 }
-                2 => {
-                    if t.get(&f).is_empty() {
-                        t.set(&f, value.clone());
-                    }
-                }
-                _ => t.set(&f, value.clone()),
+                continue;
             }
+            if f == "*" || f == "alle" || f == "cover" || f == "bild" || f.is_empty() {
+                continue; // only removing makes sense for these
+            }
+            // the automatic numbers always number every file (some only would give gaps and doubles)
+            if *mode == 2 && !AUTO_FIELDS.contains(&f.as_str()) && !t.get(&f).is_empty() {
+                continue;
+            }
+            let new = match (f.as_str(), position) {
+                ("track", Some((n, _))) => n.to_string(),
+                ("track_total", Some((_, total))) => total.to_string(),
+                ("track" | "track_total", None) => continue,
+                _ => expand_placeholders(value, t),
+            };
+            t.set(&f, new);
         }
     }
 }
@@ -581,8 +740,7 @@ mod safety_tests {
             copy_art: true,
             threads: 1,
             low_priority: false,
-            ffmpeg: None,
-            ffmpeg_encoders: Vec::new(),
+            ffmpeg: FfmpegSet::default(),
             tools: Tools::default(),
             temp: std::env::temp_dir(),
             tag_scheme: Vec::new(),
@@ -662,7 +820,7 @@ mod safety_tests {
         let mut t = Tags::default();
         t.set("artist", "Band");
         t.set("title", "Lied");
-        let dest = plan.destination(Path::new("C:\\M\\a.wav"), None, &t, &tags::Info::default(), Codec::Wave);
+        let dest = plan.destination(Path::new("C:\\M\\a.wav"), None, &t, &tags::Info::default(), Codec::Wave, None);
         assert_eq!(dest, PathBuf::from("D:\\x\\out\\Neu - Lied.wav"));
     }
 
@@ -698,11 +856,12 @@ mod safety_tests {
         std::fs::create_dir_all(d.join("out")).unwrap();
         let old = d.join("out").join("a.mp3");
         std::fs::write(&old, b"good old file").unwrap();
-        for effect in [Effect::DeleteDestOnError, Effect::MoveDestOnError { folder: d.join("errors").display().to_string() }] {
+        // with "move on error" and without any effect (the half-written file is then deleted)
+        for effects in [vec![Effect::MoveDestOnError { folder: d.join("errors").display().to_string() }], Vec::new()] {
             let mut plan = wav_plan(&d, OutputMode::SingleFolder, &["filename"], false);
             plan.codec = Codec::Mp3; // no FFmpeg in this plan: encoding fails
             plan.overwrite = true;
-            plan.effects = vec![effect];
+            plan.effects = effects;
             assert!(run(&plan, &Batch::new(), &src, 0).is_err());
             assert_eq!(std::fs::read(&old).unwrap(), b"good old file");
         }
@@ -801,8 +960,7 @@ mod destination_tests {
             copy_art: true,
             threads: 1,
             low_priority: false,
-            ffmpeg: None,
-            ffmpeg_encoders: Vec::new(),
+            ffmpeg: FfmpegSet::default(),
             tools: Tools::default(),
             temp: std::env::temp_dir(),
             tag_scheme: s(crate::naming::TAG_SCHEME),
@@ -818,34 +976,34 @@ mod destination_tests {
         let i = tags::Info::default();
         let src = Path::new("C:\\Musik\\Alt\\a.wav");
         let folders = plan(OutputMode::SingleFolder, &["artist", "/", "album", "/", "title"]);
-        assert_eq!(folders.destination(src, None, &t, &i, Codec::Flac), PathBuf::from("D:\\Out\\Band\\Platte\\Lied.flac"));
+        assert_eq!(folders.destination(src, None, &t, &i, Codec::Flac, None), PathBuf::from("D:\\Out\\Band\\Platte\\Lied.flac"));
         let beside = plan(OutputMode::SourceFolder, &["artist", " - ", "title"]);
-        assert_eq!(beside.destination(src, None, &t, &i, Codec::Mp3), PathBuf::from("C:\\Musik\\Alt\\Band - Lied.mp3"));
+        assert_eq!(beside.destination(src, None, &t, &i, Codec::Mp3, None), PathBuf::from("C:\\Musik\\Alt\\Band - Lied.mp3"));
         let keep = plan(OutputMode::PreservePath, &["title"]);
-        assert_eq!(keep.destination(src, None, &t, &i, Codec::Flac), PathBuf::from("D:\\Out\\Musik\\Alt\\a.flac"));
+        assert_eq!(keep.destination(src, None, &t, &i, Codec::Flac, None), PathBuf::from("D:\\Out\\Musik\\Alt\\a.flac"));
         let mut batch = plan(OutputMode::SingleFolder, &["title"]);
         batch.keep_structure = true;
-        assert_eq!(batch.destination(src, Some(Path::new("C:\\Musik")), &t, &i, Codec::Flac), PathBuf::from("D:\\Out\\Alt\\a.flac"));
+        assert_eq!(batch.destination(src, Some(Path::new("C:\\Musik")), &t, &i, Codec::Flac, None), PathBuf::from("D:\\Out\\Alt\\a.flac"));
         let empty = plan(OutputMode::SingleFolder, &["year"]);
-        assert_eq!(empty.destination(src, None, &t, &i, Codec::Flac), PathBuf::from("D:\\Out\\a.flac"));
+        assert_eq!(empty.destination(src, None, &t, &i, Codec::Flac, None), PathBuf::from("D:\\Out\\a.flac"));
         assert!(!plan(OutputMode::SingleFolder, &["filename", " - ", "("]).names_need_tags());
         assert!(plan(OutputMode::SingleFolder, &["filename", "artist"]).names_need_tags());
         assert!(!plan(OutputMode::PreservePath, &["artist"]).names_need_tags());
         let no_title = plan(OutputMode::SingleFolder, &["artist", "/", "album", "/", "year"]);
-        assert_eq!(no_title.destination(src, None, &t, &i, Codec::Flac), PathBuf::from("D:\\Out\\Band\\Platte\\a.flac"));
+        assert_eq!(no_title.destination(src, None, &t, &i, Codec::Flac, None), PathBuf::from("D:\\Out\\Band\\Platte\\a.flac"));
     }
 
     #[test]
     fn name_clash_hint_points_to_the_chips_only_when_they_name_the_file() {
         let root = Path::new("/music");
         let chips = plan(OutputMode::SingleFolder, &["title"]);
-        assert!(chips.name_clash("a.opus", None).contains("Bausteine"));
+        assert!(chips.name_clash("a.opus", None).contains("name chips"));
         let mut batch = plan(OutputMode::SingleFolder, &["title"]);
         batch.keep_structure = true;
         let msg = batch.name_clash("a.opus", Some(root));
-        assert!(!msg.contains("Bausteine") && msg.contains("a.opus"), "{msg}");
+        assert!(!msg.contains("name chips") && msg.contains("a.opus"), "{msg}");
         let keep = plan(OutputMode::PreservePath, &["title"]);
-        assert!(!keep.name_clash("a.opus", None).contains("Bausteine"));
+        assert!(!keep.name_clash("a.opus", None).contains("name chips"));
     }
 }
 
@@ -930,12 +1088,12 @@ static READ_ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
 pub fn copy_file(src: &Path, dest: &Path, cancel: &AtomicBool, progress: impl Fn(f32)) -> Result<(), String> {
     use std::io::{Read, Write};
     let t = crate::i18n::t;
-    let size = std::fs::metadata(src).map_err(|_| t("Quelldatei ist nicht zugänglich (in einem anderen Programm geöffnet?)").to_string())?.len();
-    let mut input = std::fs::File::open(src).map_err(|_| t("Quelldatei lässt sich nicht öffnen (in einem anderen Programm geöffnet?)").to_string())?;
+    let size = std::fs::metadata(src).map_err(|_| t("Cannot access the source file (open in another program?)").to_string())?.len();
+    let mut input = std::fs::File::open(src).map_err(|_| t("Cannot open the source file (open in another program?)").to_string())?;
     let mut tmp_name = dest.as_os_str().to_owned();
     tmp_name.push(".tmp");
     let tmp = PathBuf::from(tmp_name);
-    let mut out = std::fs::File::create(&tmp).map_err(|_| t("Zieldatei kann nicht angelegt werden (Schreibrechte für den Ordner prüfen)").to_string())?;
+    let mut out = std::fs::File::create(&tmp).map_err(|_| t("Cannot create the output file (check write access to the folder)").to_string())?;
     let fail = |msg: &str| {
         let _ = std::fs::remove_file(&tmp);
         Err(t(msg).to_string())
@@ -947,16 +1105,16 @@ pub fn copy_file(src: &Path, dest: &Path, cancel: &AtomicBool, progress: impl Fn
         while done < size {
             if cancel.load(Ordering::Relaxed) {
                 drop(out);
-                return fail("abgebrochen");
+                return fail("cancelled");
             }
             let want = COPY_BLOCK.min((size - done) as usize);
             if input.read_exact(&mut buf[..want]).is_err() {
                 drop(out);
-                return fail("Fehler beim Lesen der Quelldatei");
+                return fail("Error reading the source file");
             }
             if out.write_all(&buf[..want]).is_err() {
                 drop(out);
-                return fail("Fehler beim Schreiben der Zieldatei");
+                return fail("Error writing the output file");
             }
             done += want as u64;
             progress((done * 100 / size.max(1)) as f32 / 100.0);
@@ -964,10 +1122,10 @@ pub fn copy_file(src: &Path, dest: &Path, cancel: &AtomicBool, progress: impl Fn
     }
     drop(out);
     if dest.exists() && std::fs::remove_file(dest).is_err() {
-        return fail("Vorhandene Zieldatei kann nicht gelöscht werden (in einem anderen Programm geöffnet?)");
+        return fail("Cannot delete the existing output file (open in another program?)");
     }
     if std::fs::rename(&tmp, dest).is_err() {
-        return fail("Temporäre Datei kann nicht zur Zieldatei umbenannt werden");
+        return fail("Cannot rename the temporary file to the output file");
     }
     Ok(())
 }
@@ -988,32 +1146,29 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             if !want.is_empty() && want == src_ext {
                 if *copy_instead {
                     if let Some(c) = plan.outputs().first() {
-                        let mut dest = plan.destination(&job.src, job.root.as_deref(), &t, &info, *c);
+                        let mut dest = plan.destination(&job.src, job.root.as_deref(), &t, &info, *c, shared.position(&job.src));
                         dest.set_extension(&src_ext);
                         // the same rules as for converted files
                         if same_path(&dest, &job.src) {
-                            return Err(crate::i18n::t("Ziel ist dieselbe Datei wie die Quelle – anderen Ordner oder Namen wählen").into());
+                            return Err(crate::i18n::t("The output is the same file as the source – choose another folder or name").into());
                         }
                         if !shared.reserved.lock().unwrap().insert(path_key(&dest)) {
                             let name = dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
                             return Err(plan.name_clash(&name, job.root.as_deref()));
                         }
                         if dest.exists() && !plan.overwrite && !plan.overwrite_list.iter().any(|o| same_path(o, &dest)) {
-                            return Ok(JobResult::Skipped(crate::i18n::t("Zieldatei gibt es schon – übersprungen").into()));
+                            return Ok(JobResult::Skipped(crate::i18n::t("Target file already exists – skipped").into()));
                         }
                         if let Some(d) = dest.parent() {
                             std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
                         }
                         copy_file(&job.src, &dest, cancel, |f| {
-                            let _ = tx.send(Msg::Progress(id, f, crate::i18n::t("Kopieren")));
+                            let _ = tx.send(Msg::Progress(id, f, crate::i18n::t("Copying")));
                         })?;
-                        return Ok(JobResult::Done { outputs: vec![dest], audio_secs: info.seconds, note: crate::i18n::t("1:1 kopiert").into() });
+                        return Ok(JobResult::Done { outputs: vec![dest], audio_secs: info.seconds, note: crate::i18n::t("copied 1:1").into() });
                     }
                 }
-                return Ok(JobResult::Skipped(crate::i18n::tf(
-                    crate::i18n::t("bedingte Umwandlung: .{want} wird übersprungen"),
-                    &[("want", want.to_string())],
-                )));
+                return Ok(JobResult::Skipped(crate::i18n::tf(crate::i18n::t("conditional encoding: .{want} is skipped"), &[("want", want.to_string())])));
             }
         }
     }
@@ -1021,15 +1176,15 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
     // tools that only touch tags
     match plan.codec {
         Codec::TagUpdate => {
-            apply_tag_processing(&plan.effects, &mut t);
+            apply_tag_processing(&plan.effects, &mut t, shared.position(&job.src));
             tags::write(&job.src, &t, true)?;
-            return Ok(JobResult::Done { outputs: vec![job.src.clone()], audio_secs: info.seconds, note: crate::i18n::t("Tags aktualisiert").into() });
+            return Ok(JobResult::Done { outputs: vec![job.src.clone()], audio_secs: info.seconds, note: crate::i18n::t("Tags updated").into() });
         }
         Codec::TagFromFilename => {
             let stem = job.src.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
             let found = tags_from_scheme(&stem, &plan.tag_scheme);
             if found.is_empty() {
-                return Ok(JobResult::Skipped(crate::i18n::t("Muster passt nicht").into()));
+                return Ok(JobResult::Skipped(crate::i18n::t("Pattern does not match").into()));
             }
             let mut note = Vec::new();
             for (k, v) in found {
@@ -1044,14 +1199,14 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
 
     // decode
     let progress_decode = |f: f32| {
-        let _ = tx.send(Msg::Progress(id, f * 0.35, crate::i18n::t("Dekodieren")));
+        let _ = tx.send(Msg::Progress(id, f * 0.35, crate::i18n::t("Decoding")));
     };
     let mut a = match &job.audio {
         Some(a) => (**a).clone(),
-        None => audio::decode(&job.src, env.ffmpeg, cancel, &progress_decode)?,
+        None => audio::decode(&job.src, env.ffmpeg.for_decode().map(|f| f.path.as_path()), cancel, &progress_decode)?,
     };
     let original_secs = a.seconds();
-    let _ = tx.send(Msg::Progress(id, 0.35, crate::i18n::t("Effekte")));
+    let _ = tx.send(Msg::Progress(id, 0.35, crate::i18n::t("Effects")));
 
     match plan.codec {
         Codec::TestConversion => {
@@ -1061,8 +1216,8 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                 note: crate::i18n::tf(
                     crate::i18n::t(crate::i18n::plural(
                         a.channels as u64,
-                        "fehlerfrei dekodiert ({0} Hz, {1} Kanal)",
-                        "fehlerfrei dekodiert ({0} Hz, {1} Kanäle)",
+                        "decoded without errors ({0} Hz, {1} channel)",
+                        "decoded without errors ({0} Hz, {1} channels)",
                     )),
                     &[("0", format!("{}", a.rate)), ("1", format!("{}", a.channels))],
                 ),
@@ -1075,8 +1230,8 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             let text = crate::i18n::tf(
                 crate::i18n::t(crate::i18n::plural(
                     a.channels as u64,
-                    "{0}\n  Länge {1} · {2} Hz · {3} Bit · {4} Kanal · {5} · Spitze {6} dBFS · Lautheit {7} LUFS",
-                    "{0}\n  Länge {1} · {2} Hz · {3} Bit · {4} Kanäle · {5} · Spitze {6} dBFS · Lautheit {7} LUFS",
+                    "{0}\n  Length {1} · {2} Hz · {3} bit · {4} channel · {5} · peak {6} dBFS · loudness {7} LUFS",
+                    "{0}\n  Length {1} · {2} Hz · {3} bit · {4} channels · {5} · peak {6} dBFS · loudness {7} LUFS",
                 )),
                 &[
                     ("0", format!("{}", job.src.display())),
@@ -1097,7 +1252,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             audio::pcm_bytes_le(&a.data, audio::PcmFormat::S16, &mut bytes);
             let crc = audio::crc32(&bytes, 0);
             let _ = tx.send(Msg::Report(crate::i18n::tf(
-                crate::i18n::t("{0}  CRC32 (16 Bit PCM): {crc}"),
+                crate::i18n::t("{0}  CRC32 (16-bit PCM): {crc}"),
                 &[("0", format!("{}", job.src.display())), ("crc", format!("{crc:08X}"))],
             )));
             return Ok(JobResult::Done { outputs: vec![], audio_secs: original_secs, note: format!("CRC {crc:08X}") });
@@ -1116,7 +1271,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
     let mut rg_written = false;
     for e in &plan.effects {
         if cancel.load(Ordering::Relaxed) {
-            return Err(crate::i18n::t("abgebrochen").into());
+            return Err(crate::i18n::t("cancelled").into());
         }
         if let Effect::ReplayGain { target_lufs, max_gain, album, clip_prevention, true_peak_ratio } = e {
             let blocks = loudness::block_energies(&a);
@@ -1124,7 +1279,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             let peak = loudness::true_peak(&a, *true_peak_ratio);
             if lufs <= -69.9 {
                 let _ = tx.send(Msg::Report(crate::i18n::tf(
-                    crate::i18n::t("{0}: Stille erkannt, kein ReplayGain-Titelwert"),
+                    crate::i18n::t("{0}: silence detected, no ReplayGain track value"),
                     &[("0", format!("{}", job.src.display()))],
                 )));
             } else {
@@ -1142,23 +1297,21 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             }
             continue;
         }
-        if !e.is_audio() && !matches!(e, Effect::MinimumLength { .. }) {
+        if !e.is_audio() {
             continue;
         }
         if let Effect::Hdcd { amp_6db } = e {
             // report when HDCD was found and decoded
-            if dsp::hdcd_decode(&mut a, plan.ffmpeg.as_deref(), *amp_6db)? {
-                let _ = tx.send(Msg::Report(format!("{}: {}", job.src.display(), crate::i18n::t("HDCD-Titel erkannt, auf 24 Bit dekodiert"))));
+            if dsp::hdcd_decode(&mut a, plan.ffmpeg.for_hdcd().map(|f| f.path.as_path()), *amp_6db)? {
+                let _ = tx.send(Msg::Report(format!("{}: {}", job.src.display(), crate::i18n::t("HDCD track detected, decoded to 24 bit"))));
             }
             continue;
         }
-        if let Outcome::Skip(r) = dsp::apply(e, &mut a, &t, original_secs) {
-            return Ok(JobResult::Skipped(r));
-        }
+        dsp::apply(e, &mut a, &t);
     }
     // names and the album key come from the source's tags (see `Plan::destination`)
     let source_tags = t.clone();
-    apply_tag_processing(&plan.effects, &mut t);
+    apply_tag_processing(&plan.effects, &mut t, shared.position(&job.src));
     if !plan.copy_tags && job.tags.is_none() {
         let keep_rg: Vec<(String, String)> = tags::RG_FIELDS.iter().map(|k| (k.to_string(), t.get(k).to_string())).filter(|x| !x.1.is_empty()).collect();
         t = Tags::default();
@@ -1188,6 +1341,13 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
         entry.2.push(job.src.clone());
         return Ok(JobResult::Done { outputs: vec![job.src.clone()], audio_secs: original_secs, note: format!("{gain:+.2} dB") });
     }
+    // every converted file names its album artist (players sort albums by it)
+    if !t.fields.is_empty() && t.get("album artist").trim().is_empty() && !removes_album_artist(&plan.effects) {
+        let aa = shared.album_artist(&job.src, &t, &plan.effects);
+        if !aa.is_empty() {
+            t.set("album artist", aa);
+        }
+    }
 
     // pieces for the split tools
     let pieces: Vec<(String, Audio)> = match plan.codec {
@@ -1197,7 +1357,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                 let label = match (a.channels, c) {
                     (2, 0) => "L".to_string(),
                     (2, 1) => "R".to_string(),
-                    _ => crate::i18n::tf(crate::i18n::t("Kanal {0}"), &[("0", format!("{}", c + 1))]),
+                    _ => crate::i18n::tf(crate::i18n::t("Channel {0}"), &[("0", format!("{}", c + 1))]),
                 };
                 (format!(" - {label}"), Audio { channels: 1, ..a.with_data(data) })
             })
@@ -1207,7 +1367,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             a.data
                 .chunks(per.max(1))
                 .enumerate()
-                .map(|(i, d)| (crate::i18n::tf(crate::i18n::t(" - Teil {0}"), &[("0", format!("{:02}", i + 1))]), a.with_data(d.to_vec())))
+                .map(|(i, d)| (crate::i18n::tf(crate::i18n::t(" - Part {0}"), &[("0", format!("{:02}", i + 1))]), a.with_data(d.to_vec())))
                 .collect()
         }
         _ => vec![(String::new(), a)],
@@ -1222,15 +1382,15 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
     for codec in &codecs {
         for (suffix, piece) in &pieces {
             if cancel.load(Ordering::Relaxed) {
-                return Err(crate::i18n::t("abgebrochen").into());
+                return Err(crate::i18n::t("cancelled").into());
             }
-            let mut dest = plan.destination(&job.src, job.root.as_deref(), &source_tags, &info, *codec);
+            let mut dest = plan.destination(&job.src, job.root.as_deref(), &source_tags, &info, *codec, shared.position(&job.src));
             if !suffix.is_empty() {
                 let stem = dest.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
                 dest.set_file_name(format!("{stem}{suffix}.{}", codec.ext()));
             }
             if same_path(&dest, &job.src) {
-                return Err(crate::i18n::t("Ziel ist dieselbe Datei wie die Quelle – anderen Ordner oder Namen wählen").into());
+                return Err(crate::i18n::t("The output is the same file as the source – choose another folder or name").into());
             }
             if !shared.reserved.lock().unwrap().insert(path_key(&dest)) {
                 let name = dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
@@ -1242,14 +1402,14 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                 continue;
             }
             if let Some(d) = dest.parent() {
-                std::fs::create_dir_all(d).map_err(|e| crate::i18n::tf(crate::i18n::t("Ordner kann nicht angelegt werden: {e}"), &[("e", format!("{e}"))]))?;
+                std::fs::create_dir_all(d).map_err(|e| crate::i18n::tf(crate::i18n::t("Cannot create folder: {e}"), &[("e", format!("{e}"))]))?;
             }
             let tmp = tmp_name(&dest);
             let meta = if plan.copy_tags || job.tags.is_some() { tags::ffmpeg_metadata(&t) } else { Vec::new() };
             let base = 0.4 + 0.6 * step as f32 / total_steps as f32;
             let span = 0.6 / total_steps as f32;
             let prog = |f: f32| {
-                let _ = tx.send(Msg::Progress(id, base + span * f, crate::i18n::t("Kodieren")));
+                let _ = tx.send(Msg::Progress(id, base + span * f, crate::i18n::t("Encoding")));
             };
             let result = encode::encode(*codec, &plan.enc, piece, &tmp, &meta, &env, cancel, &prog);
             if let Err(e) = result {
@@ -1264,16 +1424,15 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
             }
             if dest.exists() && std::fs::remove_file(&dest).is_err() {
                 let _ = std::fs::remove_file(&tmp);
-                return Err(crate::i18n::t("Vorhandene Zieldatei kann nicht gelöscht werden (in einem anderen Programm geöffnet?)").into());
+                return Err(crate::i18n::t("Cannot delete the existing output file (open in another program?)").into());
             }
-            std::fs::rename(&tmp, &dest)
-                .map_err(|e| crate::i18n::tf(crate::i18n::t("Temporäre Datei kann nicht verschoben werden: {e}"), &[("e", format!("{e}"))]))?;
+            std::fs::rename(&tmp, &dest).map_err(|e| crate::i18n::tf(crate::i18n::t("Cannot move the temporary file: {e}"), &[("e", format!("{e}"))]))?;
             outputs.push(dest);
             step += 1;
         }
     }
     if outputs.is_empty() && !kept.is_empty() {
-        return Ok(JobResult::Skipped(crate::i18n::t("Zieldatei gibt es schon – übersprungen").into()));
+        return Ok(JobResult::Skipped(crate::i18n::t("Target file already exists – skipped").into()));
     }
 
     // actions after a successful file (only on files this job wrote)
@@ -1306,40 +1465,21 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
                     }
                 }
             }
-            Effect::WriteMetadataFile => {
-                for o in &outputs {
-                    let mut s = String::new();
-                    for (k, v) in &t.fields {
-                        s += &format!("{k}={v}\r\n");
-                    }
-                    let _ = std::fs::write(o.with_extension("txt"), s);
-                }
-            }
             Effect::RunExternal { command } if !command.trim().is_empty() => {
                 for o in &outputs {
-                    let c = command.replace("[outfile]", &format!("\"{}\"", o.display())).replace("[infile]", &format!("\"{}\"", job.src.display()));
-                    let mut cmd = std::process::Command::new("cmd");
-                    // cmd.exe does not understand the C-style quoting of normal arguments:
-                    // hand it the line as written, wrapped once (/S keeps inner quotes intact)
-                    #[cfg(windows)]
-                    {
-                        use std::os::windows::process::CommandExt;
-                        cmd.raw_arg(format!("/S /C \"{c}\""));
-                    }
-                    #[cfg(not(windows))]
-                    cmd.args(["/C", &c]);
+                    let c = command.replace("[outfile]", &shell_quote(o)).replace("[infile]", &shell_quote(&job.src));
+                    let mut cmd = shell_command(&c);
                     audio::hidden(&mut cmd);
                     match cmd.status() {
                         Ok(s) if s.success() => {}
                         Ok(s) => {
                             let _ = tx.send(Msg::Report(crate::i18n::tf(
-                                crate::i18n::t("Programm nach {0} endete mit Code {1}"),
+                                crate::i18n::t("Program for {0} ended with code {1}"),
                                 &[("0", o.display().to_string()), ("1", s.code().map(|c| c.to_string()).unwrap_or_else(|| "?".into()))],
                             )));
                         }
                         Err(e) => {
-                            let _ =
-                                tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Programm konnte nicht gestartet werden: {e}"), &[("e", e.to_string())])));
+                            let _ = tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Program could not be started: {e}"), &[("e", e.to_string())])));
                         }
                     }
                 }
@@ -1366,12 +1506,50 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
         && kept.is_empty()
         && !outputs.iter().any(|o| same_path(o, &job.src))
     {
-        if let Err(e) = std::fs::remove_file(&job.src) {
-            let _ = tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Quelle konnte nicht gelöscht werden: {e}"), &[("e", format!("{e}"))])));
+        if let Err(e) = discard_source(&job.src) {
+            let _ = tx.send(Msg::Report(crate::i18n::tf(crate::i18n::t("Could not move the source to the recycle bin: {e}"), &[("e", e.to_string())])));
         }
     }
-    let _ = tx.send(Msg::Progress(id, 1.0, crate::i18n::t("Fertig")));
+    let _ = tx.send(Msg::Progress(id, 1.0, crate::i18n::t("Done")));
     Ok(JobResult::Done { outputs, audio_secs: original_secs, note: String::new() })
+}
+
+/// "Delete source file": into the recycle bin, so a mistake can be undone. Tests delete
+/// directly, so a test run leaves nothing in the user's recycle bin.
+fn discard_source(p: &Path) -> Result<(), String> {
+    #[cfg(test)]
+    return std::fs::remove_file(p).map_err(|e| e.to_string());
+    #[cfg(not(test))]
+    trash::delete(p).map_err(|e| e.to_string())
+}
+
+/// A path as one argument for the system shell.
+fn shell_quote(p: &Path) -> String {
+    let s = p.display().to_string();
+    if cfg!(windows) {
+        format!("\"{s}\"")
+    } else {
+        format!("'{}'", s.replace('\'', "'\\''"))
+    }
+}
+
+/// The command line as written, run by cmd.exe on Windows and by sh on Linux and macOS.
+fn shell_command(line: &str) -> std::process::Command {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = std::process::Command::new("cmd");
+        // cmd.exe does not understand the C-style quoting of normal arguments:
+        // hand it the line as written, wrapped once (/S keeps inner quotes intact)
+        cmd.raw_arg(format!("/S /C \"{line}\""));
+        cmd
+    }
+    #[cfg(not(windows))]
+    {
+        let mut cmd = std::process::Command::new("sh");
+        cmd.args(["-c", line]);
+        cmd
+    }
 }
 
 /// A failed encode only ever leaves its temporary file behind (an existing destination is
@@ -1402,7 +1580,9 @@ mod tests {
     /// End-to-end: a generated WAV converted to every format FFmpeg on this computer can write.
     #[test]
     fn convert_all_formats() {
-        let Some(ff) = audio::find_tool("", "ffmpeg") else { return };
+        // PSYAUDIO_TEST_FFMPEG: exactly this FFmpeg (the CI's shipped one), which must write all nine formats
+        let forced = std::env::var_os("PSYAUDIO_TEST_FFMPEG").map(PathBuf::from);
+        let Some(ff) = forced.clone().or_else(|| audio::find_tool("", "ffmpeg")) else { return };
         let dir = std::env::temp_dir().join(format!("psyaudio-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -1423,12 +1603,15 @@ mod tests {
         t.set("track", "1");
         tags::write(&src, &t, false).unwrap();
 
-        let encoders = audio::ffmpeg_encoders(&ff);
-        let enc = EncSettings {
-            multi: vec![Codec::Mp3, Codec::Flac, Codec::AacM4a, Codec::Alac, Codec::Opus, Codec::Vorbis, Codec::Wave, Codec::Aiff, Codec::WavPack, Codec::Wma],
-            flac_verify: true,
-            ..EncSettings::default()
-        };
+        let set = FfmpegSet::only(&ff);
+        assert!(set.main.is_some(), "FFmpeg does not start: {}", ff.display());
+        let mut multi =
+            vec![Codec::Mp3, Codec::Flac, Codec::AacM4a, Codec::Alac, Codec::Opus, Codec::Vorbis, Codec::Wave, Codec::Aiff, Codec::WavPack, Codec::Wma];
+        if forced.is_some() {
+            multi.push(Codec::Speex);
+        }
+        let expected = multi.len();
+        let enc = EncSettings { multi, flac_verify: true, ..EncSettings::default() };
         let plan = Plan {
             codec: Codec::Multi,
             enc,
@@ -1448,8 +1631,7 @@ mod tests {
             copy_art: true,
             threads: 2,
             low_priority: false,
-            ffmpeg: Some(ff.clone()),
-            ffmpeg_encoders: encoders,
+            ffmpeg: set,
             tools: Tools::default(),
             temp: std::env::temp_dir(),
             tag_scheme: Vec::new(),
@@ -1466,7 +1648,7 @@ mod tests {
                 println!("report: {r}");
             }
         }
-        assert_eq!(outs.len(), 10, "{outs:?}");
+        assert_eq!(outs.len(), expected, "{outs:?}");
         for o in &outs {
             assert!(o.exists(), "{}", o.display());
             assert!(o.parent().is_some_and(|d| d.ends_with(Path::new("Testband").join("Testalbum"))), "{}", o.display());
@@ -1543,7 +1725,6 @@ mod year_tests {
         let mut t = Tags::default();
         t.set("title", "Lied");
         t.set("year", "2001");
-        let encoders = audio::ffmpeg_encoders(&ff);
         let enc = EncSettings { multi: vec![Codec::Opus, Codec::Flac, Codec::Vorbis, Codec::Mp3, Codec::AacM4a, Codec::WavPack], ..Default::default() };
         let plan = Plan {
             codec: Codec::Multi,
@@ -1559,8 +1740,7 @@ mod year_tests {
             copy_art: false,
             threads: 1,
             low_priority: false,
-            ffmpeg: Some(ff),
-            ffmpeg_encoders: encoders,
+            ffmpeg: FfmpegSet::only(&ff),
             tools: Tools::default(),
             temp: std::env::temp_dir(),
             tag_scheme: Vec::new(),
@@ -1578,5 +1758,102 @@ mod year_tests {
             assert_eq!(tags::read(o).0.get("year"), "2001", "{}", o.display());
         }
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod effect_behaviour_tests {
+    use super::*;
+
+    fn tags(kv: &[(&str, &str)]) -> Tags {
+        let mut t = Tags::default();
+        for (k, v) in kv {
+            t.set(k, v.to_string());
+        }
+        t
+    }
+
+    #[test]
+    fn track_numbers_count_within_each_folder_in_list_order() {
+        let p = |s: &str| PathBuf::from(s);
+        let files = [p("/m/a/2.wav"), p("/m/a/1.wav"), p("/m/b/x.wav"), p("/m/a/3.wav")];
+        let pos = folder_positions(files.iter().map(|f| f.as_path()));
+        assert_eq!(position_of(&pos, &files[0]), Some((1, 3)));
+        assert_eq!(position_of(&pos, &files[1]), Some((2, 3)));
+        assert_eq!(position_of(&pos, &files[3]), Some((3, 3)));
+        assert_eq!(position_of(&pos, &files[2]), Some((1, 1)));
+
+        let fx = vec![
+            Effect::TagProcessing { field: "track".into(), value: String::new(), mode: 0 },
+            Effect::TagProcessing { field: "track_total".into(), value: "egal".into(), mode: 0 },
+        ];
+        let mut t = tags(&[("track", "9")]);
+        apply_tag_processing(&fx, &mut t, Some((2, 3)));
+        assert_eq!((t.get("track"), t.get("track_total")), ("2", "3"));
+        // without a position (single file preview) the number stays as it was
+        let mut t = tags(&[("track", "9")]);
+        apply_tag_processing(&fx, &mut t, None);
+        assert_eq!(t.get("track"), "9");
+    }
+
+    #[test]
+    fn values_take_other_tags_and_nonsense_is_ignored() {
+        let mut t = tags(&[("artist", "Band"), ("album", "Platte")]);
+        let fx = vec![
+            Effect::TagProcessing { field: "album artist".into(), value: "<artist>".into(), mode: 2 },
+            Effect::TagProcessing { field: "comment".into(), value: "<albumartist> – <album> <unbekannt>".into(), mode: 0 },
+            Effect::TagProcessing { field: "*".into(), value: "x".into(), mode: 0 },
+            Effect::TagProcessing { field: "cover".into(), value: "x".into(), mode: 0 },
+        ];
+        apply_tag_processing(&fx, &mut t, None);
+        assert_eq!(t.get("album artist"), "Band");
+        assert_eq!(t.get("comment"), "Band – Platte <unbekannt>");
+        let mut t = tags(&[("artist", "Band")]);
+        apply_tag_processing(&[Effect::TagProcessing { field: "comment".into(), value: "a <3 <artist>".into(), mode: 0 }], &mut t, None);
+        assert_eq!(t.get("comment"), "a <3 Band");
+        // the number counts every file, also with "set if empty"
+        let mut t = tags(&[("track", "9")]);
+        apply_tag_processing(&[Effect::TagProcessing { field: "track".into(), value: String::new(), mode: 2 }], &mut t, Some((4, 5)));
+        assert_eq!(t.get("track"), "4");
+        assert!(t.get("*").is_empty() && t.get("cover").is_empty());
+        // "set if empty" leaves a filled field alone
+        let mut t = tags(&[("artist", "Band"), ("album artist", "Andere")]);
+        apply_tag_processing(&fx[..1], &mut t, None);
+        assert_eq!(t.get("album artist"), "Andere");
+    }
+
+    #[test]
+    fn album_artist_is_the_artist_or_various_artists() {
+        let job = |p: &str, t: Tags| Job { id: 0, src: PathBuf::from(p), root: None, tags: Some(t), audio: None };
+        let one = tags(&[("artist", "Band"), ("album", "Platte")]);
+        let other = tags(&[("artist", "Gast"), ("album", "Platte")]);
+        let shared = Shared::new(vec![job("/m/a/1.wav", one.clone()), job("/m/a/2.wav", one.clone())]);
+        assert_eq!(shared.album_artist(Path::new("/m/a/1.wav"), &one, &[]), "Band");
+        let shared = Shared::new(vec![job("/m/a/1.wav", one.clone()), job("/m/a/2.wav", other.clone())]);
+        assert_eq!(shared.album_artist(Path::new("/m/a/1.wav"), &one, &[]), VARIOUS_ARTISTS);
+        // the same album name in another folder is another album
+        let shared = Shared::new(vec![job("/m/a/1.wav", one.clone()), job("/m/b/2.wav", tags(&[("artist", "Gast"), ("album", "Platte")]))]);
+        assert_eq!(shared.album_artist(Path::new("/m/a/1.wav"), &one, &[]), "Band");
+        // the neighbours count as the run writes them: "artist = X" for all makes one artist
+        let set = vec![Effect::TagProcessing { field: "artist".into(), value: "X".into(), mode: 0 }];
+        let shared2 = Shared::new(vec![job("/m/c/1.wav", tags(&[("artist", "X"), ("album", "Platte")])), job("/m/c/2.wav", other)]);
+        assert_eq!(shared2.album_artist(Path::new("/m/c/1.wav"), &tags(&[("artist", "X"), ("album", "Platte")]), &set), "X");
+        assert!(removes_album_artist(&[Effect::TagProcessing { field: "album artist".into(), value: String::new(), mode: 1 }]));
+        // no album: the file's own artist
+        assert_eq!(Shared::new(Vec::new()).album_artist(Path::new("/x.wav"), &tags(&[("artist", "Solo")]), &[]), "Solo");
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn external_programs_run_through_the_shell_with_quoted_paths() {
+        let d = std::env::temp_dir().join(format!("psyaudio-shell-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let src = d.join("it's a \"song\" $HOME.wav");
+        std::fs::write(&src, b"x").unwrap();
+        let line = format!("cp {} {}", shell_quote(&src), shell_quote(&d.join("copy.wav")));
+        assert!(shell_command(&line).status().unwrap().success());
+        assert!(d.join("copy.wav").exists());
+        let _ = std::fs::remove_dir_all(&d);
     }
 }

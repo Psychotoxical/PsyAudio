@@ -17,11 +17,11 @@ interface Props {
   /** Data chips on offer ("artist", "title" …). */
   data: string[];
   separators: string[];
-  /** "Neuer Ordner" is on offer. */
+  /** "New folder" is on offer. */
   folders: boolean;
   /** Chip → German label (translated here). */
   labels: Record<string, string>;
-  /** A "Vorlage" list above the chips; choosing one replaces them. */
+  /** A "Preset" list above the chips; choosing one replaces them. */
   presets?: Preset[];
   onChange: (value: string[]) => void;
 }
@@ -55,7 +55,7 @@ export function ChipEditor(p: Props) {
       {p.presets && (
         <div className="field" style={{ marginBottom: 14 }}>
           <label className="lbl" htmlFor={presetId}>
-            {t("Vorlage")}
+            {t("Preset")}
           </label>
           <select
             id={presetId}
@@ -67,7 +67,7 @@ export function ChipEditor(p: Props) {
             }}
           >
             <option value="" disabled>
-              {t("Eigene Bausteine")}
+              {t("Custom building blocks")}
             </option>
             {p.presets.map((x) => (
               <option key={x.name} value={x.name}>
@@ -95,8 +95,8 @@ export function ChipEditor(p: Props) {
               key={`${i}-${tok}`}
               type="button"
               className={cls.join(" ")}
-              aria-label={t("{0} entfernen", { 0: label(tok) })}
-              title={t("{0} entfernen", { 0: label(tok) })}
+              aria-label={t("Remove {0}", { 0: label(tok) })}
+              title={t("Remove {0}", { 0: label(tok) })}
               onPointerDown={(e) => {
                 if (e.button !== 0) return;
                 // touch captures the pointer on its own; moves must reach the chip below
@@ -152,12 +152,12 @@ export function ChipEditor(p: Props) {
           onClick={() => setPicking(!picking)}
         >
           <Plus size={14} />
-          {t("Baustein")}
+          {t("Building block")}
         </button>
       </div>
       {picking && (
         <div className="chip-pick">
-          <p className="lbl">{t("Daten")}</p>
+          <p className="lbl">{t("Data")}</p>
           <div className="chips">
             {p.data.map((tok) => (
               <button
@@ -170,14 +170,14 @@ export function ChipEditor(p: Props) {
               </button>
             ))}
           </div>
-          <p className="lbl">{t("Trenner")}</p>
+          <p className="lbl">{t("Separators")}</p>
           <div className="chips">
             {p.separators.map((tok) => (
               <button
                 key={tok}
                 type="button"
                 className="chip-btn sep"
-                title={tok === " " ? t("Abstand") : undefined}
+                title={tok === " " ? t("Space") : undefined}
                 onClick={() => p.onChange([...p.value, tok])}
               >
                 {label(tok)}
@@ -199,9 +199,9 @@ export function ChipEditor(p: Props) {
       <Hint>
         {p.folders
           ? t(
-              "Ziehen sortiert, Klick entfernt. „Neuer Ordner“ trennt den Ordnernamen vom Dateinamen.",
+              "Drag to sort, click to remove. “New folder” separates the folder name from the file name.",
             )
-          : t("Ziehen sortiert, Klick entfernt.")}
+          : t("Drag to sort, click to remove.")}
       </Hint>
     </div>
   );

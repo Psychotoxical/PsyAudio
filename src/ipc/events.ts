@@ -26,7 +26,7 @@ export function frontendReady(): Promise<string[]> {
   return invoke<string[]>("frontend_ready");
 }
 
-/** Adds or removes "Mit PsyAudio konvertieren" in the file manager; returns the message. */
+/** Adds or removes "Convert with PsyAudio" in the file manager; returns the message. */
 export function fileManagerMenu(add: boolean): Promise<string> {
   return invoke<string>("file_manager_menu", { add });
 }

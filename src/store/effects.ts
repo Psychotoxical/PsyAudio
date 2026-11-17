@@ -12,11 +12,11 @@ export interface EffectEntry {
 
 export interface EffectCatalogue {
   entries: EffectEntry[];
-  /** Kinds of "Lautstärke normalisieren", German. */
+  /** Kinds of "Normalize volume", German. */
   normalize_modes: string[];
   /** dB to add for LUFS. */
   ebu_offset: number;
-  /** Tag fields for "Tag-Bearbeitung": [key, German label]. */
+  /** Tag fields for "Tag processing": [key, German label]. */
   tag_fields: [string, string][];
 }
 
@@ -39,7 +39,7 @@ export function effectLines(effects: Effect[]): Promise<EffectLine[]> {
   return invoke<EffectLine[]>("effect_lines", { effects });
 }
 
-/** The variant name of an effect ("Fade", "Reverse"). */
+/** The variant name of an effect ("Fade", "DeEmphasis"). */
 export function effectKind(e: Effect): string {
   return typeof e === "string" ? e : (Object.keys(e)[0] ?? "");
 }

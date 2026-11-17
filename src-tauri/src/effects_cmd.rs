@@ -10,9 +10,9 @@ mod tests {
 
     #[test]
     fn lines_name_each_effect() {
-        let lines = effect_lines(vec![Effect::Reverse, Effect::Fade { in_ms: 0, out_ms: 3000 }]);
+        let lines = effect_lines(vec![Effect::DeEmphasis, Effect::Fade { in_ms: 0, out_ms: 3000 }]);
         assert_eq!(lines.len(), 2);
-        assert_eq!(lines[0].name, Effect::Reverse.name());
+        assert_eq!(lines[0].name, Effect::DeEmphasis.name());
         assert!(!lines[1].summary.is_empty());
     }
 }
@@ -20,11 +20,11 @@ mod tests {
 #[derive(Serialize)]
 pub struct EffectCatalogue {
     entries: Vec<EffectEntry>,
-    /// Kinds of "Lautstärke normalisieren", in German (translated in the frontend).
+    /// Kinds of "Normalize volume", in German (translated in the frontend).
     normalize_modes: Vec<&'static str>,
     /// dB to add for LUFS ("= −18 LUFS").
     ebu_offset: f32,
-    /// Tag fields "Tag-Bearbeitung" can change: (key, German label).
+    /// Tag fields "Tag processing" can change: (key, German label).
     tag_fields: Vec<(&'static str, &'static str)>,
 }
 

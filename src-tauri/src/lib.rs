@@ -140,12 +140,14 @@ pub fn run() {
             cd_cmd::eject,
             cd_cmd::measure_drive,
             cd_cmd::open_ctdb_page,
+            tools_cmd::open_ffmpeg_download,
             cd_cmd::start_rip,
             cd_cmd::cancel_rip,
             cd_cmd::preview_rip_name,
             close::confirm_close,
         ])
         .setup(|app| {
+            let _ = app.state::<AppState>().bundled_ffmpeg.set(tools_cmd::bundled_ffmpeg_dir(app.handle()));
             // show the window even if the frontend never reports ready
             let handle = app.handle().clone();
             std::thread::spawn(move || {

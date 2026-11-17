@@ -59,16 +59,11 @@ pub enum Effect {
         digital_only: bool,
         threshold_db: f32,
     },
-    Reverse,
     Lowpass {
         hz: f32,
     },
     Highpass {
         hz: f32,
-    },
-    Bandpass {
-        low: f32,
-        high: f32,
     },
     GraphicEq {
         gains: [f32; 9],
@@ -78,26 +73,6 @@ pub enum Effect {
         ratio: f32,
         attack_ms: f32,
         release_ms: f32,
-    },
-    Karaoke {
-        keep_voice: bool,
-    },
-    Speed {
-        percent: f32,
-    },
-    WriteSilence {
-        start_ms: u32,
-        end_ms: u32,
-    },
-    Loop {
-        times: u32,
-    },
-    MinimumLength {
-        seconds: f32,
-    },
-    MaximumLength {
-        percent: f32,
-        seconds: f32,
     },
     DeEmphasis,
     /// Decode HDCD to 24 bit (only 16 bit / 44.1 kHz / stereo PCM), optionally raised by 6 dB.
@@ -114,7 +89,6 @@ pub enum Effect {
         same_folder: bool,
     }, // 0 m3u8, 1 m3u, 2 pls
     PlaySound,
-    WriteMetadataFile,
     RunExternal {
         command: String,
     },
@@ -122,7 +96,6 @@ pub enum Effect {
         skip_ext: String,
         copy_instead: bool,
     },
-    DeleteDestOnError,
     MoveDestOnError {
         folder: String,
     },
@@ -131,7 +104,6 @@ pub enum Effect {
         value: String,
         mode: u8,
     }, // 0 set, 1 remove, 2 set if empty
-    CpuThrottle,
 }
 
 fn default_max_amp() -> f32 {
@@ -145,15 +117,8 @@ fn default_window() -> u32 {
 pub const NORMALIZE_MAX_AMP: f32 = 8.0;
 pub const NORMALIZE_WINDOW_MS: u32 = 6000;
 pub const NORMALIZE_EBU_OFFSET: f32 = 18.0;
-pub const NORMALIZE_MODES: [&str; 7] = [
-    "Spitze auf Zielpegel",
-    "ReplayGain (Titel)",
-    "EBU R128 (Titel)",
-    "Adaptiv (EBU R128)",
-    "Adaptiv (Spitze)",
-    "Feste Verstärkung",
-    "Nur absenken, wenn darüber",
-];
+pub const NORMALIZE_MODES: [&str; 7] =
+    ["Peak to target level", "ReplayGain (track)", "EBU R128 (track)", "Adaptive (EBU R128)", "Adaptive (peak)", "Fixed gain", "Only reduce if above"];
 
 pub const EQ_BANDS: [f32; 9] = [60.0, 130.0, 260.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0];
 
@@ -177,100 +142,74 @@ pub fn catalogue_entries() -> Vec<EffectEntry> {
 /// What an effect does, in one German sentence (translated by the caller).
 fn description(e: &Effect) -> &'static str {
     match e {
-        Effect::Resample { .. } => "Rechnet auf eine andere Abtastrate um, etwa von 96 kHz auf 44,1 kHz.",
-        Effect::BitDepth { .. } => "Ändert die Bittiefe; beim Verringern glättet Dither die Rundungsfehler.",
-        Effect::ChannelCount { .. } => "Mischt auf Mono, Stereo oder 5.1 um.",
-        Effect::ChannelMapper { .. } => "Tauscht links und rechts oder behält nur einen Kanal.",
-        Effect::VolumeNormalize { .. } => "Bringt jede Datei auf einen einheitlichen Pegel (Spitze, ReplayGain oder EBU R128).",
-        Effect::ReplayGain { .. } => "Misst die Lautheit und schreibt ReplayGain-Werte in die Tags; der Ton bleibt unverändert.",
-        Effect::ReplayGainApply { .. } => "Ändert die Lautstärke fest um die ReplayGain-Werte aus den Tags.",
-        Effect::Compressor { .. } => "Verringert den Abstand zwischen leisen und lauten Stellen.",
-        Effect::Fade { .. } => "Blendet am Anfang ein und am Ende aus.",
-        Effect::Trim { .. } => "Schneidet am Anfang und am Ende eine feste Zeit ab.",
-        Effect::TrimSilence { .. } => "Entfernt Stille am Anfang und am Ende.",
-        Effect::WriteSilence { .. } => "Fügt vorne und hinten Stille an.",
-        Effect::Reverse => "Dreht die Aufnahme um, sodass sie rückwärts läuft.",
-        Effect::Loop { .. } => "Hängt die Aufnahme mehrmals hintereinander.",
-        Effect::Speed { .. } => "Spielt schneller oder langsamer ab; die Tonhöhe ändert sich mit.",
-        Effect::MinimumLength { .. } => "Überspringt Dateien, die kürzer sind als die angegebene Zeit.",
-        Effect::MaximumLength { .. } => "Kürzt auf eine Höchstlänge in Sekunden oder Prozent.",
-        Effect::Lowpass { .. } => "Lässt nur Frequenzen unterhalb der Grenze durch.",
-        Effect::Highpass { .. } => "Lässt nur Frequenzen oberhalb der Grenze durch, etwa gegen Rumpeln.",
-        Effect::Bandpass { .. } => "Lässt nur den Bereich zwischen zwei Frequenzen durch, etwa für Telefonklang.",
-        Effect::GraphicEq { .. } => "Hebt oder senkt neun Frequenzbänder.",
-        Effect::Karaoke { .. } => "Entfernt die Stimme aus der Mitte oder behält nur sie; nur bei Stereo.",
-        Effect::DeEmphasis => "Gleicht die Höhenanhebung alter CDs mit Pre-Emphasis aus.",
-        Effect::Hdcd { .. } => "Erkennt HDCDs und macht aus ihnen 24-Bit-Audio.",
-        Effect::DeleteSource => "Löscht die Quelldatei, wenn ihre Umwandlung geklappt hat.",
-        Effect::PreserveAttributes => "Gibt der neuen Datei das Änderungsdatum der Quelle.",
-        Effect::FolderJpgPreserve => "Kopiert folder.jpg oder cover.jpg aus dem Quellordner in den Zielordner.",
-        Effect::PlaylistWriter { .. } => "Schreibt eine Wiedergabeliste (M3U8, M3U oder PLS) mit den neuen Dateien.",
-        Effect::WriteMetadataFile => "Legt neben jede neue Datei eine .txt mit ihren Tags.",
-        Effect::RunExternal { .. } => "Startet nach jeder Datei ein Programm, etwa zum Nachbearbeiten.",
-        Effect::ConditionalEncoding { .. } => "Überspringt oder kopiert Quellen mit einer bestimmten Endung, statt sie umzuwandeln.",
-        Effect::DeleteDestOnError => "Löscht eine halbfertige Zieldatei, wenn ein Fehler auftritt.",
-        Effect::MoveDestOnError { .. } => "Verschiebt die Zieldatei bei einem Fehler in einen eigenen Ordner.",
-        Effect::TagProcessing { .. } => "Setzt, ergänzt oder entfernt ein Tag-Feld in allen Dateien.",
-        Effect::PlaySound => "Spielt einen Ton, wenn alle Dateien fertig sind.",
-        Effect::CpuThrottle => "Wandelt mit niedriger Priorität um, damit der Rechner bedienbar bleibt.",
+        Effect::Resample { .. } => "Converts to another sample rate, e.g. from 96 kHz to 44.1 kHz.",
+        Effect::BitDepth { .. } => "Changes the bit depth; when reducing, dither smooths the rounding errors.",
+        Effect::ChannelCount { .. } => "Turns stereo into mono or mono into stereo.",
+        Effect::ChannelMapper { .. } => "Swaps left and right or puts one side on both.",
+        Effect::VolumeNormalize { .. } => "Brings every file to one level (peak, ReplayGain or EBU R128).",
+        Effect::ReplayGain { .. } => "Measures loudness and writes ReplayGain values into the tags; the sound stays unchanged.",
+        Effect::ReplayGainApply { .. } => "Changes the volume permanently by the ReplayGain values from the tags.",
+        Effect::Compressor { .. } => "Turns loud passages down so quiet and loud ones are closer together.",
+        Effect::Fade { .. } => "Fades in at the start and out at the end.",
+        Effect::Trim { .. } => "Cuts a fixed time off the start and the end.",
+        Effect::TrimSilence { .. } => "Removes silence at the start and the end.",
+        Effect::Lowpass { .. } => "Lets only frequencies below the limit through.",
+        Effect::Highpass { .. } => "Lets only frequencies above the limit through, e.g. against rumble.",
+        Effect::GraphicEq { .. } => "Raises or lowers nine frequency bands.",
+        Effect::DeEmphasis => "Lowers the treble raised on CDs with pre-emphasis (mostly early 1980s); only for such CDs.",
+        Effect::Hdcd { .. } => "Detects HDCDs and turns them into 24-bit audio.",
+        Effect::DeleteSource => "Moves the source file to the recycle bin when its conversion succeeded.",
+        Effect::PreserveAttributes => "Gives the new file the source's modification date.",
+        Effect::FolderJpgPreserve => "Copies folder.jpg or cover.jpg from the source folder to the target folder.",
+        Effect::PlaylistWriter { .. } => "Writes a playlist (M3U8, M3U or PLS) with the new files.",
+        Effect::RunExternal { .. } => "Runs a command after each finished file, such as a script for post-processing.",
+        Effect::ConditionalEncoding { .. } => "Skips or copies sources with a given extension instead of converting them.",
+        Effect::MoveDestOnError { .. } => "Moves the target file to its own folder when an error occurs.",
+        Effect::TagProcessing { .. } => "Sets, fills in or removes a tag field; track numbers are filled in automatically, values can include other tags.",
+        Effect::PlaySound => "Plays a sound when all files are done.",
     }
 }
 
 /// Every effect the "add effect" menu offers: (group, name, default).
 pub fn catalogue() -> Vec<(&'static str, &'static str, Effect)> {
     vec![
-        ("Format", crate::i18n::t("Abtastrate ändern (Resample)"), Effect::Resample { rate: 44100 }),
-        ("Format", crate::i18n::t("Bittiefe"), Effect::BitDepth { bits: 16, dither: true }),
-        ("Format", crate::i18n::t("Kanalanzahl"), Effect::ChannelCount { channels: 2 }),
-        ("Format", crate::i18n::t("Kanäle zuordnen"), Effect::ChannelMapper { mode: 0 }),
+        ("Format", crate::i18n::t("Change sample rate (resample)"), Effect::Resample { rate: 44100 }),
+        ("Format", crate::i18n::t("Bit depth"), Effect::BitDepth { bits: 16, dither: true }),
+        ("Format", crate::i18n::t("Channel count"), Effect::ChannelCount { channels: 2 }),
+        ("Format", crate::i18n::t("Map channels"), Effect::ChannelMapper { mode: 0 }),
         (
-            crate::i18n::t("Lautstärke"),
-            crate::i18n::t("Lautstärke normalisieren"),
+            crate::i18n::t("Volume"),
+            crate::i18n::t("Normalize volume"),
             Effect::VolumeNormalize { mode: 0, target_db: 0.0, max_amp: NORMALIZE_MAX_AMP, window_ms: NORMALIZE_WINDOW_MS, fixed_db: 0.0 },
         ),
         (
-            crate::i18n::t("Lautstärke"),
-            crate::i18n::t("ReplayGain (Werte in Tags schreiben)"),
+            crate::i18n::t("Volume"),
+            crate::i18n::t("ReplayGain (write values to tags)"),
             Effect::ReplayGain { target_lufs: -18.0, max_gain: 25.0, album: true, clip_prevention: true, true_peak_ratio: 1 },
         ),
-        (crate::i18n::t("Lautstärke"), crate::i18n::t("ReplayGain anwenden"), Effect::ReplayGainApply { album: false, limit_peaks: true, missing_db: 0.0 }),
+        (crate::i18n::t("Volume"), crate::i18n::t("Apply ReplayGain"), Effect::ReplayGainApply { album: false, limit_peaks: true, missing_db: 0.0 }),
         (
-            crate::i18n::t("Lautstärke"),
-            crate::i18n::t("Dynamikkompression"),
-            Effect::Compressor { threshold_db: -3.0, ratio: 1.0, attack_ms: 3.0, release_ms: 1000.0 },
+            crate::i18n::t("Volume"),
+            crate::i18n::t("Dynamic range compression"),
+            Effect::Compressor { threshold_db: -18.0, ratio: 3.0, attack_ms: 10.0, release_ms: 200.0 },
         ),
-        (crate::i18n::t("Bearbeiten"), crate::i18n::t("Ein-/Ausblenden (Fade)"), Effect::Fade { in_ms: 0, out_ms: 3000 }),
-        (crate::i18n::t("Bearbeiten"), crate::i18n::t("Kürzen (Trim)"), Effect::Trim { start_ms: 0, end_ms: 0 }),
-        (
-            crate::i18n::t("Bearbeiten"),
-            crate::i18n::t("Stille entfernen"),
-            Effect::TrimSilence { begin: true, end: true, digital_only: false, threshold_db: -60.0 },
-        ),
-        (crate::i18n::t("Bearbeiten"), crate::i18n::t("Stille einfügen"), Effect::WriteSilence { start_ms: 0, end_ms: 2000 }),
-        (crate::i18n::t("Bearbeiten"), crate::i18n::t("Rückwärts"), Effect::Reverse),
-        (crate::i18n::t("Bearbeiten"), crate::i18n::t("Schleife (wiederholen)"), Effect::Loop { times: 2 }),
-        (crate::i18n::t("Bearbeiten"), crate::i18n::t("Geschwindigkeit"), Effect::Speed { percent: 100.0 }),
-        (crate::i18n::t("Bearbeiten"), crate::i18n::t("Mindestlänge (sonst überspringen)"), Effect::MinimumLength { seconds: 10.0 }),
-        (crate::i18n::t("Bearbeiten"), crate::i18n::t("Maximale Länge"), Effect::MaximumLength { percent: 100.0, seconds: 0.0 }),
-        ("Filter", crate::i18n::t("Tiefpass"), Effect::Lowpass { hz: 16000.0 }),
-        ("Filter", crate::i18n::t("Hochpass"), Effect::Highpass { hz: 40.0 }),
-        ("Filter", "Bandpass", Effect::Bandpass { low: 300.0, high: 3400.0 }),
-        ("Filter", crate::i18n::t("Grafischer Equalizer"), Effect::GraphicEq { gains: [0.0; 9] }),
-        ("Filter", crate::i18n::t("Karaoke (Stimme / Instrumente entfernen)"), Effect::Karaoke { keep_voice: false }),
+        (crate::i18n::t("Edit"), crate::i18n::t("Fade in/out"), Effect::Fade { in_ms: 0, out_ms: 3000 }),
+        (crate::i18n::t("Edit"), crate::i18n::t("Trim"), Effect::Trim { start_ms: 0, end_ms: 0 }),
+        (crate::i18n::t("Edit"), crate::i18n::t("Remove silence"), Effect::TrimSilence { begin: true, end: true, digital_only: false, threshold_db: -60.0 }),
+        ("Filter", crate::i18n::t("Low-pass"), Effect::Lowpass { hz: 16000.0 }),
+        ("Filter", crate::i18n::t("High-pass"), Effect::Highpass { hz: 40.0 }),
+        ("Filter", crate::i18n::t("Graphic equalizer"), Effect::GraphicEq { gains: [0.0; 9] }),
         ("Filter", "Audio-CD De-Emphasis", Effect::DeEmphasis),
-        ("Filter", crate::i18n::t("HDCD-Dekodierung"), Effect::Hdcd { amp_6db: false }),
-        (crate::i18n::t("Dateien"), crate::i18n::t("Quelldatei löschen"), Effect::DeleteSource),
-        (crate::i18n::t("Dateien"), crate::i18n::t("Quell-Attribute übernehmen (Datum)"), Effect::PreserveAttributes),
-        (crate::i18n::t("Dateien"), crate::i18n::t("Folder.jpg mitkopieren"), Effect::FolderJpgPreserve),
-        (crate::i18n::t("Dateien"), crate::i18n::t("Wiedergabeliste schreiben"), Effect::PlaylistWriter { kind: 0, same_folder: true }),
-        (crate::i18n::t("Dateien"), crate::i18n::t("Metadaten-Datei schreiben (.txt)"), Effect::WriteMetadataFile),
-        (crate::i18n::t("Dateien"), crate::i18n::t("Externes Programm ausführen"), Effect::RunExternal { command: String::new() }),
-        (crate::i18n::t("Dateien"), crate::i18n::t("Bedingte Umwandlung"), Effect::ConditionalEncoding { skip_ext: "mp3".into(), copy_instead: false }),
-        (crate::i18n::t("Dateien"), crate::i18n::t("Zieldatei bei Fehler löschen"), Effect::DeleteDestOnError),
-        (crate::i18n::t("Dateien"), crate::i18n::t("Zieldatei bei Fehler verschieben"), Effect::MoveDestOnError { folder: String::new() }),
-        (crate::i18n::t("Dateien"), crate::i18n::t("Tag-Bearbeitung"), Effect::TagProcessing { field: "comment".into(), value: String::new(), mode: 1 }),
-        ("System", crate::i18n::t("Ton nach der Umwandlung"), Effect::PlaySound),
-        ("System", crate::i18n::t("CPU schonen (niedrige Priorität)"), Effect::CpuThrottle),
+        ("Filter", crate::i18n::t("HDCD decoding"), Effect::Hdcd { amp_6db: false }),
+        (crate::i18n::t("Files"), crate::i18n::t("Delete source file"), Effect::DeleteSource),
+        (crate::i18n::t("Files"), crate::i18n::t("Keep modification date"), Effect::PreserveAttributes),
+        (crate::i18n::t("Files"), crate::i18n::t("Copy folder.jpg along"), Effect::FolderJpgPreserve),
+        (crate::i18n::t("Files"), crate::i18n::t("Write playlist"), Effect::PlaylistWriter { kind: 0, same_folder: true }),
+        (crate::i18n::t("Files"), crate::i18n::t("Run external program"), Effect::RunExternal { command: String::new() }),
+        (crate::i18n::t("Files"), crate::i18n::t("Conditional encoding"), Effect::ConditionalEncoding { skip_ext: "mp3".into(), copy_instead: false }),
+        (crate::i18n::t("Files"), crate::i18n::t("Move output on error"), Effect::MoveDestOnError { folder: String::new() }),
+        (crate::i18n::t("Files"), crate::i18n::t("Tag processing"), Effect::TagProcessing { field: "comment".into(), value: String::new(), mode: 1 }),
+        ("System", crate::i18n::t("Sound after converting"), Effect::PlaySound),
     ]
 }
 
@@ -281,7 +220,7 @@ impl Effect {
                 return n.to_string();
             }
         }
-        crate::i18n::t("Effekt").into()
+        crate::i18n::t("Effect").into()
     }
 
     /// Short description of the current settings.
@@ -289,12 +228,12 @@ impl Effect {
         match self {
             Effect::Resample { rate } => format!("{rate} Hz"),
             Effect::BitDepth { bits, dither } => crate::i18n::tf(
-                crate::i18n::t("{bits} Bit{0}"),
-                &[("bits", format!("{bits}")), ("0", (if *dither { crate::i18n::t(", Dither") } else { "" }).to_string())],
+                crate::i18n::t("{bits} bit{0}"),
+                &[("bits", format!("{bits}")), ("0", (if *dither { crate::i18n::t(", dither") } else { "" }).to_string())],
             ),
-            Effect::ChannelCount { channels } => crate::i18n::tf(crate::i18n::t("{channels} Kanal/Kanäle"), &[("channels", format!("{channels}"))]),
+            Effect::ChannelCount { channels } => crate::i18n::tf(crate::i18n::t("{channels} channel(s)"), &[("channels", format!("{channels}"))]),
             Effect::ChannelMapper { mode } => {
-                [crate::i18n::t("L/R tauschen"), crate::i18n::t("nur links"), crate::i18n::t("nur rechts")][*mode as usize % 3].into()
+                [crate::i18n::t("swap L/R"), crate::i18n::t("left on both"), crate::i18n::t("right on both")][*mode as usize % 3].into()
             }
             Effect::VolumeNormalize { mode, target_db, max_amp, fixed_db, .. } => match mode {
                 5 => format!("{fixed_db:+.1} dB"),
@@ -302,45 +241,29 @@ impl Effect {
                 m => format!("{} · {target_db:.1} dB · max. ×{max_amp:.0}", crate::i18n::t(NORMALIZE_MODES[*m as usize % 7])),
             },
             Effect::ReplayGain { target_lufs, max_gain, album, .. } => {
-                format!("{target_lufs:.0} LUFS, max. {max_gain:.0} dB{}", if *album { crate::i18n::t(", Album") } else { "" })
+                format!("{target_lufs:.0} LUFS, max. {max_gain:.0} dB{}", if *album { crate::i18n::t(", album") } else { "" })
             }
             Effect::ReplayGainApply { album, .. } => {
                 if *album {
-                    crate::i18n::t("Album-Gain").into()
+                    crate::i18n::t("Album gain").into()
                 } else {
-                    crate::i18n::t("Titel-Gain").into()
+                    crate::i18n::t("Track gain").into()
                 }
             }
             Effect::Fade { in_ms, out_ms } => {
-                crate::i18n::tf(crate::i18n::t("ein {in_ms} ms, aus {out_ms} ms"), &[("in_ms", format!("{in_ms}")), ("out_ms", format!("{out_ms}"))])
+                crate::i18n::tf(crate::i18n::t("in {in_ms} ms, out {out_ms} ms"), &[("in_ms", format!("{in_ms}")), ("out_ms", format!("{out_ms}"))])
             }
-            Effect::Trim { start_ms, end_ms } => crate::i18n::tf(
-                crate::i18n::t("Anfang {start_ms} ms, Ende {end_ms} ms"),
-                &[("start_ms", format!("{start_ms}")), ("end_ms", format!("{end_ms}"))],
-            ),
+            Effect::Trim { start_ms, end_ms } => {
+                crate::i18n::tf(crate::i18n::t("start {start_ms} ms, end {end_ms} ms"), &[("start_ms", format!("{start_ms}")), ("end_ms", format!("{end_ms}"))])
+            }
             Effect::TrimSilence { threshold_db, digital_only, .. } => {
                 if *digital_only {
-                    crate::i18n::t("nur digitale Stille").into()
+                    crate::i18n::t("digital silence only").into()
                 } else {
-                    crate::i18n::tf(crate::i18n::t("unter {threshold_db} dB"), &[("threshold_db", format!("{threshold_db:.0}"))])
-                }
-            }
-            Effect::WriteSilence { start_ms, end_ms } => crate::i18n::tf(
-                crate::i18n::t("vorne {start_ms} ms, hinten {end_ms} ms"),
-                &[("start_ms", format!("{start_ms}")), ("end_ms", format!("{end_ms}"))],
-            ),
-            Effect::Loop { times } => format!("{times}×"),
-            Effect::Speed { percent } => format!("{percent:.0} %"),
-            Effect::MinimumLength { seconds } => format!("{seconds:.0} s"),
-            Effect::MaximumLength { percent, seconds } => {
-                if *seconds > 0.0 {
-                    format!("{seconds:.0} s")
-                } else {
-                    crate::i18n::tf(crate::i18n::t("{percent} % des Originals"), &[("percent", format!("{percent:.0}"))])
+                    crate::i18n::tf(crate::i18n::t("below {threshold_db} dB"), &[("threshold_db", format!("{threshold_db:.0}"))])
                 }
             }
             Effect::Lowpass { hz } | Effect::Highpass { hz } => format!("{hz:.0} Hz"),
-            Effect::Bandpass { low, high } => format!("{low:.0}–{high:.0} Hz"),
             Effect::GraphicEq { gains } => {
                 if gains.iter().all(|g| *g == 0.0) {
                     "flach".into()
@@ -348,25 +271,26 @@ impl Effect {
                     "angepasst".into()
                 }
             }
-            Effect::Compressor { threshold_db, ratio, .. } => format!("{threshold_db:.0} dB, 1:{ratio:.1}"),
-            Effect::Karaoke { keep_voice } => {
-                if *keep_voice {
-                    crate::i18n::t("Stimme behalten").into()
-                } else {
-                    crate::i18n::t("Stimme entfernen").into()
-                }
-            }
+            Effect::Compressor { threshold_db, ratio, .. } => format!("{threshold_db:.0} dB, {ratio:.1}:1"),
             Effect::PlaylistWriter { kind, .. } => ["M3U8", "M3U", "PLS"][*kind as usize % 3].into(),
             Effect::RunExternal { command } => command.clone(),
             Effect::ConditionalEncoding { skip_ext, copy_instead } => {
-                format!(".{skip_ext} {}", if *copy_instead { crate::i18n::t("1:1 kopieren") } else { crate::i18n::t("überspringen") })
+                format!(".{skip_ext} {}", if *copy_instead { crate::i18n::t("copy 1:1") } else { crate::i18n::t("skip") })
             }
             Effect::MoveDestOnError { folder } => folder.clone(),
-            Effect::TagProcessing { field, value, mode } => match mode {
-                1 => crate::i18n::tf(crate::i18n::t("{field} entfernen"), &[("field", field.to_string())]),
-                2 => crate::i18n::tf(crate::i18n::t("{field} = {value} (wenn leer)"), &[("field", field.to_string()), ("value", value.to_string())]),
-                _ => format!("{field} = {value}"),
-            },
+            Effect::TagProcessing { field, value, mode } => {
+                let name = match field.as_str() {
+                    "*" | "alle" => crate::i18n::t("All tags").to_string(),
+                    "cover" | "bild" => crate::i18n::t("Cover picture").to_string(),
+                    f => crate::tags::FIELDS.iter().find(|x| x.0 == f).map(|x| crate::i18n::t(x.1).to_string()).unwrap_or_else(|| f.to_string()),
+                };
+                let value = if ["track", "track_total"].contains(&field.as_str()) { crate::i18n::t("automatic").to_string() } else { value.clone() };
+                match mode {
+                    1 => crate::i18n::tf(crate::i18n::t("remove {field}"), &[("field", name)]),
+                    2 => crate::i18n::tf(crate::i18n::t("{field} = {value} (if empty)"), &[("field", name), ("value", value)]),
+                    _ => format!("{name} = {value}"),
+                }
+            }
             _ => String::new(),
         }
     }
@@ -380,13 +304,11 @@ impl Effect {
                 | Effect::ReplayGainApply { .. }
                 | Effect::Compressor { .. }
                 | Effect::GraphicEq { .. }
-                | Effect::Karaoke { .. }
                 | Effect::ChannelCount { .. }
                 | Effect::DeEmphasis
                 | Effect::Hdcd { .. }
                 | Effect::Lowpass { .. }
                 | Effect::Highpass { .. }
-                | Effect::Bandpass { .. }
         )
     }
 
@@ -398,15 +320,11 @@ impl Effect {
                 | Effect::FolderJpgPreserve
                 | Effect::PlaylistWriter { .. }
                 | Effect::PlaySound
-                | Effect::WriteMetadataFile
                 | Effect::RunExternal { .. }
                 | Effect::ConditionalEncoding { .. }
-                | Effect::DeleteDestOnError
                 | Effect::MoveDestOnError { .. }
                 | Effect::TagProcessing { .. }
-                | Effect::CpuThrottle
                 | Effect::ReplayGain { .. }
-                | Effect::MinimumLength { .. }
         )
     }
 }
@@ -633,13 +551,8 @@ pub fn quantize(a: &mut Audio, bits: u16, dither: bool) {
     a.float = false;
 }
 
-pub enum Outcome {
-    Continue,
-    Skip(String),
-}
-
 /// Apply one audio effect. `tags` lets ReplayGain-apply read gains.
-pub fn apply(e: &Effect, a: &mut Audio, tags: &crate::tags::Tags, original_seconds: f64) -> Outcome {
+pub fn apply(e: &Effect, a: &mut Audio, tags: &crate::tags::Tags) {
     let ch = a.channels.max(1);
     match e {
         Effect::Resample { rate } => *a = resample(a, *rate),
@@ -715,16 +628,8 @@ pub fn apply(e: &Effect, a: &mut Audio, tags: &crate::tags::Tags, original_secon
             }
             a.data = a.data[s * ch..e2 * ch].to_vec();
         }
-        Effect::Reverse => {
-            let frames = a.frames();
-            let src = a.data.clone();
-            for i in 0..frames {
-                a.data[i * ch..(i + 1) * ch].copy_from_slice(&src[(frames - 1 - i) * ch..(frames - i) * ch]);
-            }
-        }
         Effect::Lowpass { hz } => fir(a, None, Some(*hz)),
         Effect::Highpass { hz } => fir(a, Some(*hz), None),
-        Effect::Bandpass { low, high } => fir(a, Some(*low), Some(*high)),
         Effect::GraphicEq { gains } => {
             for (i, g) in gains.iter().enumerate() {
                 if *g != 0.0 && (EQ_BANDS[i] as f64) < a.rate as f64 / 2.0 {
@@ -749,63 +654,12 @@ pub fn apply(e: &Effect, a: &mut Audio, tags: &crate::tags::Tags, original_secon
                 }
             }
         }
-        Effect::Karaoke { keep_voice } => {
-            if ch == 2 {
-                for f in a.data.as_chunks_mut::<2>().0 {
-                    if *keep_voice {
-                        let m = (f[0] + f[1]) * 0.5;
-                        f[0] = m;
-                        f[1] = m;
-                    } else {
-                        let l = f[0] - f[1];
-                        f[0] = l;
-                        f[1] = -l;
-                    }
-                }
-            }
-        }
-        Effect::Speed { percent } => {
-            if *percent > 0.0 && (*percent - 100.0).abs() > 0.01 {
-                let rate = a.rate;
-                let virt = (rate as f32 * 100.0 / percent) as u32;
-                let mut b = a.clone();
-                b.rate = rate;
-                let mut r = resample(&b, virt);
-                r.rate = rate;
-                *a = r;
-            }
-        }
-        Effect::WriteSilence { start_ms, end_ms } => {
-            let s = ms_frames(a, *start_ms) * ch;
-            let e2 = ms_frames(a, *end_ms) * ch;
-            let mut d = vec![0f32; s];
-            d.extend_from_slice(&a.data);
-            d.extend(std::iter::repeat_n(0f32, e2));
-            a.data = d;
-        }
-        Effect::Loop { times } => {
-            let one = a.data.clone();
-            for _ in 1..(*times).max(1) {
-                a.data.extend_from_slice(&one);
-            }
-        }
-        Effect::MinimumLength { seconds } => {
-            if original_seconds < *seconds as f64 {
-                return Outcome::Skip(crate::i18n::tf(crate::i18n::t("kürzer als {seconds} s"), &[("seconds", format!("{seconds:.0}"))]));
-            }
-        }
-        Effect::MaximumLength { percent, seconds } => {
-            let frames = a.frames();
-            let keep = if *seconds > 0.0 { (a.rate as f32 * seconds) as usize } else { (frames as f32 * percent / 100.0) as usize };
-            a.data.truncate(keep.min(frames) * ch);
-        }
         Effect::DeEmphasis => {
             // 50/15 µs de-emphasis as a high shelf: -10 dB above ~5.3 kHz (approximation)
             Bq::shelf_high(a.rate as f64, 5283.0, -9.477).run(a);
         }
         _ => {}
     }
-    Outcome::Continue
 }
 
 /// Gain of one stretch of audio for the normalize modes (linear factor, before the limits).
@@ -940,7 +794,7 @@ pub fn hdcd_decode(a: &mut Audio, ffmpeg: Option<&std::path::Path>, amp_6db: boo
     if a.rate != 44100 || a.channels != 2 || a.bits != 16 || a.float {
         return Ok(false);
     }
-    let Some(ff) = ffmpeg else { return Err(crate::i18n::t("FFmpeg wird benötigt").into()) };
+    let Some(ff) = ffmpeg else { return Err(crate::i18n::t("FFmpeg is needed").into()) };
     let mut cmd = Command::new(ff);
     cmd.args([
         "-hide_banner",
@@ -964,12 +818,8 @@ pub fn hdcd_decode(a: &mut Audio, ffmpeg: Option<&std::path::Path>, amp_6db: boo
     .stdin(Stdio::piped())
     .stdout(Stdio::piped())
     .stderr(Stdio::piped());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x0800_0000);
-    }
-    let mut child = cmd.spawn().map_err(|e| crate::i18n::tf(crate::i18n::t("FFmpeg kann nicht gestartet werden: {e}"), &[("e", e.to_string())]))?;
+    crate::audio::hidden(&mut cmd);
+    let mut child = cmd.spawn().map_err(|e| crate::i18n::tf(crate::i18n::t("Cannot start FFmpeg: {e}"), &[("e", e.to_string())]))?;
     let pcm: Vec<u8> = a.data.iter().flat_map(|s| ((s * 32768.0).round().clamp(-32768.0, 32767.0) as i16).to_le_bytes()).collect();
     let mut stdin = child.stdin.take().unwrap();
     let writer = std::thread::spawn(move || {

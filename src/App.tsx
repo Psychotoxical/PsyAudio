@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { demoBatch, demoCd, demoFiles } from "./demo";
-import { setLanguage } from "./i18n";
+import { resolveLanguage, setLanguage } from "./i18n";
 import { demoState, loadSettings } from "./ipc/commands";
 import { refreshEncode } from "./ipc/encode";
 import { frontendReady, onDragState, onFilesAdded } from "./ipc/events";
@@ -44,7 +44,7 @@ export function App() {
   const ffmpeg = useEncode((s) => s.ffmpeg);
   // the running conversion in the sidebar, as a line with a bar
   const runTitle = useRun((s) =>
-    s.run && s.run.elapsed === null ? s.run.title || t("Umwandeln …") : null,
+    s.run && s.run.elapsed === null ? s.run.title || t("Converting …") : null,
   );
   const runProgress = useRun((s) => s.run?.maxOverall ?? 0);
   const runJob = runTitle ? { label: runTitle, progress: runProgress } : null;
@@ -53,7 +53,7 @@ export function App() {
   const ripDone = useCd((s) => (s.rip?.running ? ripProgress(s) : 0));
   const jobs = [
     ...(runJob ? [runJob] : []),
-    ...(ripRunning ? [{ label: t("CD rippen"), progress: ripDone }] : []),
+    ...(ripRunning ? [{ label: t("Ripping CD"), progress: ripDone }] : []),
   ];
   const lang = settings?.lang;
   const tools = settings ? JSON.stringify(settings.tools) : undefined;
@@ -84,7 +84,7 @@ export function App() {
         const target = demo ? DEMO_PAGES[demo.page] : undefined;
         demoPage = target;
         if (target) useUi.getState().setPage(target);
-        const en = demo?.en ?? false;
+        const en = (demo?.lang ?? "de") !== "de";
         if (target === "convert")
           useFiles.setState({ files: demoFiles(en), selected: new Set([2]) });
         if (target === "batch") useBatch.setState(demoBatch(en));
@@ -110,7 +110,7 @@ export function App() {
   useEffect(() => {
     if (!settings) return;
     applyTheme(settings.dark);
-    void setLanguage(settings.lang === "de" ? "de" : "en");
+    void setLanguage(resolveLanguage(settings.lang));
   }, [settings]);
 
   // format lists in the current language, FFmpeg's state and missing programs; again when the

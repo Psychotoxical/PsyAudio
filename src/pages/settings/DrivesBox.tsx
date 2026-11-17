@@ -28,7 +28,7 @@ export function useAttachedDrives(): DriveInfo[] {
   return attached;
 }
 
-/** One drive: name, what was measured, and "Messen" while it is attached. `titled={false}` leaves
+/** One drive: name, what was measured, and "Measure" while it is attached. `titled={false}` leaves
  * the name to the surrounding box (setup). */
 export function DriveRow({
   drive,
@@ -56,25 +56,25 @@ export function DriveRow({
       {profile ? (
         <DriveFacts profile={profile} />
       ) : (
-        <p className="muted">{t("Versatz noch nicht gemessen")}</p>
+        <p className="muted">{t("Offset not measured yet")}</p>
       )}
       {offset.busy && drive ? (
         <div className="measure-row">
           <span
             className="prog wide"
             role="progressbar"
-            aria-label={t("Fortschritt")}
+            aria-label={t("Progress")}
             aria-valuenow={Math.round(offset.fraction * 100)}
           >
             <i style={{ width: `${offset.fraction * 100}%` }} />
           </span>
           <span className="muted">
-            {t("Liest die CD und vergleicht mit CTDB … {0} %", {
+            {t("Reading the CD and comparing with CTDB … {0} %", {
               0: String(Math.round(offset.fraction * 100)),
             })}
           </span>
           <button type="button" className="btn" onClick={() => void cancelRip()}>
-            {t("Abbrechen")}
+            {t("Cancel")}
           </button>
         </div>
       ) : (
@@ -87,7 +87,7 @@ export function DriveRow({
               onClick={() => void measure(drive.id)}
             >
               <RefreshCw size={15} />
-              {profile ? t("Neu messen") : t("Messen")}
+              {profile ? t("Measure again") : t("Measure")}
             </button>
           )}
           {!drive && profile && (
@@ -100,7 +100,7 @@ export function DriveRow({
                 })
               }
             >
-              {t("Entfernen")}
+              {t("Remove")}
             </button>
           )}
         </div>
@@ -120,17 +120,17 @@ export function PendingQuestion() {
   return (
     <div className="confirm ask">
       <p>
-        {t("Gemessen: {0} Samples. Ihren Wert {1} ersetzen?", {
+        {t("Measured: {0} samples. Replace your value {1}?", {
           0: signed(pending.profile.offset),
           1: signed(old?.offset ?? 0),
         })}
       </p>
       <div className="row">
         <button type="button" className="btn" onClick={() => settlePending(true)}>
-          {t("Ersetzen")}
+          {t("Replace")}
         </button>
         <button type="button" className="btn" onClick={() => settlePending(false)}>
-          {t("Behalten")}
+          {t("Keep")}
         </button>
       </div>
     </div>
@@ -153,19 +153,19 @@ export function DrivesBox() {
   }));
   const first = rows[0];
   const summary = !first
-    ? t("kein Laufwerk")
+    ? t("no drive")
     : first.profile
       ? `${first.key} · ${signed(first.profile.offset)} Samples`
-      : `${first.key} · ${t("noch nicht gemessen")}`;
+      : `${first.key} · ${t("not measured yet")}`;
   const buffer = rows.find((x) => x.drive)?.profile?.buffer_kb;
   return (
-    <CollapsibleBox id="drives" title={t("CD-Laufwerke")} summary={summary}>
-      {rows.length === 0 && <Hint>{t("Kein CD-Laufwerk gefunden.")}</Hint>}
+    <CollapsibleBox id="drives" title={t("CD drives")} summary={summary}>
+      {rows.length === 0 && <Hint>{t("No CD drive found.")}</Hint>}
       {rows.map((x) => (
         <DriveRow key={x.key} drive={x.drive} profile={x.profile} />
       ))}
       <PendingQuestion />
-      <Disclosure title={t("Erweitert")} summary={t("Versatz von Hand, Cache")}>
+      <Disclosure title={t("Advanced")} summary={t("Offset by hand, cache")}>
         {rows
           .filter((x) => x.drive)
           .map((x) => (
@@ -173,8 +173,8 @@ export function DrivesBox() {
               <SliderField
                 label={
                   rows.filter((y) => y.drive).length > 1
-                    ? t("Versatz von Hand ({0})", { 0: x.key })
-                    : t("Versatz von Hand")
+                    ? t("Offset by hand ({0})", { 0: x.key })
+                    : t("Offset by hand")
                 }
                 min={-3000}
                 max={3000}
@@ -189,20 +189,20 @@ export function DrivesBox() {
               />
               <Hint>
                 {t(
-                  "Nur nötig, wenn keine Ihrer CDs in der CUETools-Datenbank steht. Ein späteres Messen fragt, bevor es Ihren Wert ersetzt.",
+                  "Only needed if none of your CDs is in the CUETools database. A later measurement asks before it replaces your value.",
                 )}
               </Hint>
             </div>
           ))}
         <div className="field">
           <SliderField
-            label={t("Cache vor dem Neulesen leeren")}
+            label={t("Clear the cache before re-reading")}
             min={0}
             max={16384}
             step={512}
             value={r.cache_kb}
             format={(v) =>
-              v === 0 ? t("automatisch · {0} KB", { 0: String(autoFlushKb(buffer)) }) : `${v} KB`
+              v === 0 ? t("automatic · {0} KB", { 0: String(autoFlushKb(buffer)) }) : `${v} KB`
             }
             onChange={(v) =>
               update((st) => {
@@ -212,7 +212,7 @@ export function DrivesBox() {
           />
           <Hint>
             {t(
-              "Bevor PsyAudio eine Stelle neu liest, liest es so viel woanders, dass das Laufwerk die Stelle wirklich von der CD holt. Automatisch: Puffer des Laufwerks plus die Hälfte.",
+              "Before PsyAudio re-reads a spot, it reads this much elsewhere, so the drive really fetches the spot from the CD. Automatic: the drive's buffer plus half of it.",
             )}
           </Hint>
         </div>

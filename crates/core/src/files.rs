@@ -44,6 +44,7 @@ pub fn expand_paths(paths: &[PathBuf], root: Option<&Path>) -> Vec<(PathBuf, Opt
 pub fn existing_outputs(plan: &Plan, jobs: &[Job], known: &HashMap<PathBuf, (Tags, Info)>) -> Vec<PathBuf> {
     let need_tags = plan.names_need_tags();
     let mut existing = Vec::new();
+    let positions = crate::convert::folder_positions(jobs.iter().map(|j| j.src.as_path()));
     for j in jobs {
         let (t, i) = match known.get(&j.src) {
             Some(x) => x.clone(),
@@ -51,7 +52,7 @@ pub fn existing_outputs(plan: &Plan, jobs: &[Job], known: &HashMap<PathBuf, (Tag
             None => (Tags::default(), Info::default()),
         };
         for c in plan.outputs() {
-            let d = plan.destination(&j.src, j.root.as_deref(), &t, &i, c);
+            let d = plan.destination(&j.src, j.root.as_deref(), &t, &i, c, crate::convert::position_of(&positions, &j.src));
             if d.exists() {
                 existing.push(d);
             }

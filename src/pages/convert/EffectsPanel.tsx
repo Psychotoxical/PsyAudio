@@ -51,9 +51,9 @@ export function EffectsPanel() {
     <>
       <button type="button" className="btn add-effect" onClick={() => setPicking(true)}>
         <Plus size={16} />
-        {t("Effekt hinzufügen")}
+        {t("Add effect")}
       </button>
-      {effects.length === 0 && <Hint>{t("Keine – das Audio wird unverändert umgewandelt.")}</Hint>}
+      {effects.length === 0 && <Hint>{t("None – the audio is converted unchanged.")}</Hint>}
       <ol className="effects">
         {effects.map((e, i) => {
           const entry = catalogue.entries.find((x) => effectKind(x.effect) === effectKind(e));
@@ -80,8 +80,8 @@ export function EffectsPanel() {
                   <button
                     type="button"
                     className="icon-btn small"
-                    aria-label={t("Nach oben")}
-                    title={t("Nach oben")}
+                    aria-label={t("Move up")}
+                    title={t("Move up")}
                     disabled={i === 0}
                     onClick={() => swap(i - 1, i)}
                   >
@@ -90,8 +90,8 @@ export function EffectsPanel() {
                   <button
                     type="button"
                     className="icon-btn small"
-                    aria-label={t("Nach unten")}
-                    title={t("Nach unten")}
+                    aria-label={t("Move down")}
+                    title={t("Move down")}
                     disabled={i === effects.length - 1}
                     onClick={() => swap(i, i + 1)}
                   >
@@ -100,8 +100,8 @@ export function EffectsPanel() {
                   <button
                     type="button"
                     className="icon-btn small"
-                    aria-label={t("Effekt entfernen")}
-                    title={t("Effekt entfernen")}
+                    aria-label={t("Remove effect")}
+                    title={t("Remove effect")}
                     onClick={() => {
                       change((list) => {
                         list.splice(i, 1);

@@ -39,7 +39,7 @@ export function ProfileRow() {
         effects: structuredClone(s.effects ?? []),
       });
     });
-    useUi.getState().notify(t("Profil „{name}“ gespeichert", { name: trimmed }));
+    useUi.getState().notify(t("Profile “{name}” saved", { name: trimmed }));
   };
 
   const remove = () => {
@@ -47,13 +47,13 @@ export function ProfileRow() {
       s.profiles = s.profiles.filter((x) => x.name !== trimmed);
     });
     setName("");
-    useUi.getState().notify(t("Profil „{name}“ gelöscht", { name: trimmed }));
+    useUi.getState().notify(t("Profile “{name}” deleted", { name: trimmed }));
   };
 
   return (
     <div className="field">
       <label className="lbl" htmlFor={id}>
-        {t("Profil")}
+        {t("Profile")}
       </label>
       <select
         id={id}
@@ -63,7 +63,7 @@ export function ProfileRow() {
         onChange={(e) => load(e.target.value)}
       >
         <option value="" disabled>
-          {profiles.length === 0 ? t("Noch keine Profile") : t("Profil laden …")}
+          {profiles.length === 0 ? t("No profiles yet") : t("Load profile …")}
         </option>
         {profiles.map((p) => (
           <option key={p.name} value={p.name}>
@@ -75,8 +75,8 @@ export function ProfileRow() {
         <input
           className="text-field"
           type="text"
-          aria-label={t("Profilname")}
-          placeholder={t("Profilname")}
+          aria-label={t("Profile name")}
+          placeholder={t("Profile name")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
@@ -86,8 +86,8 @@ export function ProfileRow() {
         <button
           type="button"
           className="icon-btn"
-          aria-label={t("Profil speichern")}
-          title={t("Profil speichern")}
+          aria-label={t("Save profile")}
+          title={t("Save profile")}
           disabled={!trimmed}
           onClick={save}
         >
@@ -96,15 +96,15 @@ export function ProfileRow() {
         <button
           type="button"
           className="icon-btn"
-          aria-label={t("Dieses Profil löschen")}
-          title={t("Dieses Profil löschen")}
+          aria-label={t("Delete this profile")}
+          title={t("Delete this profile")}
           disabled={!exists}
           onClick={remove}
         >
           <Trash2 size={16} />
         </button>
       </div>
-      <Hint>{t("Ein Profil merkt sich Format, Einstellungen und Effekte.")}</Hint>
+      <Hint>{t("A profile keeps the format, its settings and the effects.")}</Hint>
     </div>
   );
 }

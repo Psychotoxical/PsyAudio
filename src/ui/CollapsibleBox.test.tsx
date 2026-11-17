@@ -16,21 +16,21 @@ describe("collapsible box", () => {
 
   it("collapsed_box_shows_summary", () => {
     render(
-      <CollapsibleBox id="programs" title="Programme" summary="FFmpeg bereit">
+      <CollapsibleBox id="programs" title="Programs" summary="FFmpeg ready">
         <p>Inhalt</p>
       </CollapsibleBox>,
     );
-    expect(screen.getByText("FFmpeg bereit")).toBeInTheDocument();
+    expect(screen.getByText("FFmpeg ready")).toBeInTheDocument();
     expect(screen.queryByText("Inhalt")).not.toBeInTheDocument();
   });
 
   it("state_persists", () => {
     render(
-      <CollapsibleBox id="programs" title="Programme" summary="FFmpeg bereit">
+      <CollapsibleBox id="programs" title="Programs" summary="FFmpeg ready">
         <p>Inhalt</p>
       </CollapsibleBox>,
     );
-    fireEvent.click(screen.getByRole("button", { name: /Programme/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Programs/ }));
     expect(useSettings.getState().settings?.ui.boxes_open.programs).toBe(true);
     expect(screen.getByText("Inhalt")).toBeInTheDocument();
   });

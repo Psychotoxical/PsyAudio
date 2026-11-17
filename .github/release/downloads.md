@@ -9,3 +9,5 @@
 | macOS, Apple Silicon and Intel | `PsyAudio-{version}-macOS.dmg` |
 
 The macOS app is signed and notarized by Apple.
+
+Every package brings its own FFmpeg (LGPL). Its source code and that of its libraries, as built, is in `PsyAudio-{version}-FFmpeg-source.tar`.

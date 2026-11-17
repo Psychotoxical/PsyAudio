@@ -28,16 +28,16 @@ export function SavePanel({ batch = false }: { batch?: boolean }) {
   if (!s) return null;
 
   const modeHint: Record<OutputMode, string> = {
-    SingleFolder: t("Alle Dateien landen im Zielordner, Unterordner entstehen aus der Benennung."),
-    SourceFolder: t("Jede neue Datei landet neben ihrer Quelle."),
+    SingleFolder: t("All files go to the target folder; subfolders come from the naming."),
+    SourceFolder: t("Each new file goes next to its source."),
     PreservePath: t(
-      "Im Zielordner entsteht der Ordnerpfad der Quelle noch einmal (ohne Laufwerk).",
+      "The source's folder path is rebuilt inside the target folder (without the drive).",
     ),
   };
   const overwriteHint: Record<Overwrite, string> = {
-    Ask: t("Vor dem Start erscheint eine Liste der Dateien, die es schon gibt."),
-    Always: t("Vorhandene Dateien werden ohne Rückfrage ersetzt."),
-    Skip: t("Vorhandene Dateien bleiben; die Quelle wird übersprungen."),
+    Ask: t("Before the start, a list shows the files that already exist."),
+    Always: t("Existing files are replaced without asking."),
+    Skip: t("Existing files stay; the source is skipped."),
   };
 
   const choose = async () => {
@@ -53,18 +53,18 @@ export function SavePanel({ batch = false }: { batch?: boolean }) {
       {batch ? (
         <Hint>
           {t(
-            "Im Zielordner entstehen die Unterordner des Quellordners neu, mit denselben Dateinamen.",
+            "The source folder's subfolders are rebuilt in the target folder, with the same file names.",
           )}
         </Hint>
       ) : (
         <div className="field">
           <Segmented<OutputMode>
-            label={t("Ziel")}
+            label={t("Destination")}
             value={s.output_mode}
             options={[
-              ["SingleFolder", t("Ein Ordner")],
-              ["SourceFolder", t("Quellordner")],
-              ["PreservePath", t("Pfad beibehalten")],
+              ["SingleFolder", t("One folder")],
+              ["SourceFolder", t("Source folder")],
+              ["PreservePath", t("Keep path")],
             ]}
             onChange={(v) =>
               update((x) => {
@@ -78,7 +78,7 @@ export function SavePanel({ batch = false }: { batch?: boolean }) {
       {(batch || s.output_mode !== "SourceFolder") && (
         <div className="field">
           <label className="lbl" htmlFor={folderId}>
-            {t("Zielordner")}
+            {t("Target folder")}
           </label>
           <div className="row">
             <input
@@ -88,18 +88,18 @@ export function SavePanel({ batch = false }: { batch?: boolean }) {
               type="text"
               readOnly
               value={s.output_folder}
-              placeholder={t("Ordner wählen …")}
+              placeholder={t("Choose folder …")}
               title={s.output_folder}
               onClick={() => void choose()}
             />
             <button type="button" className="btn" onClick={() => void choose()}>
-              {t("Ändern")}
+              {t("Change")}
             </button>
             <button
               type="button"
               className="icon-btn"
-              aria-label={t("Ordner im Explorer öffnen")}
-              title={t("Ordner im Explorer öffnen")}
+              aria-label={t("Open folder in Explorer")}
+              title={t("Open folder in Explorer")}
               disabled={!s.output_folder}
               onClick={() =>
                 openFolder(s.output_folder).catch((e: unknown) =>
@@ -114,12 +114,12 @@ export function SavePanel({ batch = false }: { batch?: boolean }) {
       )}
       <div className="field">
         <Segmented<Overwrite>
-          label={t("Wenn vorhanden")}
+          label={t("If it exists")}
           value={s.overwrite}
           options={[
-            ["Ask", t("Fragen")],
-            ["Always", t("Überschreiben")],
-            ["Skip", t("Überspringen")],
+            ["Ask", t("Ask")],
+            ["Always", t("Overwrite")],
+            ["Skip", t("Skip")],
           ]}
           onChange={(v) =>
             update((x) => {
@@ -131,7 +131,7 @@ export function SavePanel({ batch = false }: { batch?: boolean }) {
       </div>
       <div className="field">
         <Check
-          label={t("Tags übernehmen")}
+          label={t("Copy tags")}
           checked={s.copy_tags}
           onChange={(v) =>
             update((x) => {
@@ -139,11 +139,11 @@ export function SavePanel({ batch = false }: { batch?: boolean }) {
             })
           }
         />
-        <Hint>{t("Schreibt die Tags der Quelle in die neue Datei.")}</Hint>
+        <Hint>{t("Writes the source's tags into the new file.")}</Hint>
       </div>
       <div className="field">
         <Check
-          label={t("Cover übernehmen")}
+          label={t("Copy cover")}
           checked={s.copy_art}
           onChange={(v) =>
             update((x) => {
@@ -151,7 +151,7 @@ export function SavePanel({ batch = false }: { batch?: boolean }) {
             })
           }
         />
-        <Hint>{t("Bettet das Cover der Quelle ein, wenn das Format Cover kann.")}</Hint>
+        <Hint>{t("Embeds the source's cover when the format supports covers.")}</Hint>
       </div>
     </>
   );

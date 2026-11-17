@@ -7,6 +7,7 @@ vi.mock("../../ipc/system", () => ({
   programs: vi.fn(() => Promise.resolve([])),
   systemInfo: vi.fn(() => Promise.resolve({ cores: 12, temp_default: "C:\\Temp", os: "windows" })),
   resetSettings: vi.fn((s: Settings) => Promise.resolve(s)),
+  openFfmpegDownload: vi.fn(() => Promise.resolve()),
 }));
 vi.mock("../../ipc/cd", async (original) => ({
   ...(await original<typeof import("../../ipc/cd")>()),
@@ -15,8 +16,9 @@ vi.mock("../../ipc/cd", async (original) => ({
 }));
 
 import { i18n } from "../../i18n";
-import { systemInfo } from "../../ipc/system";
+import { programs, systemInfo } from "../../ipc/system";
 import { Sidebar } from "../../shell/Sidebar";
+import { useEncode } from "../../store/encode";
 import { useSettings } from "../../store/settings";
 import { useUi } from "../../store/ui";
 import { firstPage, SetupPage } from "./SetupPage";
@@ -54,12 +56,12 @@ describe("setup", () => {
 
   it("skip_moves_to_the_next_step", async () => {
     render(<SetupPage />);
-    expect(screen.getByRole("heading", { name: "Sprache und Aussehen" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Language and look" })).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
+      fireEvent.click(screen.getByRole("button", { name: "Skip" }));
     });
-    expect(screen.getByRole("heading", { name: "Encoder-Programme" })).toBeInTheDocument();
-    expect(screen.getByText("Schritt 2 von 5")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Encoder programs" })).toBeInTheDocument();
+    expect(screen.getByText("Step 2 of 5")).toBeInTheDocument();
   });
 
   it("context_menu_step_on_macos", async () => {
@@ -67,24 +69,22 @@ describe("setup", () => {
     render(<SetupPage />);
     for (let i = 0; i < 2; i++) {
       await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
+        fireEvent.click(screen.getByRole("button", { name: "Skip" }));
       });
     }
-    expect(screen.getByRole("heading", { name: "Kontextmenü" })).toBeInTheDocument();
-    expect(
-      await screen.findByRole("button", { name: "Kontextmenü einrichten" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Context menu" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Set up context menu" })).toBeInTheDocument();
     expect(screen.getByText(/Finder/)).toBeInTheDocument();
   });
 
   it("finish_marks_setup_done", async () => {
     render(<SetupPage />);
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /CD-Laufwerk/ }));
+      fireEvent.click(screen.getByRole("button", { name: /CD drive/ }));
     });
     expect(await screen.findByText("Band Drive X")).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Fertig" }));
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
     });
     expect(useSettings.getState().settings?.setup_done).toBe(true);
     expect(useUi.getState().page).toBe("convert");
@@ -92,7 +92,27 @@ describe("setup", () => {
 
   it("sidebar_entry_opens_the_setup", () => {
     render(<Sidebar />);
-    fireEvent.click(screen.getByRole("button", { name: "Einrichtung" }));
+    fireEvent.click(screen.getByRole("button", { name: "Setup" }));
     expect(useUi.getState().page).toBe("setup");
+  });
+
+  it("setup_summary_says_bundled", async () => {
+    vi.mocked(programs).mockResolvedValueOnce([
+      { key: "ffmpeg", found: "C:\\PsyAudio\\ffmpeg\\ffmpeg.exe" },
+    ]);
+    useEncode.setState({
+      ffmpeg: "C:\\PsyAudio\\ffmpeg\\ffmpeg.exe",
+      encoders: 12,
+      ffmpegSource: "bundled",
+      ffmpegFallback: null,
+    });
+    render(<SetupPage />);
+    expect(await screen.findByText("FFmpeg bundled")).toBeInTheDocument();
+    useEncode.setState({
+      ffmpeg: undefined,
+      encoders: 0,
+      ffmpegSource: null,
+      ffmpegFallback: null,
+    });
   });
 });

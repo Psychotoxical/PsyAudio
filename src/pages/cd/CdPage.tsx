@@ -53,7 +53,7 @@ function RipFooter() {
       onClick={() => void rip()}
     >
       <Disc3 size={16} />
-      {t(plural(count, "1 Titel rippen", "{0} Titel rippen"), { 0: String(count) })}
+      {t(plural(count, "Rip 1 track", "Rip {0} tracks"), { 0: String(count) })}
     </button>
   );
 
@@ -66,23 +66,23 @@ function RipFooter() {
       <FooterBar
         summary={
           <>
-            <b>{t("Titel {0} von {1}", { 0: String(current), 1: String(count) })}</b>
+            <b>{t("Track {0} of {1}", { 0: String(current), 1: String(count) })}</b>
             {left !== null &&
-              ` · ${t("etwa {0} min übrig", { 0: String(Math.max(1, Math.ceil(left / 60))) })}`}
+              ` · ${t("about {0} min left", { 0: String(Math.max(1, Math.ceil(left / 60))) })}`}
           </>
         }
       >
         <span
           className="prog wide"
           role="progressbar"
-          aria-label={t("Fortschritt")}
+          aria-label={t("Progress")}
           aria-valuenow={Math.round(progress * 100)}
         >
           <i style={{ width: `${progress * 100}%` }} />
         </span>
         <button type="button" className="btn" onClick={cancel}>
           <Square size={14} />
-          {t("Abbrechen")}
+          {t("Cancel")}
         </button>
         {ripButton}
       </FooterBar>
@@ -106,7 +106,7 @@ function RipFooter() {
               }
             >
               <FolderOpen size={16} />
-              {t("Ordner öffnen")}
+              {t("Open folder")}
             </button>
           )}
           <button
@@ -116,7 +116,7 @@ function RipFooter() {
             onClick={() => setShowLog(true)}
           >
             <ScrollText size={16} />
-            {t("Protokoll anzeigen")}
+            {t("Show log")}
           </button>
           {ripButton}
         </FooterBar>
@@ -129,13 +129,13 @@ function RipFooter() {
               className="picker"
               role="dialog"
               aria-modal="true"
-              aria-label={t("Protokoll")}
+              aria-label={t("Log")}
               onKeyDown={(e) => e.key === "Escape" && setShowLog(false)}
             >
               <header className="picker-head">
-                <h2>{t("Protokoll")}</h2>
+                <h2>{t("Log")}</h2>
                 <button type="button" className="btn" onClick={() => setShowLog(false)}>
-                  {t("Schließen")}
+                  {t("Close")}
                 </button>
               </header>
               <pre className="rip-log">{ripState.log.join("\n")}</pre>
@@ -151,7 +151,7 @@ function RipFooter() {
       summary={
         <b>
           {disc
-            ? t(plural(count, "1 Titel · {1}", "{0} Titel · {1}"), {
+            ? t(plural(count, "1 track · {1}", "{0} tracks · {1}"), {
                 0: String(count),
                 1: fmtLen(seconds),
               })
@@ -193,12 +193,12 @@ export function CdPage() {
     },
     {
       id: "save",
-      title: t("Speichern in"),
-      summary: settings.rip_folder || t("Kein Ordner gewählt"),
+      title: t("Save to"),
+      summary: settings.rip_folder || t("No folder chosen"),
     },
     {
       id: "naming",
-      title: t("Benennung"),
+      title: t("Naming"),
       summary: namingSummary(
         { ...settings, name_scheme: r.name_scheme, output_mode: "SingleFolder" },
         naming,
@@ -207,11 +207,11 @@ export function CdPage() {
     },
     {
       id: "readmode",
-      title: t("Lesemodus"),
+      title: t("Reading mode"),
       summary:
         r.mode === "Secure"
-          ? t("Sicher · bis {0} Neu-Lesungen", { 0: String(r.reread_limit) })
-          : t("Schnell (Burst)"),
+          ? t("Secure · up to {0} re-reads", { 0: String(r.reread_limit) })
+          : t("Fast (burst)"),
     },
   ];
   const titles = Object.fromEntries(tiles.map((x) => [x.id, x.title]));
@@ -225,13 +225,13 @@ export function CdPage() {
       </>
     );
   } else {
-    let title = t("Audio-CD einlegen und „CD lesen“ klicken");
-    let sub = t("{0} Laufwerk(e) gefunden", { 0: String(drives.length) });
+    let title = t("Insert an audio CD and click “Read CD”");
+    let sub = t("{0} drive(s) found", { 0: String(drives.length) });
     if (reading) {
-      title = t("CD wird gelesen …");
+      title = t("Reading the CD …");
       sub = "";
     } else if (scanned && drives.length === 0) {
-      sub = t("Es wurde kein CD-Laufwerk gefunden.");
+      sub = t("No CD drive was found.");
     }
     body = (
       <div className="cd-empty">
@@ -246,18 +246,18 @@ export function CdPage() {
   return (
     <div className="page">
       <div className="page-main">
-        <PageHeader title="CD-Ripper" page="cd" firstTile="format">
+        <PageHeader title={t("CD-Ripper")} page="cd" firstTile="format">
           <select
             className="dd sm"
-            aria-label={t("Laufwerk")}
+            aria-label={t("Drive")}
             value={drive ?? ""}
             disabled={drives.length === 0 || busy}
             onChange={(e) => useCd.setState({ drive: e.target.value })}
           >
-            {drives.length === 0 && <option value="">{t("Kein Laufwerk")}</option>}
+            {drives.length === 0 && <option value="">{t("No drive")}</option>}
             {drives.map((d) => (
               <option key={d.id} value={d.id}>
-                {t("Laufwerk {d}", { d: d.name })}
+                {t("Drive {d}", { d: d.name })}
               </option>
             ))}
           </select>
@@ -268,7 +268,7 @@ export function CdPage() {
             onClick={() => void readCd()}
           >
             <RefreshCw size={16} />
-            {t("CD lesen")}
+            {t("Read CD")}
           </button>
           <button
             type="button"
@@ -277,18 +277,18 @@ export function CdPage() {
             onClick={() => void searchInfo(false)}
           >
             <Globe size={16} />
-            {t("Titel-Infos suchen")}
+            {t("Look up track info")}
           </button>
           <button
             type="button"
             className="btn narrow-icon"
-            aria-label={t("Auswerfen")}
-            title={t("Auswerfen")}
+            aria-label={t("Eject")}
+            title={t("Eject")}
             disabled={!drive || busy}
             onClick={() => void ejectCd()}
           >
             <Eject size={16} />
-            <span className="narrow-hide">{t("Auswerfen")}</span>
+            <span className="narrow-hide">{t("Eject")}</span>
           </button>
         </PageHeader>
         <StepTiles page="cd" tiles={tiles} />

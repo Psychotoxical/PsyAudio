@@ -35,9 +35,9 @@ pub enum RipPhase {
 impl RipPhase {
     pub fn text(self) -> String {
         match self {
-            RipPhase::Reading { done } if done <= 0.0 => crate::i18n::t("Lesen…").to_string(),
-            RipPhase::Reading { done } => crate::i18n::tf(crate::i18n::t("Lesen {0} %"), &[("0", format!("{:.0}", done * 100.0))]),
-            RipPhase::Encoding => crate::i18n::t("Kodieren…").to_string(),
+            RipPhase::Reading { done } if done <= 0.0 => crate::i18n::t("Reading…").to_string(),
+            RipPhase::Reading { done } => crate::i18n::tf(crate::i18n::t("Reading {0} %"), &[("0", format!("{:.0}", done * 100.0))]),
+            RipPhase::Encoding => crate::i18n::t("Encoding…").to_string(),
         }
     }
 }
@@ -75,25 +75,21 @@ impl TrackStatus {
     pub fn text(&self) -> String {
         use crate::i18n::{plural, t, tf};
         match self {
-            TrackStatus::Secure { verified_first_pass: true, .. } => t("Sicher (1 Durchgang, von CTDB bestätigt)").to_string(),
+            TrackStatus::Secure { verified_first_pass: true, .. } => t("Secure (1 pass, confirmed by CTDB)").to_string(),
             TrackStatus::Secure { passes, rereads, .. } if *rereads > 0 => {
-                let text = plural(
-                    *rereads as u64,
-                    "Sicher (Warnung: {0} Durchgänge, {1} Block neu gelesen)",
-                    "Sicher (Warnung: {0} Durchgänge, {1} Blöcke neu gelesen)",
-                );
+                let text = plural(*rereads as u64, "Secure (warning: {0} passes, {1} block re-read)", "Secure (warning: {0} passes, {1} blocks re-read)");
                 tf(t(text), &[("0", passes.to_string()), ("1", rereads.to_string())])
             }
-            TrackStatus::Secure { passes, .. } => tf(t("Sicher ({0} Durchgänge identisch)"), &[("0", passes.to_string())]),
-            TrackStatus::Burst => t("Gerippt (Burst)").to_string(),
+            TrackStatus::Secure { passes, .. } => tf(t("Secure ({0} passes identical)"), &[("0", passes.to_string())]),
+            TrackStatus::Burst => t("Ripped (burst)").to_string(),
             TrackStatus::Insecure { sectors } => {
-                tf(t(plural(*sectors as u64, "Unsicher ({0} Sektor)", "Unsicher ({0} Sektoren)")), &[("0", sectors.to_string())])
+                tf(t(plural(*sectors as u64, "Insecure ({0} sector)", "Insecure ({0} sectors)")), &[("0", sectors.to_string())])
             }
-            TrackStatus::Marked { unconfirmed: false, was } => tf(t("Fehler – {status}"), &[("status", was.text())]),
-            TrackStatus::Marked { unconfirmed: true, was } => tf(t("Fehler – nicht von CTDB bestätigt ({status})"), &[("status", was.text())]),
-            TrackStatus::Failed { reason, encoding: false } => tf(t("Fehler: {e}"), &[("e", reason.clone())]),
-            TrackStatus::Failed { reason, encoding: true } => tf(t("Fehler beim Kodieren: {e}"), &[("e", reason.clone())]),
-            TrackStatus::Cancelled => t("Abgebrochen").to_string(),
+            TrackStatus::Marked { unconfirmed: false, was } => tf(t("Error – {status}"), &[("status", was.text())]),
+            TrackStatus::Marked { unconfirmed: true, was } => tf(t("Error – not confirmed by CTDB ({status})"), &[("status", was.text())]),
+            TrackStatus::Failed { reason, encoding: false } => tf(t("Error: {e}"), &[("e", reason.clone())]),
+            TrackStatus::Failed { reason, encoding: true } => tf(t("Error while encoding: {e}"), &[("e", reason.clone())]),
+            TrackStatus::Cancelled => t("Cancelled").to_string(),
         }
     }
 }
@@ -119,11 +115,11 @@ impl CtdbResult {
             return crate::ctdb::unavailable_text(why);
         }
         if self.confirmed {
-            tf(t("CTDB: bestätigt ({c} von {total})"), &[("c", self.confidence.to_string()), ("total", self.total.to_string())])
+            tf(t("CTDB: confirmed ({c} of {total})"), &[("c", self.confidence.to_string()), ("total", self.total.to_string())])
         } else if self.in_db {
-            t("CTDB: nicht bestätigt").to_string()
+            t("CTDB: not confirmed").to_string()
         } else {
-            t("CTDB: CD nicht in der Datenbank").to_string()
+            t("CTDB: disc not in the database").to_string()
         }
     }
 }
@@ -144,12 +140,12 @@ pub fn ctdb_result(db: &Result<Vec<Entry>, String>, idx: usize, crc: u32, audio_
 pub fn offset_note(p: Option<&DriveProfile>) -> String {
     use crate::i18n::t;
     match p {
-        None => t("nicht gemessen").to_string(),
+        None => t("not measured").to_string(),
         Some(p) => {
             let how = match p.method {
                 OffsetMethod::Ctdb => "CTDB",
-                OffsetMethod::Manual => t("von Hand"),
-                OffsetMethod::Adopted => t("übernommen"),
+                OffsetMethod::Manual => t("by hand"),
+                OffsetMethod::Adopted => t("taken over"),
             };
             format!("{how}, {}", p.measured)
         }
@@ -187,10 +183,10 @@ impl RipSummary {
         use crate::i18n::{plural, t, tf};
         match self {
             RipSummary::Done { files, accurate, .. } => {
-                let text = plural(*files as u64, "Fertig: {0} Datei, {accurate} von CTDB bestätigt", "Fertig: {0} Dateien, {accurate} von CTDB bestätigt");
+                let text = plural(*files as u64, "Done: {0} file, {accurate} confirmed by CTDB", "Done: {0} files, {accurate} confirmed by CTDB");
                 tf(t(text), &[("0", files.to_string()), ("accurate", accurate.to_string())])
             }
-            RipSummary::Cancelled => t("Abgebrochen").to_string(),
+            RipSummary::Cancelled => t("Cancelled").to_string(),
             RipSummary::Failed { reason } => reason.clone(),
         }
     }
@@ -241,23 +237,29 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
             return;
         }
     };
-    let batch = convert::Batch::new();
+    // all tracks known up front: the album artist of a disc without one compares them
+    let batch = convert::Batch::with_jobs(
+        tracks
+            .iter()
+            .map(|(_, n, tg)| Job { id: 0, src: PathBuf::from(format!("Track{n:02}.wav")), root: None, tags: Some(tg.clone()), audio: None })
+            .collect(),
+    );
     let mut log = vec![
-        crate::i18n::t("PsyAudio – Protokoll der Audio-Extraktion").to_string(),
+        crate::i18n::t("PsyAudio – audio extraction log").to_string(),
         crate::i18n::tf(crate::i18n::t("Album: {0} – {1}"), &[("0", meta.artist.to_string()), ("1", meta.album.to_string())]),
         crate::i18n::tf(
-            crate::i18n::t("Laufwerk {letter} ({model})  Versatz {0} Samples ({how})  Modus: {1}"),
+            crate::i18n::t("Drive {letter} ({model})  offset {0} samples ({how})  mode: {1}"),
             &[
                 ("letter", cdrip::drive_name(letter)),
                 ("model", key.clone()),
                 ("0", format!("{offset:+}")),
                 ("how", offset_note(profile)),
-                ("1", (if rs.mode == RipMode::Secure { crate::i18n::t("Sicher") } else { "Burst" }).to_string()),
+                ("1", (if rs.mode == RipMode::Secure { crate::i18n::t("Secure") } else { "Burst" }).to_string()),
             ],
         ),
         crate::i18n::tf(
-            crate::i18n::t("Laufwerkspuffer {0}, vor dem Neulesen werden {1} KB gelesen"),
-            &[("0", buffer.map(|kb| format!("{kb} KB")).unwrap_or_else(|| crate::i18n::t("unbekannt").into())), ("1", flush.to_string())],
+            crate::i18n::t("Drive buffer {0}, {1} KB are read before a re-read"),
+            &[("0", buffer.map(|kb| format!("{kb} KB")).unwrap_or_else(|| crate::i18n::t("unknown").into())), ("1", flush.to_string())],
         ),
         format!("MusicBrainz Disc-ID: {}   freedb: {:08x}", cdrip::musicbrainz_id(&toc), cdrip::freedb_id(&toc)),
         String::new(),
@@ -304,7 +306,7 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
                 // a stop in the middle of a track is no read error
                 let status = if cancel.load(Ordering::Relaxed) { TrackStatus::Cancelled } else { TrackStatus::Failed { reason: e.clone(), encoding: false } };
                 let _ = tx.send(RipMsg::TrackDone(row, status, None));
-                log.push(crate::i18n::tf(crate::i18n::t("Titel {number}: Fehler {e}"), &[("number", format!("{number:02}")), ("e", e.to_string())]));
+                log.push(crate::i18n::tf(crate::i18n::t("Track {number}: error {e}"), &[("number", format!("{number:02}")), ("e", e.to_string())]));
                 continue;
             }
         };
@@ -323,7 +325,7 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
         }
         let status = rip_status(rs.mark_error, status, rip.insecure_sectors > 0, confirmed);
         log.push(crate::i18n::tf(
-            crate::i18n::t("Titel {number}  {0}  CRC32 {1}  {status}  {ctdb}"),
+            crate::i18n::t("Track {number}  {0}  CRC32 {1}  {status}  {ctdb}"),
             &[
                 ("number", format!("{number:02}")),
                 ("0", tg.get("title").to_string()),
@@ -344,12 +346,12 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
             }
             Err(e) => {
                 let _ = tx.send(RipMsg::TrackDone(row, TrackStatus::Failed { reason: e.clone(), encoding: true }, check));
-                log.push(crate::i18n::tf(crate::i18n::t("   Kodierfehler: {e}"), &[("e", e.to_string())]));
+                log.push(crate::i18n::tf(crate::i18n::t("   Encoding error: {e}"), &[("e", e.to_string())]));
             }
         }
         while crx.try_recv().is_ok() {}
         if stop_after_track(rs.cancel_on_insecure, rip.insecure_sectors) {
-            log.push(crate::i18n::t("Abgebrochen nach unsicherem Titel").into());
+            log.push(crate::i18n::t("Stopped after an insecure track").into());
             break;
         }
     }
@@ -367,8 +369,8 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
             log.push(crate::i18n::tf(
                 crate::i18n::t(crate::i18n::plural(
                     accurate as u64,
-                    "1 Titel von CTDB bestätigt, {insecure_tracks} unsicher",
-                    "{accurate} Titel von CTDB bestätigt, {insecure_tracks} unsicher",
+                    "1 track confirmed by CTDB, {insecure_tracks} insecure",
+                    "{accurate} tracks confirmed by CTDB, {insecure_tracks} insecure",
                 )),
                 &[("accurate", format!("{accurate}")), ("insecure_tracks", format!("{insecure_tracks}"))],
             ));
@@ -395,7 +397,9 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
         }
     }
     if rs.eject_after && !cancel.load(Ordering::Relaxed) {
-        let _ = drive.eject();
+        if let Err(e) = drive.eject() {
+            log.push(crate::i18n::tf(crate::i18n::t("Could not eject the CD: {e}"), &[("e", e)]));
+        }
     } else {
         // the drive would keep spinning at full speed for a while: let it rest
         let _ = crate::scsi::stop_disc(letter);
@@ -436,44 +440,44 @@ mod rip_status_tests {
         let db = vec![entry(29, &[0xA, 0xB]), entry(1039, &[0xA, 0xB]), entry(1, &[0xA, 0xC])];
         let r = ctdb_result(&Ok(db.clone()), 1, 0xB, 2);
         assert_eq!((r.confirmed, r.confidence, r.total, r.in_db), (true, 1068, 1069, true));
-        assert_eq!(r.text(), "CTDB: bestätigt (1068 von 1069)");
+        assert_eq!(r.text(), "CTDB: confirmed (1068 of 1069)");
         let r = ctdb_result(&Ok(db), 1, 0xD, 2);
         assert_eq!((r.confirmed, r.in_db), (false, true));
-        assert_eq!(r.text(), "CTDB: nicht bestätigt");
+        assert_eq!(r.text(), "CTDB: not confirmed");
         let r = ctdb_result(&Ok(Vec::new()), 0, 0xA, 2);
-        assert_eq!(r.text(), "CTDB: CD nicht in der Datenbank");
-        let r = ctdb_result(&Err("nicht abgefragt".into()), 0, 1, 2);
+        assert_eq!(r.text(), "CTDB: disc not in the database");
+        let r = ctdb_result(&Err("not looked up".into()), 0, 1, 2);
         assert!(!r.confirmed);
-        assert_eq!(r.unavailable.as_deref(), Some("nicht abgefragt"));
-        assert_eq!(r.text(), "CTDB: nicht abgefragt");
+        assert_eq!(r.unavailable.as_deref(), Some("not looked up"));
+        assert_eq!(r.text(), "CTDB: not looked up");
     }
 
     #[test]
     fn mark_error_two_uses_ctdb_wording() {
         let secure = TrackStatus::Secure { passes: 2, rereads: 0, verified_first_pass: false };
-        assert!(rip_status(2, secure, false, false).text().contains("nicht von CTDB bestätigt"));
+        assert!(rip_status(2, secure, false, false).text().contains("not confirmed by CTDB"));
         let first = TrackStatus::Secure { passes: 1, rereads: 0, verified_first_pass: true };
-        assert_eq!(first.text(), "Sicher (1 Durchgang, von CTDB bestätigt)");
+        assert_eq!(first.text(), "Secure (1 pass, confirmed by CTDB)");
     }
 
     #[test]
     fn marking_as_failed_does_not_hide_an_insecure_track() {
         let secure = TrackStatus::Secure { passes: 2, rereads: 0, verified_first_pass: false };
-        assert!(rip_status(2, secure.clone(), false, false).text().starts_with("Fehler"));
+        assert!(rip_status(2, secure.clone(), false, false).text().starts_with("Error"));
         assert_eq!(rip_status(2, secure.clone(), false, true), secure);
-        assert!(rip_status(1, TrackStatus::Insecure { sectors: 3 }, true, true).text().starts_with("Fehler"));
+        assert!(rip_status(1, TrackStatus::Insecure { sectors: 3 }, true, true).text().starts_with("Error"));
         assert!(stop_after_track(true, 3));
         assert!(!stop_after_track(true, 0));
     }
 
     #[test]
     fn one_sector_block_or_file_is_named_in_the_singular() {
-        assert_eq!(TrackStatus::Insecure { sectors: 1 }.text(), "Unsicher (1 Sektor)");
-        assert_eq!(TrackStatus::Insecure { sectors: 3 }.text(), "Unsicher (3 Sektoren)");
+        assert_eq!(TrackStatus::Insecure { sectors: 1 }.text(), "Insecure (1 sector)");
+        assert_eq!(TrackStatus::Insecure { sectors: 3 }.text(), "Insecure (3 sectors)");
         let warned = TrackStatus::Secure { passes: 2, rereads: 1, verified_first_pass: false };
-        assert_eq!(warned.text(), "Sicher (Warnung: 2 Durchgänge, 1 Block neu gelesen)");
+        assert_eq!(warned.text(), "Secure (warning: 2 passes, 1 block re-read)");
         let done = RipSummary::Done { files: 1, accurate: 1, insecure: 0, folder: None };
-        assert_eq!(done.text(), "Fertig: 1 Datei, 1 von CTDB bestätigt");
+        assert_eq!(done.text(), "Done: 1 file, 1 confirmed by CTDB");
     }
 
     #[test]
@@ -485,7 +489,7 @@ mod rip_status_tests {
         assert_eq!(rip_status(1, insecure.clone(), true, true), TrackStatus::Marked { unconfirmed: false, was: Box::new(insecure.clone()) });
         assert_eq!(rip_status(0, insecure.clone(), true, false), insecure);
         // the wording is only made for log and window
-        assert_eq!(secure.text(), "Sicher (2 Durchgänge identisch)");
+        assert_eq!(secure.text(), "Secure (2 passes identical)");
         let v = serde_json::to_value(&insecure).unwrap();
         assert_eq!(v, serde_json::json!({ "kind": "Insecure", "sectors": 3 }));
     }
@@ -500,6 +504,6 @@ mod rip_status_tests {
             buffer_kb: None,
         };
         assert_eq!(offset_note(Some(&p)), "CTDB, 2026-11-14");
-        assert_eq!(offset_note(None), "nicht gemessen");
+        assert_eq!(offset_note(None), "not measured");
     }
 }

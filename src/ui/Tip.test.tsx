@@ -22,15 +22,15 @@ describe("hover text", () => {
 
   it("hover_shows_the_text", () => {
     render(
-      <Tip text="Sicher (2 Durchgänge identisch)">
-        <span>Sicher</span>
+      <Tip text="Secure (2 passes identical)">
+        <span>Secure</span>
       </Tip>,
     );
-    const anchor = screen.getByText("Sicher").parentElement as HTMLElement;
-    expect(anchor).toHaveAccessibleDescription("Sicher (2 Durchgänge identisch)");
+    const anchor = screen.getByText("Secure").parentElement as HTMLElement;
+    expect(anchor).toHaveAccessibleDescription("Secure (2 passes identical)");
     expect(screen.queryByRole("tooltip")).toBeNull();
     fireEvent.mouseEnter(anchor);
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Sicher (2 Durchgänge identisch)");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Secure (2 passes identical)");
     fireEvent.mouseLeave(anchor);
     expect(screen.queryByRole("tooltip")).toBeNull();
   });

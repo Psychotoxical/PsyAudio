@@ -56,14 +56,7 @@ pub fn read_file_info(items: Vec<(u64, String)>, on: Channel<FileInfo>) {
 }
 
 fn open_in_file_manager(dir: &Path) {
-    let opener = if cfg!(windows) {
-        "explorer"
-    } else if cfg!(target_os = "macos") {
-        "open"
-    } else {
-        "xdg-open"
-    };
-    let _ = std::process::Command::new(opener).arg(dir).spawn();
+    let _ = audio::open_external(dir.as_os_str());
 }
 
 /// Opens the folder a file lies in (Explorer, the desktop's file manager, Finder).

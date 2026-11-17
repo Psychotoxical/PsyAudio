@@ -66,11 +66,11 @@ export function ConvertPage() {
       title: t("Format"),
       summary: codecSummary(settings.codec, settings.enc, options, t),
     },
-    { id: "save", title: t("Speichern in"), summary: saveSummary(settings, t) },
-    { id: "naming", title: t("Benennung"), summary: namingSummary(settings, naming, t) },
+    { id: "save", title: t("Save to"), summary: saveSummary(settings, t) },
+    { id: "naming", title: t("Naming"), summary: namingSummary(settings, naming, t) },
     {
       id: "effects",
-      title: t("Effekte"),
+      title: t("Effects"),
       summary: effectsSummary(settings.effects, effectEntries, t),
     },
   ];
@@ -80,14 +80,14 @@ export function ConvertPage() {
   return (
     <div className="page">
       <div className="page-main">
-        <PageHeader title={t("Konvertieren")} page="convert" firstTile="format">
+        <PageHeader title={t("Convert")} page="convert" firstTile="format">
           <button type="button" className="btn" onClick={() => void pickFiles()}>
             <Plus size={16} />
-            {t("Dateien")}
+            {t("Files")}
           </button>
           <button type="button" className="btn" onClick={() => void pickFolder()}>
             <FolderPlus size={16} />
-            {t("Ordner")}
+            {t("Folder")}
           </button>
           <button
             type="button"
@@ -96,10 +96,10 @@ export function ConvertPage() {
             onClick={removeSelected}
           >
             <X size={16} />
-            {t("Entfernen")}
+            {t("Remove")}
           </button>
           <button type="button" className="btn" disabled={files.length === 0} onClick={clear}>
-            {t("Liste leeren")}
+            {t("Clear list")}
           </button>
         </PageHeader>
         <StepTiles page="convert" tiles={tiles} />
@@ -109,7 +109,7 @@ export function ConvertPage() {
         <FooterBar
           summary={
             <b>
-              {t(plural(files.length, "{0} Datei · {1}", "{0} Dateien · {1}"), {
+              {t(plural(files.length, "{0} file · {1}", "{0} files · {1}"), {
                 0: String(files.length),
                 1: fmtLen(seconds),
               })}
@@ -126,7 +126,7 @@ export function ConvertPage() {
             }}
           >
             <Play size={16} />
-            {t("Konvertieren")}
+            {t("Convert")}
           </button>
         </FooterBar>
       </div>
