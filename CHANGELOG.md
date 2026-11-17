@@ -4,11 +4,16 @@ Every version has its own section. The section of a version becomes the text of 
 
 ## [Unreleased]
 
+### Changed
+
+- The README opens with links to the other apps of the Psy Suite: Psysonic, Psysonic Mobile and PsyTags.
+
+## [1.0.0] - 2026-11-17
+
 The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch converter in one window.
 
 ### Changed
 
-- The README opens with links to the other apps of the Psy Suite: Psysonic, Psysonic Mobile and PsyTags.
 - PsyAudio speaks sixteen languages: English, German, Spanish, French, Norwegian Bokmål, Dutch, Romanian, Russian, Chinese, Japanese, Hungarian, Polish, Bulgarian, Italian, Ukrainian and Greek. It follows the system language until another one is chosen in the settings; counts use each language's plural forms.
 - Every language is one file in `locales/`, keyed by the English text, so translators can improve a language or add one without touching code; `npm run i18n:report` shows what is missing.
 - The effects are cleared out: Reverse, Loop, Karaoke, Speed, Band-pass, Minimum and Maximum length, Insert silence, Write metadata file, CPU throttle and Delete output on error are gone. Saved profiles that used them keep everything else; "CPU throttle" becomes the "Low priority" setting.
@@ -52,3 +57,4 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 - The Dolphin menu follows PsyAudio when its AppImage is moved, for example by Gear Lever; it is set to the program's current file on every start.
 - While converting, the window title shows the same percentage as the progress bar; it could run a few percent ahead.
 - In the AppImage, “Open output folder” and the links to the CUETools database and the FFmpeg download open again. Programs started from the AppImage, the system's FFmpeg included, no longer pick up its bundled libraries.
+
