@@ -891,4 +891,5 @@ pub(crate) static EN: &[(&str, &str)] = &[
     ("Befehl kopieren", "Copy command"),
     ("Befehl kopiert", "Command copied"),
     ("ffmpeg.org öffnen", "Open ffmpeg.org"),
+    ("CD konnte nicht ausgeworfen werden: {e}", "Could not eject the CD: {e}"),
 ];

@@ -440,6 +440,7 @@ mod lin {
     const CDROMREADTOCHDR: libc::c_ulong = 0x5305;
     const CDROMREADTOCENTRY: libc::c_ulong = 0x5306;
     const CDROMEJECT: libc::c_ulong = 0x5309;
+    const CDROM_LOCKDOOR: libc::c_ulong = 0x5329;
     const CDROMREADAUDIO: libc::c_ulong = 0x530e;
     const CDROM_LBA: u8 = 0x01;
     const CDROM_LEADOUT: u8 = 0xAA;
@@ -532,7 +533,11 @@ mod lin {
             Ok(out)
         }
 
+        /// Unlock the tray first, as util-linux `eject` does: with the door locked (Linux locks it
+        /// for some openers) a USB drive answers the eject command with success and stays shut.
         pub fn eject(&self) -> Result<(), String> {
+            // the argument is the int 0 ("unlock"), passed in the pointer slot
+            let _ = self.ioctl::<u8>(CDROM_LOCKDOOR, std::ptr::null_mut());
             self.ioctl::<u8>(CDROMEJECT, std::ptr::null_mut())
         }
     }
@@ -541,6 +546,26 @@ mod lin {
     mod tests {
         use super::*;
         use std::mem::{offset_of, size_of};
+
+        /// With a real drive and a disc only (PSYAUDIO_HW_TEST=1): a locked tray still opens.
+        #[test]
+        #[ignore = "needs a CD drive with a disc: PSYAUDIO_HW_TEST=1 cargo test -- --ignored locked_tray"]
+        fn a_locked_tray_still_opens() {
+            const CDROMCLOSETRAY: libc::c_ulong = 0x5319;
+            const CDROM_DRIVE_STATUS: libc::c_ulong = 0x5326;
+            if std::env::var("PSYAUDIO_HW_TEST").is_err() {
+                return;
+            }
+            let d = Drive::open('0').expect("no /dev/sr0");
+            let status = |d: &Drive| unsafe { libc::ioctl(d.fd.as_raw_fd(), CDROM_DRIVE_STATUS as _, 0) };
+            let _ = d.ioctl::<u8>(CDROMCLOSETRAY, std::ptr::null_mut());
+            std::thread::sleep(std::time::Duration::from_secs(8));
+            assert_eq!(status(&d), 4, "disc not ready");
+            unsafe { libc::ioctl(d.fd.as_raw_fd(), CDROM_LOCKDOOR as _, 1) };
+            d.eject().unwrap();
+            std::thread::sleep(std::time::Duration::from_secs(4));
+            assert_eq!(status(&d), 2, "tray did not open");
+        }
 
         /// The structs must match `<linux/cdrom.h>` byte for byte.
         #[test]

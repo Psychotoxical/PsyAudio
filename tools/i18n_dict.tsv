@@ -902,3 +902,4 @@ FFmpeg fehlt. Ohne FFmpeg schreibt PsyAudio nur WAV und AIFF. So installieren Si
 Befehl kopieren	Copy command
 Befehl kopiert	Command copied
 ffmpeg.org öffnen	Open ffmpeg.org
+CD konnte nicht ausgeworfen werden: {e}	Could not eject the CD: {e}
