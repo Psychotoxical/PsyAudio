@@ -101,9 +101,11 @@ lib "speex-$SPEEX" --disable-binaries
 encoders=libmp3lame,flac,aac,alac,libopus,libvorbis,wavpack,wmav2,libspeex,pcm_s16le,pcm_s32le,pcm_f32le
 muxers=mp3,flac,ipod,opus,ogg,wv,asf,f32le,s16le,s32le
 demuxers=aac,ac3,aiff,amr,ape,asf,au,caf,dsf,eac3,flac,iff,matroska,mov,mp3,mpc,mpc8,ogg,tak,tta,w64,wav,wv,f32le,s16le,s32le
-decoders=aac,aac_latm,ac3,eac3,alac,amrnb,amrwb,ape,dsd_lsbf,dsd_lsbf_planar,dsd_msbf,dsd_msbf_planar,flac,mp1float,mp2float
-decoders+=,mp3float,mpc7,mpc8,opus,speex,tak,tta,vorbis,wavpack,wmalossless,wmapro,wmav1,wmav2,wmavoice,'pcm_*','adpcm_*'
-parsers=aac,aac_latm,ac3,flac,mpegaudio,opus,tak,vorbis
+# mka, webm and mp4 may carry DTS and TrueHD, a DFF may be DST-compressed
+decoders=aac,aac_latm,ac3,eac3,alac,amrnb,amrwb,ape,dca,dst,dsd_lsbf,dsd_lsbf_planar,dsd_msbf,dsd_msbf_planar,flac,mlp
+decoders+=,mp1float,mp2float,mp3float,mpc7,mpc8,opus,speex,tak,truehd,tta,vorbis,wavpack,wmalossless,wmapro,wmav1,wmav2
+decoders+=,wmavoice,'pcm_*','adpcm_*'
+parsers=aac,aac_latm,ac3,dca,flac,mlp,mpegaudio,opus,tak,vorbis
 filters=aformat,anull,aresample,format,null,hdcd
 
 cd "$work/ffmpeg-$FFMPEG"
@@ -117,7 +119,7 @@ trap 'tail -n 80 ffbuild/config.log 2>/dev/null; rm -rf "$work"' EXIT
     --disable-ffplay --enable-ffmpeg --enable-ffprobe --enable-static --disable-shared \
     --enable-avfilter --enable-swresample \
     --enable-libmp3lame --enable-libopus --enable-libvorbis --enable-libspeex \
-    --enable-protocol=file,pipe --enable-filter="$filters" \
+    --enable-protocol=file,pipe,fd --enable-filter="$filters" \
     --enable-encoder="$encoders" --enable-muxer="$muxers" \
     --enable-demuxer="$demuxers" --enable-decoder="$decoders" --enable-parser="$parsers"
 trap 'rm -rf "$work"' EXIT

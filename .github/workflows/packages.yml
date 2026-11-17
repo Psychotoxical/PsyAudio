@@ -293,7 +293,7 @@ jobs:
           for arch in x86_64 arm64; do lipo -archs "$ff" | grep -qw "$arch"; done
           lipo -archs "$mnt/PsyAudio.app/Contents/MacOS/ffprobe" | grep -qw x86_64
           bash packaging/check_ffmpeg.sh "$ff"
-          ls "$mnt/PsyAudio.app/Contents/Resources/ffmpeg/licenses"
+          ls "$mnt/PsyAudio.app/Contents/Resources/ffmpeg-licenses"
           hdiutil detach "$mnt"
 
       - name: Check the signature

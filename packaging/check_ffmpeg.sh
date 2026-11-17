@@ -16,6 +16,14 @@ for e in libmp3lame flac aac alac libopus libvorbis wavpack wmav2 libspeex; do
         exit 1
     fi
 done
+# reading: what symphonia leaves to FFmpeg, and the codecs inside mka, webm, mp4, caf and dff
+decoders=$("$ff" -hide_banner -decoders)
+for d in aac alac ape opus vorbis wavpack wmav2 wmalossless speex tta ac3 eac3 dca truehd mlp dst amrnb mp3float; do
+    if ! grep -qE "^ A[^ ]* +$d( |$)" <<<"$decoders"; then
+        echo "::error::FFmpeg has no decoder $d: $ff" >&2
+        exit 1
+    fi
+done
 if ! "$ff" -hide_banner -filters | grep -qE "^ [^ ]+ +hdcd +"; then
     echo "::error::FFmpeg has no hdcd filter: $ff" >&2
     exit 1
