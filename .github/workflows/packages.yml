@@ -239,6 +239,19 @@ jobs:
           esac
           ls -l out
 
+      # LGPL: the exact sources of the shipped FFmpeg and its libraries go out with every release
+      - name: FFmpeg source archive
+        if: matrix.name == 'linux'
+        shell: bash
+        env:
+          FILE_VERSION: ${{ inputs.file_version }}
+        run: |
+          version=${FILE_VERSION:-$(node -p "require('./package.json').version")}
+          tar -cf "out/PsyAudio-$version-FFmpeg-source.tar" \
+            -C "$GITHUB_WORKSPACE/src-tauri/ffmpeg" sources licenses \
+            -C "$GITHUB_WORKSPACE" packaging/build_ffmpeg.sh
+          tar -tvf "out/PsyAudio-$version-FFmpeg-source.tar"
+
       # The shipped FFmpeg: inside every package, outside /usr/bin, starts and can do everything
       - name: Check the shipped FFmpeg (Linux)
         if: matrix.name == 'linux'

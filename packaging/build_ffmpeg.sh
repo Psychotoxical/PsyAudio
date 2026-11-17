@@ -4,7 +4,8 @@
 # sources first and linked in.
 # Usage: build_ffmpeg.sh linux|windows|macos OUTPUT_FOLDER
 # macos builds on a Mac for its own architecture; linux and windows (mingw-w64) build on Linux.
-# Result: OUTPUT_FOLDER/bin/ffmpeg and ffprobe (.exe on Windows), OUTPUT_FOLDER/licenses/
+# Result: OUTPUT_FOLDER/bin/ffmpeg and ffprobe (.exe on Windows), OUTPUT_FOLDER/licenses/ and
+# OUTPUT_FOLDER/sources/ (the checked source archives, for the release)
 set -euo pipefail
 
 FFMPEG=9.0.2
@@ -69,6 +70,9 @@ fetch() {
     curl -fsSL --retry 3 -o "$file" "$1"
     echo "$2  $file" | shasum -a 256 -c -
     tar -xf "$file" -C "$work"
+    # the checked archive itself goes out with every release (LGPL: source next to the binaries)
+    mkdir -p "$output/sources"
+    cp "$file" "$output/sources/"
 }
 
 # lib FOLDER [configure options]: a static library into the prefix
@@ -139,6 +143,8 @@ cp "$work/speex-$SPEEX/COPYING" "$output/licenses/Speex-BSD.txt"
 cat > "$output/licenses/SOURCES.txt" <<EOF
 PsyAudio ships FFmpeg and FFprobe built from these sources with packaging/build_ffmpeg.sh
 (https://github.com/Psychotoxical/PsyAudio). Each is under the license in the file next to this one.
+Every PsyAudio release (https://github.com/Psychotoxical/PsyAudio/releases) carries the exact source
+archives below, together with the build script, as PsyAudio-<version>-FFmpeg-source.tar.
 
 FFmpeg $FFMPEG    $FFMPEG_URL
 LAME $LAME        $LAME_URL
