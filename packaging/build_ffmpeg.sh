@@ -47,6 +47,9 @@ case "$target" in
         host=(--host=x86_64-w64-mingw32)
         ff_platform=(--target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32-)
         ff_ldflags=-static
+        # Opus adds -D_FORTIFY_SOURCE=2 unless it is set already; its __memcpy_chk and friends
+        # are missing from a static mingw-w64 link
+        export CPPFLAGS=-D_FORTIFY_SOURCE=0
         ;;
     macos)
         # old config.guess files do not know arm64 Macs: name the build system
@@ -89,9 +92,9 @@ lib "libogg-$OGG"
 # libvorbis' configure adds a flag current Apple compilers reject
 perl -pi -e 's/-force_cpusubtype_ALL//g' "$work/libvorbis-$VORBIS/configure"
 lib "libvorbis-$VORBIS" --with-ogg="$prefix" --disable-docs --disable-examples --disable-oggtest
-# Opus' run-time checks call __memcpy_chk and friends, which a static mingw build does not have
+# Opus' run-time checks and stack protector need libssp, which a static mingw link does not have
 opus_extra=()
-[ "$target" = windows ] && opus_extra=(--disable-hardening)
+[ "$target" = windows ] && opus_extra=(--disable-hardening --disable-stack-protector)
 lib "opus-$OPUS" --disable-doc --disable-extra-programs ${opus_extra[@]+"${opus_extra[@]}"}
 lib "speex-$SPEEX" --disable-binaries
 
