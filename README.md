@@ -10,8 +10,8 @@
 **A bit-perfect CD ripper, a converter and a batch converter, in one window.**<br>
 For Windows, Linux and macOS.
 
-[![CI](https://github.com/Psychotoxical/PsyAudio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Psychotoxical/PsyAudio/actions/workflows/ci.yml)
-[![License: GPL-3.0](https://img.shields.io/github/license/Psychotoxical/PsyAudio?color=cba6f7)](LICENSE)
+[![CI](https://github.com/Psysonic/PsyAudio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Psysonic/PsyAudio/actions/workflows/ci.yml)
+[![License: GPL-3.0](https://img.shields.io/github/license/Psysonic/PsyAudio?color=cba6f7)](LICENSE)
 ![Windows, Linux, macOS](https://img.shields.io/badge/platforms-Windows%20%C2%B7%20Linux%20%C2%B7%20macOS-cba6f7)
 
 [Download](#download) · [CD rips](#bit-perfect-cd-rips) · [Converter](#converter-and-batch-converter) · [Systems](#on-every-system) · [Development](#development)
@@ -22,7 +22,7 @@ For Windows, Linux and macOS.
 
 ## Download
 
-Installers and packages are published on the [releases page](https://github.com/Psychotoxical/PsyAudio/releases). What changed in each version is in the [changelog](CHANGELOG.md).
+Installers and packages are published on the [releases page](https://github.com/Psysonic/PsyAudio/releases). What changed in each version is in the [changelog](CHANGELOG.md).
 
 | System | Package |
 |---|---|
@@ -174,7 +174,8 @@ Core (`crates/core/src/`):
 - Code comments are in English.
 - Colours come from the Catppuccin tokens in `src/styles/tokens.css` (Mocha and Latte, accent Mauve); a test checks text contrast.
 - Every option in a side column gets a one-line hint; units sit inside the value field ("192 kbit/s").
-- Every pull request adds an entry under `[Unreleased]` in the [changelog](CHANGELOG.md); the CI checks it.
+- Every pull request adds an entry under `[Unreleased]` in the [changelog](CHANGELOG.md); the CI checks it. [CONTRIBUTING.md](CONTRIBUTING.md) has all house rules.
+- The CI runs pull requests and main on Linux only. Windows and macOS run their tests when a release candidate or release is built, before the packages; a pull request that changes the packaging can be built by hand with the Packages workflow.
 
 </details>
 

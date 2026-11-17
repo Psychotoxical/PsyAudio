@@ -1,0 +1,77 @@
+name: Bug report
+description: Something does not work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Please try changes on copies of your files first; PsyAudio can tag, rename and move sources to the recycle bin. A problem with a CD rip has its own template.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: |
+        1. Dropped a folder with 12 FLAC files into the converter
+        2. Chose the Opus profile and started
+        3. Expected 12 Opus files, but ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PsyAudio version
+      description: Shown at the bottom of the side bar.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: System
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux (AppImage)
+        - Linux (deb)
+        - Linux (rpm)
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Built from source
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: desktop
+    attributes:
+      label: Linux desktop
+      description: Only on Linux, e.g. KDE Plasma, GNOME, Hyprland.
+  - type: dropdown
+    id: ffmpeg
+    attributes:
+      label: FFmpeg
+      description: Settings → Encoder programs shows which one PsyAudio uses ("bundled" or a path).
+      options:
+        - Bundled with PsyAudio
+        - Installed on the system
+        - Not sure
+  - type: input
+    id: formats
+    attributes:
+      label: Formats involved
+      description: Source format and target format or profile.
+      placeholder: "FLAC → Opus 192 kbit/s"
+  - type: textarea
+    id: log
+    attributes:
+      label: Error message or screenshot
+      description: Paste error messages as text if possible (the log of the run helps a lot). Screenshots can be dragged in.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before sending
+      options:
+        - label: I searched the existing issues.
+          required: true
+        - label: The report contains no personal paths, API keys or tokens I want to keep private.
+          required: true

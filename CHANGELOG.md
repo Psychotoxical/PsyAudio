@@ -17,6 +17,11 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 - Tag processing numbers tracks by itself (per folder, in list order), can take other tags into a value (`<artist>`, `<album>` …) and offers only combinations that make sense.
 - Converted files always get an album artist: the artist when the whole album has one, "Various Artists" for a compilation.
 - "Delete source file" moves the source to the recycle bin.
+- PsyAudio lives in the Psysonic organization on GitHub; links point there. Old links still lead to the right page.
+- Issues start from a template: bug report, CD rip problem (with drive, offset and extraction log) or feature request; security problems are reported privately.
+- CONTRIBUTING.md explains how to report bugs, translate and send pull requests, and that only maintainers merge; a pull request template asks for the same checks as the CI.
+- The macOS disk image is built again when Apple's timestamp service does not answer while signing, instead of failing the release.
+- Pull requests and main are tested on Linux only; Windows and macOS run their tests when a release is built. A release started right after a merge waits for the CI of main instead of failing.
 - A release can be built straight from main, without a release candidate: the new “main → release” workflow raises the version the same way and creates the draft.
 - The README opens with the PsyAudio wordmark, white on GitHub's dark theme and black on the light one.
 - The README shows what PsyAudio does on Windows, Linux and macOS in one table, lists the downloads, and keeps the developer notes in fold-out sections.

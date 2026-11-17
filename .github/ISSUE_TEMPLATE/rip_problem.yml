@@ -1,0 +1,67 @@
+name: CD rip problem
+description: A rip failed, was not verified, or the drive was not found or not ejected.
+labels: ["ripping"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        PsyAudio checks every rip against the CUETools database (CTDB). A disc that is not in the database cannot be verified, so "not found" alone is often expected. The extraction log in the album folder helps most.
+  - type: dropdown
+    id: result
+    attributes:
+      label: What happened?
+      options:
+        - The rip failed or stopped
+        - Tracks were marked as errors
+        - CTDB did not confirm the rip
+        - The drive was not found
+        - The disc was not ejected
+        - Wrong album information
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: Details
+      description: What did you do, and what did PsyAudio show?
+    validations:
+      required: true
+  - type: input
+    id: drive
+    attributes:
+      label: Drive
+      description: Make and model as PsyAudio shows it, and how it is connected (internal, USB).
+      placeholder: "Vendor Model, USB"
+    validations:
+      required: true
+  - type: input
+    id: offset
+    attributes:
+      label: Read offset
+      description: The offset PsyAudio uses for this drive, and whether it was detected or entered by hand.
+      placeholder: "+6, detected"
+  - type: textarea
+    id: log
+    attributes:
+      label: Extraction log
+      description: The "PsyAudio – audio extraction log" file from the album folder. Paste it here or drag it in.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: PsyAudio version
+      description: Shown at the bottom of the side bar.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: System
+      options:
+        - Windows
+        - Linux
+        - macOS
+    validations:
+      required: true
