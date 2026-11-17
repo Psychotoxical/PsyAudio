@@ -8,6 +8,7 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 
 ### Changed
 
+- The README opens with links to the other apps of the Psy Suite: Psysonic, Psysonic Mobile and PsyTags.
 - PsyAudio speaks sixteen languages: English, German, Spanish, French, Norwegian Bokmål, Dutch, Romanian, Russian, Chinese, Japanese, Hungarian, Polish, Bulgarian, Italian, Ukrainian and Greek. It follows the system language until another one is chosen in the settings; counts use each language's plural forms.
 - Every language is one file in `locales/`, keyed by the English text, so translators can improve a language or add one without touching code; `npm run i18n:report` shows what is missing.
 - The effects are cleared out: Reverse, Loop, Karaoke, Speed, Band-pass, Minimum and Maximum length, Insert silence, Write metadata file, CPU throttle and Delete output on error are gone. Saved profiles that used them keep everything else; "CPU throttle" becomes the "Low priority" setting.
