@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { previewName, useNaming } from "../../ipc/naming";
 import { type FileRow, useFiles } from "../../store/files";
@@ -14,6 +14,22 @@ export function usePreviewFile(): FileRow | undefined {
   });
 }
 
+/** Number and count of `file` among the list's files in its folder, as a run numbers them. */
+export function usePreviewPosition(file: FileRow | undefined): [number, number] | null {
+  // a string from the store, so the panel only renders again when the numbers change
+  const key = useFiles((s) => {
+    if (!file) return "";
+    const dir = splitPath(file.path)[0];
+    const same = s.files.filter((f) => splitPath(f.path)[0] === dir);
+    const i = same.indexOf(file);
+    return i < 0 ? "" : `${i + 1}/${same.length}`;
+  });
+  return useMemo(() => {
+    const [n, total] = key.split("/").map(Number);
+    return key && n && total ? [n, total] : null;
+  }, [key]);
+}
+
 /** Splits a path into the part before the file name and the file name. */
 function splitPath(path: string): [string, string] {
   const cut = Math.max(path.lastIndexOf("\\"), path.lastIndexOf("/"));
@@ -25,13 +41,14 @@ function PathPreview() {
   const { t } = useTranslation();
   const settings = useSettings((s) => s.settings);
   const file = usePreviewFile();
+  const position = usePreviewPosition(file);
   const [target, setTarget] = useState<string | null>(null);
   useEffect(() => {
     if (!settings || !file) return;
     let live = true;
     // wait until slider and chip changes come to rest
     const timer = setTimeout(() => {
-      previewName(settings, file.path, file.root)
+      previewName(settings, file.path, file.root, position)
         .then((p) => live && setTarget(p))
         .catch(() => live && setTarget(null));
     }, 150);
@@ -39,7 +56,7 @@ function PathPreview() {
       live = false;
       clearTimeout(timer);
     };
-  }, [settings, file]);
+  }, [settings, file, position]);
 
   if (!file) return <Hint>{t("Die Vorschau erscheint, sobald Dateien in der Liste sind.")}</Hint>;
   if (!target) return null;

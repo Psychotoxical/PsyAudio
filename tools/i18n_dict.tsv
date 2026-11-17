@@ -26,7 +26,6 @@ Liste leeren	Clear list
 Tags bearbeiten	Edit tags
 Geschätzte Größe: {0}	Estimated size: {0}
 Ausführen	Run
-Konvertieren	Convert
 nur {0} ausgewählte	only {0} selected
 Musikdateien oder Ordner hierher ziehen	Drag music files or folders here
 MP3, FLAC, WAV, AAC/M4A, ALAC, Opus, Ogg, WMA, AIFF, APE, WavPack, DSD und mehr	MP3, FLAC, WAV, AAC/M4A, ALAC, Opus, Ogg, WMA, AIFF, APE, WavPack, DSD and more
@@ -68,7 +67,6 @@ Datei {current} von {total}	File {current} of {total}
  · {0} Kern{1}	 · {0} core{1}
  · {0} vergangen	 · {0} elapsed
  · noch etwa {0}	 · about {0} left
-Abbrechen	Cancel
 Fertig	Done
 Fehlgeschlagene erneut umwandeln	Convert failed files again
 Zielordner öffnen	Open output folder
@@ -143,7 +141,6 @@ Ordner kann nicht angelegt werden: {e}	Cannot create folder: {e}
 Kodieren	Encoding
 Vorhandene Zieldatei kann nicht gelöscht werden (in einem anderen Programm geöffnet?)	Cannot delete the existing output file (open in another program?)
 Temporäre Datei kann nicht verschoben werden: {e}	Cannot move the temporary file: {e}
-Quelle konnte nicht gelöscht werden: {e}	Could not delete the source: {e}
 Spitze auf Zielpegel	Peak to target level
 ReplayGain (Titel)	ReplayGain (track)
 EBU R128 (Titel)	EBU R128 (track)
@@ -164,52 +161,33 @@ Bearbeiten	Edit
 Ein-/Ausblenden (Fade)	Fade in/out
 Kürzen (Trim)	Trim
 Stille entfernen	Remove silence
-Stille einfügen	Insert silence
-Rückwärts	Reverse
-Schleife (wiederholen)	Loop (repeat)
-Geschwindigkeit	Speed
-Mindestlänge (sonst überspringen)	Minimum length (otherwise skip)
-Maximale Länge	Maximum length
 Tiefpass	Low-pass
 Hochpass	High-pass
 Grafischer Equalizer	Graphic equalizer
-Karaoke (Stimme / Instrumente entfernen)	Karaoke (remove voice / instruments)
-Dateien	Files
 Quelldatei löschen	Delete source file
-Quell-Attribute übernehmen (Datum)	Keep source attributes (date)
 Folder.jpg mitkopieren	Copy folder.jpg along
 Wiedergabeliste schreiben	Write playlist
-Metadaten-Datei schreiben (.txt)	Write metadata file (.txt)
 Externes Programm ausführen	Run external program
 Bedingte Umwandlung	Conditional encoding
-Zieldatei bei Fehler löschen	Delete output on error
 Zieldatei bei Fehler verschieben	Move output on error
 Tag-Bearbeitung	Tag processing
 Ton nach der Umwandlung	Sound after converting
-CPU schonen (niedrige Priorität)	Go easy on the CPU (low priority)
 Effekt	Effect
 , Dither	, dither
 L/R tauschen	swap L/R
-nur links	left only
-nur rechts	right only
 , Album	, album
 Album-Gain	Album gain
 Titel-Gain	Track gain
 nur digitale Stille	digital silence only
-Stimme behalten	keep voice
-Stimme entfernen	remove voice
 1:1 kopieren	copy 1:1
 überspringen	skip
-kürzer als {seconds} s	shorter than {seconds} s
 {bits} Bit{0}	{bits} bit{0}
 {channels} Kanal/Kanäle	{channels} channel(s)
-{percent} % des Originals	{percent} % of the original
 {field} entfernen	remove {field}
 {field} = {value} (wenn leer)	{field} = {value} (if empty)
 ein {in_ms} ms, aus {out_ms} ms	in {in_ms} ms, out {out_ms} ms
 Anfang {start_ms} ms, Ende {end_ms} ms	start {start_ms} ms, end {end_ms} ms
 unter {threshold_db} dB	below {threshold_db} dB
-vorne {start_ms} ms, hinten {end_ms} ms	front {start_ms} ms, back {end_ms} ms
 {percent} %, max. ×{max_amp}	{percent} %, max. ×{max_amp}
 Hörbuch (m4b)	Audiobook (m4b)
 Mehrfach-Encoder	Multi encoder
@@ -268,14 +246,10 @@ Fehler	Error
 FFmpeg wird benötigt	FFmpeg is needed
 Prüfung fehlgeschlagen: Länge {0} statt {1} Frames	Verification failed: length {0} instead of {1} frames
 Prüfung fehlgeschlagen: Abweichung bei Sample {i}	Verification failed: difference at sample {i}
-Fehler	Error
-Unsicher	Insecure
 Unsicher	Insecure
 Sicher (Warnung	Secure (warning
 Sicher*	Secure*
 Sicher	Secure
-Sicher	Secure
-Gerippt	Ripped
 Gerippt	Ripped
 Vertrauen 	confidence
 Genau	Accurate
@@ -314,7 +288,6 @@ CTDB: wird abgefragt…	CTDB: looking up…
 CTDB: nicht abgefragt	CTDB: not looked up
 CTDB · {0} Rips	CTDB · {0} rips
 CTDB · 1 Rip	CTDB · 1 rip
-Länge	Length
 Rippen läuft…	Ripping…
 {n} Titel rippen	Rip {n} tracks
 So wird gespeichert:	Will be saved as:
@@ -354,10 +327,8 @@ Aus Konverter-Liste	From the converter list
 Dateien hierher ziehen, um ihre Tags zu bearbeiten	Drop files here to edit their tags
 Bild laden…	Load picture…
 Bild	Picture
-Entfernen	Remove
 Bild speichern…	Save picture…
 ReplayGain: Titel {rg}, Album {0}	ReplayGain: track {rg}, album {0}
-Speichern	Save
 Tags gespeichert	Tags saved
 Album-Felder für alle übernehmen	Apply album fields to all
 Album, Albuminterpret, Jahr, Genre, Disc, Komponist, Sampler, Label und Cover	Album, album artist, year, genre, disc, composer, compilation, label and cover
@@ -387,7 +358,6 @@ Windows-Integration	Windows integration
 Fügt im Explorer-Rechtsklickmenü von Audiodateien „Mit PsyAudio konvertieren“ hinzu (nur für Ihr Benutzerkonto).	Adds “Convert with PsyAudio” to the Explorer right-click menu of audio files (for your user account only).
 Kontextmenü einrichten	Set up context menu
 Kontextmenü entfernen	Remove context menu
-Zurücksetzen	Reset
 Alle Einstellungen auf Standard	Reset all settings to default
 Einstellungen zurückgesetzt	Settings reset
 PsyAudio – Protokoll der Audio-Extraktion	PsyAudio – audio extraction log
@@ -476,8 +446,6 @@ Schreibt Titel- und Album-Gain (−18 LUFS) in die Quelldateien.	Writes track an
 Wendet die Effekte „Tag-Bearbeitung“ auf die Quelldateien an.	Applies the “Tag processing” effects to the source files.
 Dither (empfohlen beim Reduzieren auf 16 Bit)	Dither (recommended when reducing to 16 bit)
 Links/Rechts tauschen	Swap left/right
-Nur links	Left only
-Nur rechts	Right only
 Art	Kind
 dB Verstärkung	dB gain
 Zielpegel dB	Target level dB
@@ -487,9 +455,7 @@ Fensterlänge ms	Window length ms
 Ziel LUFS	Target LUFS
 Max. Verstärkung dB	Max. gain dB
 Auch Album-Gain berechnen	Also calculate album gain
-Übersteuerung verhindern	Prevent clipping
 True-Peak-Überabtastung ×	True-peak oversampling ×
-Spitzen begrenzen	Limit peaks
 dB, wenn ReplayGain fehlt	dB if ReplayGain is missing
 Einblenden ms	Fade in ms
 Ausblenden ms (vom Ende)	Fade out ms (from the end)
@@ -497,11 +463,9 @@ Vom Anfang ms	From the start ms
 Vom Ende ms	From the end ms
 Stille am Anfang entfernen	Remove silence at the start
 Stille am Ende entfernen	Remove silence at the end
-Nur digitale Stille (Nullen)	Digital silence only (zeros)
 Schwelle dB	Threshold dB
 Vorne ms	Front ms
 Hinten ms	Back ms
-Wiederholungen	Repetitions
 % Geschwindigkeit	% speed
 Sekunden	Seconds
 Sekunden (0 = Prozent)	Seconds (0 = percent)
@@ -516,13 +480,6 @@ Verhältnis 1:x	Ratio 1:x
 Ansprechzeit ms	Attack ms
 Abklingzeit ms	Release ms
 Stimme entfernen (Karaoke)	Remove voice (karaoke)
-Instrumente entfernen	Remove instruments
-Funktioniert nur mit Stereo-Dateien.	Works with stereo files only.
-Im selben Ordner wie die Titel	In the same folder as the tracks
-z. B. notepad [outfile]	e.g. notepad [outfile]
-[outfile] = neue Datei, [infile] = Quelle	[outfile] = new file, [infile] = source
-Wenn Quelle Endung hat:	If the source has the extension:
-Datei überspringen	Skip file
 Setzen	Set
 Setzen, wenn leer	Set if empty
 Feld	Field
@@ -582,8 +539,6 @@ Bausteine auf die Vorgabe zurücksetzen	Reset the chips to the default
 Ordner und Dateinamen wie bei der Quelle.	Folders and file names as in the source.
 Tags aus Dateiname übernehmen	Apply tags from file names
 Dateiname	File name
-Albuminterpret	Album artist
-Interpret	Artist
 Track	Track
 Disc	Disc
 Abstand	Space
@@ -702,23 +657,9 @@ Track – Titel	Track – Title
 Interpret – Titel	Artist – Title
 Zuordnung	Mapping
 Verstärkung	Gain
-Zielpegel	Target level
-Zielpegel (Spitze)	Target level (peak)
-Max. Verstärkung	Max. gain
-True-Peak-Überabtastung	True peak oversampling
-Wenn ReplayGain fehlt	If ReplayGain is missing
 Schwelle	Threshold
-Mindestlänge	Minimum length
-Höchstlänge	Maximum length
-Anteil des Originals	Share of the original
-Bei 0 s gilt der Anteil in Prozent.	At 0 s, the share in percent applies.
 Grenzfrequenz	Cutoff frequency
-Untere Grenze	Lower limit
-Obere Grenze	Upper limit
 Werte in dB; ein Klick auf eine Vorlage setzt alle Bänder.	Values in dB; a click on a preset sets all bands.
-Verhältnis	Ratio
-Ansprechzeit	Attack
-Abklingzeit	Release
 Befehl	Command
 Effekt hinzufügen	Add effect
 Schließen	Close
@@ -727,49 +668,28 @@ Kein Effekt passt zur Suche.	No effect matches the search.
 Nach oben	Move up
 Nach unten	Move down
 Effekt entfernen	Remove effect
-Fensterlänge	Window length
 Einblenden	Fade in
 Ausblenden (vom Ende)	Fade out (from the end)
 Vom Anfang	From the start
 Vom Ende	From the end
-Vorne	Before
-Hinten	After
 Rechnet auf eine andere Abtastrate um, etwa von 96 kHz auf 44,1 kHz.	Converts to another sample rate, e.g. from 96 kHz to 44.1 kHz.
 Ändert die Bittiefe; beim Verringern glättet Dither die Rundungsfehler.	Changes the bit depth; when reducing, dither smooths the rounding errors.
-Mischt auf Mono, Stereo oder 5.1 um.	Mixes to mono, stereo or 5.1.
-Tauscht links und rechts oder behält nur einen Kanal.	Swaps left and right or keeps only one channel.
 Bringt jede Datei auf einen einheitlichen Pegel (Spitze, ReplayGain oder EBU R128).	Brings every file to one level (peak, ReplayGain or EBU R128).
 Misst die Lautheit und schreibt ReplayGain-Werte in die Tags; der Ton bleibt unverändert.	Measures loudness and writes ReplayGain values into the tags; the sound stays unchanged.
 Ändert die Lautstärke fest um die ReplayGain-Werte aus den Tags.	Changes the volume permanently by the ReplayGain values from the tags.
-Verringert den Abstand zwischen leisen und lauten Stellen.	Reduces the gap between quiet and loud passages.
 Blendet am Anfang ein und am Ende aus.	Fades in at the start and out at the end.
 Schneidet am Anfang und am Ende eine feste Zeit ab.	Cuts a fixed time off the start and the end.
 Entfernt Stille am Anfang und am Ende.	Removes silence at the start and the end.
-Fügt vorne und hinten Stille an.	Adds silence before and after.
-Dreht die Aufnahme um, sodass sie rückwärts läuft.	Reverses the recording so it plays backwards.
-Hängt die Aufnahme mehrmals hintereinander.	Repeats the recording several times in a row.
-Spielt schneller oder langsamer ab; die Tonhöhe ändert sich mit.	Plays faster or slower; the pitch changes along.
-Überspringt Dateien, die kürzer sind als die angegebene Zeit.	Skips files shorter than the given time.
-Kürzt auf eine Höchstlänge in Sekunden oder Prozent.	Cuts to a maximum length in seconds or percent.
 Lässt nur Frequenzen unterhalb der Grenze durch.	Lets only frequencies below the limit through.
 Lässt nur Frequenzen oberhalb der Grenze durch, etwa gegen Rumpeln.	Lets only frequencies above the limit through, e.g. against rumble.
-Lässt nur den Bereich zwischen zwei Frequenzen durch, etwa für Telefonklang.	Lets only the range between two frequencies through, e.g. for a telephone sound.
 Hebt oder senkt neun Frequenzbänder.	Raises or lowers nine frequency bands.
-Entfernt die Stimme aus der Mitte oder behält nur sie; nur bei Stereo.	Removes the voice from the centre or keeps only it; stereo only.
-Gleicht die Höhenanhebung alter CDs mit Pre-Emphasis aus.	Undoes the treble boost of old CDs with pre-emphasis.
 Erkennt HDCDs und macht aus ihnen 24-Bit-Audio.	Detects HDCDs and turns them into 24-bit audio.
-Löscht die Quelldatei, wenn ihre Umwandlung geklappt hat.	Deletes the source file when its conversion succeeded.
 Gibt der neuen Datei das Änderungsdatum der Quelle.	Gives the new file the source's modification date.
 Kopiert folder.jpg oder cover.jpg aus dem Quellordner in den Zielordner.	Copies folder.jpg or cover.jpg from the source folder to the target folder.
 Schreibt eine Wiedergabeliste (M3U8, M3U oder PLS) mit den neuen Dateien.	Writes a playlist (M3U8, M3U or PLS) with the new files.
-Legt neben jede neue Datei eine .txt mit ihren Tags.	Puts a .txt with its tags next to every new file.
-Startet nach jeder Datei ein Programm, etwa zum Nachbearbeiten.	Starts a program after each file, e.g. for post-processing.
 Überspringt oder kopiert Quellen mit einer bestimmten Endung, statt sie umzuwandeln.	Skips or copies sources with a given extension instead of converting them.
-Löscht eine halbfertige Zieldatei, wenn ein Fehler auftritt.	Deletes a half-written target file when an error occurs.
 Verschiebt die Zieldatei bei einem Fehler in einen eigenen Ordner.	Moves the target file to its own folder when an error occurs.
-Setzt, ergänzt oder entfernt ein Tag-Feld in allen Dateien.	Sets, fills in or removes a tag field in all files.
 Spielt einen Ton, wenn alle Dateien fertig sind.	Plays a sound when all files are done.
-Wandelt mit niedriger Priorität um, damit der Rechner bedienbar bleibt.	Converts at low priority so the computer stays usable.
 {0} Effekte	{0} effects
 Umwandeln …	Converting …
 Fortschritt	Progress
@@ -903,3 +823,83 @@ Befehl kopieren	Copy command
 Befehl kopiert	Command copied
 ffmpeg.org öffnen	Open ffmpeg.org
 CD konnte nicht ausgeworfen werden: {e}	Could not eject the CD: {e}
+Gilt für jede Datei. Ein Knopf fügt den Wert eines anderen Tags ein, z. B. wird <artist> zum Interpreten der Datei.	Applies to every file. A button inserts the value of another tag; <artist>, for example, becomes the file's artist.
+Die neue Datei bekommt das Änderungsdatum der Quelle statt des heutigen.	The new file gets the source's modification date instead of today's.
+Liegt im Quellordner ein folder.jpg oder cover.jpg, kommt es mit in den Zielordner; ein vorhandenes Bild dort bleibt.	A folder.jpg or cover.jpg in the source folder is copied to the output folder; an image already there is kept.
+Ein kurzer Ton, wenn alle Dateien fertig sind.	A short sound when all files are done.
+Nur für CDs mit Pre-Emphasis, meist aus den frühen 80ern: Dort wurden die Höhen beim Mastern angehoben, dieser Effekt senkt sie wieder. Bei allen anderen Aufnahmen klingt es danach dumpf.	Only for CDs with pre-emphasis, mostly from the early 1980s: their treble was raised in mastering, and this effect lowers it again. Any other recording sounds dull afterwards.
+44100 Hz ist CD-Qualität, 48000 Hz der Standard bei Video.	44100 Hz is CD quality, 48000 Hz the standard for video.
+16 Bit ist CD-Qualität. Dither legt beim Verringern ein unhörbares Rauschen darüber, damit leise Stellen nicht verzerren.	16 bit is CD quality. When reducing, dither adds inaudible noise so quiet passages don't distort.
+Ziellautheit	Target loudness
+Zielpegel der lautesten Stelle	Target level of the loudest point
+Höchstens anheben um	Raise by at most
+Über diese Zeitspanne mittelt PsyAudio die Lautstärke; kürzer regelt schneller nach.	PsyAudio averages the volume over this span; shorter reacts faster.
+Nie so weit anheben, dass es übersteuert	Never raise so far that it clips
+Spitzen genauer messen (True Peak, langsamer)	Measure peaks more precisely (true peak, slower)
+Der Ton bleibt unverändert; Player mit ReplayGain spielen danach alle Titel gleich laut. −18 LUFS ist der übliche Wert. Album-Gain hält die Lautstärke-Unterschiede innerhalb eines Albums.	The audio stays unchanged; players with ReplayGain then play every track equally loud. −18 LUFS is the usual value. Album gain keeps the differences in volume within an album.
+Dateien ohne ReplayGain ändern um	Change files without ReplayGain by
+Rechnet die ReplayGain-Werte aus den Tags fest in den Ton ein, für Player ohne ReplayGain. Dateien ohne Werte ändern sich um den eingestellten Betrag; 0 dB lässt sie, wie sie sind.	Applies the ReplayGain values from the tags to the audio permanently, for players without ReplayGain. Files without values change by the amount set; 0 dB leaves them as they are.
+0 ms schaltet die jeweilige Blende aus.	0 ms turns that fade off.
+Schneidet bei jeder Datei dieselbe Zeit ab; 1000 ms = 1 Sekunde.	Cuts the same time off every file; 1000 ms = 1 second.
+Nur völlige Stille (digital null)	Only complete silence (digital zero)
+Als Stille gilt leiser als	Counts as silence below
+−60 dB passt für die meisten Aufnahmen; bei verrauschten Platten etwas höher, etwa −45 dB.	−60 dB suits most recordings; for noisy records a little higher, about −45 dB.
+Entfernt alles unterhalb der Grenze, etwa Rumpeln von Plattenspielern: 20 bis 40 Hz.	Removes everything below the limit, such as turntable rumble: 20 to 40 Hz.
+Entfernt alles oberhalb der Grenze, etwa Rauschen: 12000 bis 16000 Hz.	Removes everything above the limit, such as hiss: 12000 to 16000 Hz.
+Stärke	Strength
+Dekodierte HDCDs sind 6 dB leiser als normale CDs, damit ihre erweiterten Spitzen Platz haben. Anheben gleicht das aus; diese Spitzen können dann übersteuern.	Decoded HDCDs are 6 dB quieter than normal CDs to make room for their extended peaks. Raising makes up for that; those peaks can then clip.
+Eine je Ordner	One per folder
+Eine im Zielordner	One in the output folder
+Die Liste heißt wie ihr Ordner, etwa „Album.m3u8“, und enthält die neuen Dateien in Listenreihenfolge. M3U8 versteht fast jeder Player.	The playlist is named after its folder, such as "Album.m3u8", and lists the new files in list order. Almost every player understands M3U8.
+Quellen mit der Endung	Sources with the extension
+unverändert kopieren	copy unchanged
+Eine Endung ohne Punkt. Beispiel: Aus einem gemischten Ordner nach MP3 umwandeln, vorhandene MP3s aber nur kopieren statt sie ein zweites Mal verlustbehaftet zu kodieren.	One extension, without the dot. Example: convert a mixed folder to MP3 but only copy the MP3s already there instead of encoding them lossily a second time.
+Schlägt eine Umwandlung fehl, landet die halbfertige Datei zum Nachsehen hier. Ohne diesen Effekt löscht PsyAudio sie.	If a conversion fails, the half-written file is moved here so you can inspect it. Without this effect PsyAudio deletes it.
+Wird automatisch eingetragen: 1, 2, 3 … je Ordner, in der Reihenfolge der Dateiliste.	Filled in automatically: 1, 2, 3 … per folder, in the order of the file list.
+Änderungsdatum übernehmen	Keep modification date
+automatisch	automatic
+Quelle konnte nicht in den Papierkorb gelegt werden: {e}	Could not move the source to the recycle bin: {e}
+Hebt oder senkt jede Datei, bis ihre lauteste Stelle den Zielpegel erreicht. Wie laut sie wirkt, kann trotzdem verschieden bleiben.	Raises or lowers each file until its loudest point reaches the target level. How loud the files sound can still differ.
+Regelt laufend nach, auch innerhalb eines Titels: leise Stellen werden lauter. Für Hörbücher und Mitschnitte, nicht für Musik mit gewollter Dynamik.	Keeps adjusting, also within a track: quiet passages get louder. For audiobooks and live recordings, not for music whose dynamics are intended.
+Regelt laufend nach den Spitzen nach, auch innerhalb eines Titels. Für Hörbücher und Mitschnitte, nicht für Musik mit gewollter Dynamik.	Keeps adjusting to the peaks, also within a track. For audiobooks and live recordings, not for music whose dynamics are intended.
+Senkt nur Dateien, deren lauteste Stelle über dem Zielpegel liegt; leisere bleiben unverändert.	Lowers only files whose loudest point is above the target level; quieter ones stay unchanged.
+z. B. <title> (Remastered)	e.g. <title> (Remastered)
+z. B. Band	e.g. Band
+z. B. <album> (Deluxe)	e.g. <album> (Deluxe)
+z. B. <artist>	e.g. <artist>
+z. B. 1	e.g. 1
+z. B. 2	e.g. 2
+z. B. 1994	e.g. 1994
+z. B. Rock	e.g. Rock
+z. B. Komponist	e.g. Composer
+z. B. Dirigent	e.g. Conductor
+z. B. Gerippt mit PsyAudio	e.g. Ripped with PsyAudio
+z. B. Label	e.g. Label
+z. B. DEA123456789	e.g. DEA123456789
+1 = Sampler, 0 = kein Sampler	1 = compilation, 0 = no compilation
+Genre	Genre
+Text	Text
+Legt die Quelldatei in den Papierkorb, wenn ihre Umwandlung geklappt hat.	Moves the source file to the recycle bin when its conversion succeeded.
+Setzt, ergänzt oder entfernt ein Tag-Feld; Titelnummern zählen von selbst, Werte können andere Tags übernehmen.	Sets, fills in or removes a tag field; track numbers are filled in automatically, values can include other tags.
+Senkt die Höhen, die bei CDs mit Pre-Emphasis (meist frühe 80er) angehoben wurden; nur für solche CDs.	Lowers the treble raised on CDs with pre-emphasis (mostly early 1980s); only for such CDs.
+Startet nach jeder fertigen Datei einen Befehl, etwa ein Skript zum Nachbearbeiten.	Runs a command after each finished file, such as a script for post-processing.
+Macht laute Stellen leiser, damit leise und laute näher beieinanderliegen.	Turns loud passages down so quiet and loud ones are closer together.
+Reaktionszeit	Attack time
+Erholzeit	Release time
+Speicherort	Location
+Nur so weit anheben, dass nichts übersteuert	Only raise as far as nothing clips
+Links auf beide Seiten	Left on both sides
+Rechts auf beide Seiten	Right on both sides
+links auf beide	left on both
+rechts auf beide	right on both
+Mono mischt beide Seiten zu einer zusammen, Stereo macht aus Mono zwei gleiche Seiten.	Mono mixes both sides into one; stereo turns mono into two identical sides.
+Macht aus Stereo Mono oder aus Mono Stereo.	Turns stereo into mono or mono into stereo.
+Tauscht links und rechts oder legt eine Seite auf beide.	Swaps left and right or puts one side on both.
+Gleicht die gehörte Lautheit an (gemessen nach EBU R128, wie im Rundfunk und bei Streamingdiensten) und ändert den Ton dauerhaft.	Evens out the perceived loudness (measured to EBU R128, as broadcasters and streaming services do) and changes the audio for good.
+Ändert jede Datei um denselben Wert; zu viel Anheben verzerrt.	Changes every file by the same amount; raising too much distorts.
+Alles, was lauter ist als die Schwelle, wird leiser: bei 3:1 werden aus 3 dB darüber 1 dB. Die Reaktionszeit sagt, wie schnell das einsetzt, die Erholzeit, wie schnell es wieder nachlässt. Danach ist alles leiser; mit „Lautstärke normalisieren“ dahinter werden die leisen Stellen lauter. Gut für Hörbücher und Mitschnitte mit großen Lautstärkesprüngen.	Everything louder than the threshold is turned down: at 3:1, 3 dB above it comes out as 1 dB. The attack time sets how fast this sets in, the release time how fast it lets go. Afterwards everything is quieter; with "Normalize volume" after it, the quiet passages get louder. Good for audiobooks and live recordings with big jumps in volume.
+Läuft nach jeder fertigen Datei, unter Windows über cmd, unter Linux und macOS über sh; PsyAudio wartet, bis der Befehl fertig ist. [outfile] ist die neue Datei, [infile] die Quelle; die Anführungszeichen setzt PsyAudio selbst.	Runs after each finished file, through cmd on Windows and sh on Linux and macOS; PsyAudio waits until the command has finished. [outfile] is the new file, [infile] the source; PsyAudio adds the quotes itself.
+Legt die Quelldatei in den Papierkorb, sobald alle ihre Zieldateien geschrieben sind. Schlägt die Umwandlung fehl, bleibt sie liegen.	Moves the source file to the recycle bin once all its output files are written. If the conversion fails, it stays where it is.
+Wird automatisch eingetragen: die Anzahl der Dateien dieses Ordners in der Liste.	Filled in automatically: the number of files from this folder in the list.
+z. B. mein-skript.bat [outfile]	e.g. my-script.bat [outfile]
+z. B. ~/bin/mein-skript.sh [outfile]	e.g. ~/bin/my-script.sh [outfile]

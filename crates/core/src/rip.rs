@@ -241,7 +241,13 @@ pub fn rip_thread(c: RipContext, tracks: Vec<(usize, u8, Tags)>, cancel: Arc<Ato
             return;
         }
     };
-    let batch = convert::Batch::new();
+    // all tracks known up front: the album artist of a disc without one compares them
+    let batch = convert::Batch::with_jobs(
+        tracks
+            .iter()
+            .map(|(_, n, tg)| Job { id: 0, src: PathBuf::from(format!("Track{n:02}.wav")), root: None, tags: Some(tg.clone()), audio: None })
+            .collect(),
+    );
     let mut log = vec![
         crate::i18n::t("PsyAudio – Protokoll der Audio-Extraktion").to_string(),
         crate::i18n::tf(crate::i18n::t("Album: {0} – {1}"), &[("0", meta.artist.to_string()), ("1", meta.album.to_string())]),
