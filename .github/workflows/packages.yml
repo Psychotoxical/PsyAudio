@@ -208,6 +208,7 @@ jobs:
       - name: Build
         shell: bash
         env:
+          NAME: ${{ matrix.name }}
           BUNDLES: ${{ matrix.bundles }}
           TARGET: ${{ matrix.target }}
         run: |
@@ -215,7 +216,18 @@ jobs:
           if [ -n "$TARGET" ]; then
             args+=(--target "$TARGET")
           fi
-          npx tauri build "${args[@]}"
+          # Apple's timestamp service sometimes does not answer while Tauri signs ("A timestamp
+          # was expected but was not found"); build again after a pause, only for that error.
+          for try in 1 2 3 4 5; do
+            if npx tauri build "${args[@]}" 2>&1 | tee "$RUNNER_TEMP/build.log"; then
+              break
+            fi
+            if [ "$NAME" != macos ] || [ "$try" = 5 ] || ! grep -qi timestamp "$RUNNER_TEMP/build.log"; then
+              exit 1
+            fi
+            echo "::warning::Signing failed at the timestamp (try $try), building again"
+            sleep $((try * 10))
+          done
 
       - name: Collect the files
         shell: bash

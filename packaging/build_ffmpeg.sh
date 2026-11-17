@@ -144,8 +144,8 @@ cp "$work/opus-$OPUS/COPYING" "$output/licenses/Opus-BSD.txt"
 cp "$work/speex-$SPEEX/COPYING" "$output/licenses/Speex-BSD.txt"
 cat > "$output/licenses/SOURCES.txt" <<EOF
 PsyAudio ships FFmpeg and FFprobe built from these sources with packaging/build_ffmpeg.sh
-(https://github.com/Psychotoxical/PsyAudio). Each is under the license in the file next to this one.
-Every PsyAudio release (https://github.com/Psychotoxical/PsyAudio/releases) carries the exact source
+(https://github.com/Psysonic/PsyAudio). Each is under the license in the file next to this one.
+Every PsyAudio release (https://github.com/Psysonic/PsyAudio/releases) carries the exact source
 archives below, together with the build script, as PsyAudio-<version>-FFmpeg-source.tar.
 
 FFmpeg $FFMPEG    $FFMPEG_URL
