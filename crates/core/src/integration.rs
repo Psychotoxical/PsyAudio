@@ -717,14 +717,14 @@ mod quick_action_tests {
     /// and hands over the files (an already running PsyAudio gets them too).
     #[test]
     fn workflow_uses_bundle_id() {
-        let dir = temp("write").join("Mit PsyAudio konvertieren.workflow");
+        let dir = temp("write").join("Convert with PsyAudio.workflow");
         write_quick_action(&dir, "Convert with PsyAudio").unwrap();
         let wflow = std::fs::read_to_string(dir.join("Contents/document.wflow")).unwrap();
         assert!(wflow.contains("open -b app.psyaudio \"$@\""));
         assert!(!wflow.contains(".app/Contents/MacOS"));
         let plist = std::fs::read_to_string(dir.join("Contents/Info.plist")).unwrap();
         assert!(plist.contains("NSServices") && plist.contains("public.audio"));
-        assert!(plist.contains("<string>Mit PsyAudio konvertieren</string>"));
+        assert!(plist.contains("<string>Convert with PsyAudio</string>"));
         let _ = std::fs::remove_dir_all(dir.parent().unwrap());
     }
 
