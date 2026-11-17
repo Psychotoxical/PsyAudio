@@ -4,7 +4,7 @@ Thanks for helping. Bug reports, ideas, translations and code are all welcome.
 
 ## Issues
 
-Open an issue on GitHub. For a bug, name the PsyAudio version, the system and the package (installer, AppImage, deb, rpm, DMG), the drive if it is about ripping, and the steps that lead to it.
+Open an issue with one of the templates: bug report, CD rip problem or feature request. For a bug, name the PsyAudio version, the system and the package (installer, AppImage, deb, rpm, DMG) and the steps that lead to it; for a rip, the drive and the extraction log. Security problems go through [a private report](https://github.com/Psysonic/PsyAudio/security/advisories/new), not a public issue.
 
 ## Translations
 
