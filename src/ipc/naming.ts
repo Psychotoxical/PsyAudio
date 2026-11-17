@@ -20,13 +20,15 @@ export async function loadNamingOptions(): Promise<void> {
   useNaming.setState({ options });
 }
 
-/** Where the converter would write `path` with these settings; null for tool formats. */
+/** Where the converter would write `path` with these settings; null for tool formats.
+ * `position` is its number and count among the list's files in its folder. */
 export function previewName(
   settings: Settings,
   path: string,
   root: string | null,
+  position: [number, number] | null = null,
 ): Promise<string | null> {
-  return invoke<string | null>("preview_name", { settings, path, root });
+  return invoke<string | null>("preview_name", { settings, path, root, position });
 }
 
 /** The tags "Tags aus Dateiname" reads from `path`. */

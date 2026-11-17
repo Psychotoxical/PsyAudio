@@ -39,7 +39,7 @@ export function effectLines(effects: Effect[]): Promise<EffectLine[]> {
   return invoke<EffectLine[]>("effect_lines", { effects });
 }
 
-/** The variant name of an effect ("Fade", "Reverse"). */
+/** The variant name of an effect ("Fade", "DeEmphasis"). */
 export function effectKind(e: Effect): string {
   return typeof e === "string" ? e : (Object.keys(e)[0] ?? "");
 }

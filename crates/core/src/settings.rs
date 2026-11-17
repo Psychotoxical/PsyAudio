@@ -32,6 +32,7 @@ pub struct Profile {
     pub name: String,
     pub codec: Codec,
     pub enc: EncSettings,
+    #[serde(deserialize_with = "lenient_effects")]
     pub effects: Vec<Effect>,
 }
 
@@ -204,6 +205,7 @@ pub struct Settings {
     pub setup_done: bool,
     pub codec: Codec,
     pub enc: EncSettings,
+    #[serde(deserialize_with = "lenient_effects")]
     pub effects: Vec<Effect>,
     pub output_mode: OutputMode,
     pub output_folder: String,
@@ -298,6 +300,13 @@ pub fn path() -> PathBuf {
     dirs::config_dir().unwrap_or_else(std::env::temp_dir).join("PsyAudio").join("settings.json")
 }
 
+/// An effect list from a saved file: effects PsyAudio no longer has (or not yet) are left out
+/// quietly, so a profile keeps its name, format and other effects.
+fn lenient_effects<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<Effect>, D::Error> {
+    let items = Vec::<serde_json::Value>::deserialize(d)?;
+    Ok(items.into_iter().filter_map(|v| serde_json::from_value(v).ok()).collect())
+}
+
 /// Keep every top-level value of a saved settings file that still reads, and every entry of a
 /// list (profiles, effects) that still reads; the rest falls back to its default.
 fn salvage(text: &str) -> Settings {
@@ -366,6 +375,10 @@ impl Settings {
             Ok(st) => (st, true),
             Err(_) => (salvage(s), false),
         };
+        // the former effect "CPU schonen" is the setting "low priority" now
+        if s.contains("\"CpuThrottle\"") {
+            st.low_priority = true;
+        }
         st.name_scheme = sanitize(&st.name_scheme, DATA, true, CONVERT_SCHEME);
         st.rip.name_scheme = sanitize(&st.rip.name_scheme, &DATA[1..], true, CD_SCHEME);
         st.tag_scheme = sanitize(&st.tag_scheme, &DATA[1..], false, TAG_SCHEME);
@@ -469,6 +482,19 @@ mod tests {
         assert_eq!(st.profiles.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), vec!["gut"]);
         assert_eq!(st.effects.len(), 1);
         assert_eq!(st.tools.ffmpeg, "C:\\ff\\ffmpeg.exe");
+    }
+
+    #[test]
+    fn profiles_with_removed_effects_stay() {
+        let json = r#"{"profiles":[{"name":"alt","codec":"Flac","enc":{},"effects":["Reverse",{"Fade":{"in_ms":10,"out_ms":20}},"CpuThrottle"]}],
+            "effects":[{"Loop":{"times":2}},"DeEmphasis"]}"#;
+        let (st, complete) = Settings::parse(json);
+        assert!(complete, "removed effects are no damage to report");
+        assert_eq!(st.profiles.len(), 1);
+        assert_eq!(st.profiles[0].name, "alt");
+        assert_eq!(st.profiles[0].effects, vec![Effect::Fade { in_ms: 10, out_ms: 20 }]);
+        assert_eq!(st.effects, vec![Effect::DeEmphasis]);
+        assert!(st.low_priority, "CPU schonen became the low priority setting");
     }
 
     #[test]

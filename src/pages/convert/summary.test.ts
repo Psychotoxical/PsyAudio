@@ -57,13 +57,13 @@ describe("format tile summary", () => {
   it("effects_summary_lists_names", () => {
     const entries = [
       { category: "Filter", label: "Tiefpass", description: "", effect: { Lowpass: { hz: 1 } } },
-      { category: "Bearbeiten", label: "Rückwärts", description: "", effect: "Reverse" },
+      { category: "Filter", label: "De-Emphasis", description: "", effect: "DeEmphasis" },
     ] as EffectEntry[];
     expect(effectsSummary([], entries, t)).toBe("Keine");
-    expect(effectsSummary(["Reverse"], entries, t)).toBe("Rückwärts");
+    expect(effectsSummary(["DeEmphasis"], entries, t)).toBe("De-Emphasis");
     // the tile shows one line: the count comes first so a cut-off line still says it
-    expect(effectsSummary(["Reverse", { Lowpass: { hz: 500 } }], entries, t)).toBe(
-      "2 Effekte · Rückwärts, Tiefpass",
+    expect(effectsSummary(["DeEmphasis", { Lowpass: { hz: 500 } }], entries, t)).toBe(
+      "2 Effekte · De-Emphasis, Tiefpass",
     );
   });
 });

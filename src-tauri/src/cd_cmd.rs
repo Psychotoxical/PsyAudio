@@ -558,7 +558,7 @@ fn rip_preview(settings: &Settings, meta: DiscMetaView, row: usize, number: u8, 
     let artist = if artist.trim().is_empty() { meta.artist.clone() } else { artist };
     let tg = cdrip::tags_for_track(&meta, number, total, &title, &artist);
     let src = PathBuf::from(format!("Track{number:02}.wav"));
-    Some(plan.destination(&src, None, &tg, &tags::Info::default(), codec).to_string_lossy().into_owned())
+    Some(plan.destination(&src, None, &tg, &tags::Info::default(), codec, None).to_string_lossy().into_owned())
 }
 
 /// The preview line of the CD ripper's naming: the first ticked track of this disc (or sample data).
