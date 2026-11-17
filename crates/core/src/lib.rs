@@ -7,6 +7,7 @@ pub mod convert;
 pub mod ctdb;
 pub mod dsp;
 pub mod encode;
+pub mod ffmpeg;
 pub mod files;
 pub mod i18n;
 pub mod integration;

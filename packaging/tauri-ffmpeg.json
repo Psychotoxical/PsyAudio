@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": {
+      "ffmpeg/bin/": "ffmpeg/",
+      "ffmpeg/licenses/": "ffmpeg/licenses/"
+    }
+  }
+}

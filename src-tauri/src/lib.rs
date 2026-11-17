@@ -146,6 +146,7 @@ pub fn run() {
             close::confirm_close,
         ])
         .setup(|app| {
+            let _ = app.state::<AppState>().bundled_ffmpeg.set(tools_cmd::bundled_ffmpeg_dir(app.handle()));
             // show the window even if the frontend never reports ready
             let handle = app.handle().clone();
             std::thread::spawn(move || {

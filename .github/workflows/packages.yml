@@ -38,8 +38,49 @@ permissions:
   contents: read
 
 jobs:
+  # The FFmpeg every package ships, built from source once per system and kept in the cache
+  # until packaging/build_ffmpeg.sh changes.
+  ffmpeg:
+    name: ffmpeg (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: linux, script: linux, runner: ubuntu-22.04 }
+          - { target: windows, script: windows, runner: ubuntu-22.04 }
+          - { target: macos-x86_64, script: macos, runner: macos-15-intel }
+          - { target: macos-arm64, script: macos, runner: macos-15 }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+      - id: cache
+        uses: actions/cache@v6
+        with:
+          path: ffmpeg-out
+          key: ffmpeg-${{ matrix.target }}-${{ hashFiles('packaging/build_ffmpeg.sh') }}
+      - name: Build tools
+        if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y nasm mingw-w64 pkg-config
+      - name: Build tools (macOS)
+        if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'macOS'
+        run: brew install nasm pkgconf
+      - name: Build FFmpeg
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: bash packaging/build_ffmpeg.sh ${{ matrix.script }} ffmpeg-out
+      - name: Check FFmpeg
+        if: matrix.target != 'windows'
+        run: bash packaging/check_ffmpeg.sh ffmpeg-out/bin/ffmpeg
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ffmpeg-${{ matrix.target }}
+          path: ffmpeg-out
+          if-no-files-found: error
+
   build:
     name: ${{ matrix.name }}
+    needs: ffmpeg
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -60,7 +101,48 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential file libxdo-dev \
-            libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
+
+      - name: Shipped FFmpeg
+        if: matrix.name != 'macos'
+        uses: actions/download-artifact@v8
+        with:
+          name: ffmpeg-${{ matrix.name }}
+          path: src-tauri/ffmpeg
+      - name: Shipped FFmpeg (macOS, Intel)
+        if: matrix.name == 'macos'
+        uses: actions/download-artifact@v8
+        with:
+          name: ffmpeg-macos-x86_64
+          path: ffmpeg-x86_64
+      - name: Shipped FFmpeg (macOS, Apple Silicon)
+        if: matrix.name == 'macos'
+        uses: actions/download-artifact@v8
+        with:
+          name: ffmpeg-macos-arm64
+          path: ffmpeg-arm64
+
+      # Windows and Linux: a resource folder "ffmpeg" beside the app. macOS: external binaries in
+      # Contents/MacOS, which Tauri signs; one universal file from both builds.
+      - name: Put the shipped FFmpeg in place
+        shell: bash
+        env:
+          NAME: ${{ matrix.name }}
+        run: |
+          if [ "$NAME" = macos ]; then
+            mkdir -p src-tauri/ffmpeg/bin
+            cp -R ffmpeg-arm64/licenses src-tauri/ffmpeg/
+            for p in ffmpeg ffprobe; do
+              cp "ffmpeg-x86_64/bin/$p" "src-tauri/ffmpeg/bin/$p-x86_64-apple-darwin"
+              cp "ffmpeg-arm64/bin/$p" "src-tauri/ffmpeg/bin/$p-aarch64-apple-darwin"
+              lipo -create "ffmpeg-x86_64/bin/$p" "ffmpeg-arm64/bin/$p" -output "src-tauri/ffmpeg/bin/$p-universal-apple-darwin"
+            done
+            echo "FFMPEG_CONFIG=packaging/tauri-ffmpeg-macos.json" >> "$GITHUB_ENV"
+          else
+            echo "FFMPEG_CONFIG=packaging/tauri-ffmpeg.json" >> "$GITHUB_ENV"
+          fi
+          chmod +x src-tauri/ffmpeg/bin/*
+          ls -lR src-tauri/ffmpeg
 
       - uses: actions/setup-node@v7
         with:
@@ -117,7 +199,7 @@ jobs:
           BUNDLES: ${{ matrix.bundles }}
           TARGET: ${{ matrix.target }}
         run: |
-          args=(--bundles "$BUNDLES")
+          args=(--bundles "$BUNDLES" --config "$FFMPEG_CONFIG")
           if [ -n "$TARGET" ]; then
             args+=(--target "$TARGET")
           fi
@@ -156,6 +238,63 @@ jobs:
               ;;
           esac
           ls -l out
+
+      # The shipped FFmpeg: inside every package, outside /usr/bin, starts and can do everything
+      - name: Check the shipped FFmpeg (Linux)
+        if: matrix.name == 'linux'
+        shell: bash
+        run: |
+          dpkg-deb -c out/*.deb > deb.txt
+          rpm -qlpv out/*.rpm > rpm.txt
+          grep -E 'ff(mpeg|probe)' deb.txt rpm.txt
+          if grep -E 'usr/bin/ff' deb.txt rpm.txt; then
+            echo "::error::A Linux package puts FFmpeg into /usr/bin"
+            exit 1
+          fi
+          grep -qE '^-rwxr-xr-x .*/ffmpeg/ffmpeg$' deb.txt
+          grep -qE '^-rwxr-xr-x .*/ffmpeg/ffmpeg$' rpm.txt
+          appimage=$(ls "$PWD"/out/*.AppImage)
+          chmod +x "$appimage"
+          (cd "$RUNNER_TEMP" && "$appimage" --appimage-extract > /dev/null)
+          ff=$(find "$RUNNER_TEMP/squashfs-root" -path '*/ffmpeg/ffmpeg' -type f | head -n 1)
+          echo "AppImage: $ff"
+          bash packaging/check_ffmpeg.sh "$ff"
+      - name: Every format with the shipped FFmpeg (Linux)
+        if: matrix.name == 'linux'
+        shell: bash
+        run: PSYAUDIO_TEST_FFMPEG="$PWD/src-tauri/ffmpeg/bin/ffmpeg" cargo test -p psyaudio-core convert_all_formats -- --nocapture
+      - name: Install the package (Windows)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          $setup = Get-Item out/*.exe
+          $dir = "$env:RUNNER_TEMP\psyaudio-test"
+          $p = Start-Process $setup.FullName -ArgumentList "/S", "/D=$dir" -Wait -PassThru
+          if ($p.ExitCode) { throw "Installation: $($p.ExitCode)" }
+          Get-ChildItem -Recurse "$dir\ffmpeg" | Select-Object FullName, Length
+      - name: Check the shipped FFmpeg (Windows)
+        if: matrix.name == 'windows'
+        shell: bash
+        run: bash packaging/check_ffmpeg.sh "$(cygpath -u "$RUNNER_TEMP")/psyaudio-test/ffmpeg/ffmpeg.exe"
+      - name: Uninstall the package (Windows)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          $u = Start-Process "$env:RUNNER_TEMP\psyaudio-test\uninstall.exe" -ArgumentList "/S" -Wait -PassThru
+          if ($u.ExitCode) { throw "Uninstall: $($u.ExitCode)" }
+      - name: Check the shipped FFmpeg (macOS)
+        if: matrix.name == 'macos'
+        shell: bash
+        run: |
+          mnt=$(mktemp -d)
+          hdiutil attach -nobrowse -readonly -mountpoint "$mnt" out/*.dmg
+          ff="$mnt/PsyAudio.app/Contents/MacOS/ffmpeg"
+          lipo -archs "$ff"
+          for arch in x86_64 arm64; do lipo -archs "$ff" | grep -qw "$arch"; done
+          lipo -archs "$mnt/PsyAudio.app/Contents/MacOS/ffprobe" | grep -qw x86_64
+          bash packaging/check_ffmpeg.sh "$ff"
+          ls "$mnt/PsyAudio.app/Contents/Resources/ffmpeg/licenses"
+          hdiutil detach "$mnt"
 
       - name: Check the signature
         if: matrix.name == 'macos' && env.MAC_SIGNED == '1'

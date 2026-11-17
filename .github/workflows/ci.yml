@@ -37,7 +37,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           BEFORE: ${{ github.event.before }}
           CODE: '^(src/|src-tauri/|crates/|tools/|scripts/|index\.html$|package(-lock)?\.json$|Cargo\.(toml|lock)$|biome\.json$|tsconfig\.json$|vite\.config\.ts$|rustfmt\.toml$|\.github/workflows/ci\.yml$)'
-          PACKAGING: '^(src-tauri/tauri\.conf\.json$|src-tauri/icons/|\.github/workflows/packages\.yml$)'
+          PACKAGING: '^(src-tauri/tauri\.conf\.json$|src-tauri/icons/|packaging/|\.github/workflows/packages\.yml$)'
         run: |
           case "$EVENT" in
             pull_request)

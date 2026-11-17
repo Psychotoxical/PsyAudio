@@ -3,6 +3,7 @@
 use crate::audio::{self, Audio};
 use crate::dsp::{self, Effect, Outcome};
 use crate::encode::{self, Codec, EncSettings, Env, Tools};
+use crate::ffmpeg::FfmpegSet;
 use crate::loudness;
 use crate::naming;
 use crate::settings::OutputMode;
@@ -43,8 +44,8 @@ pub struct Plan {
     pub copy_art: bool,
     pub threads: usize,
     pub low_priority: bool,
-    pub ffmpeg: Option<PathBuf>,
-    pub ffmpeg_encoders: Vec<String>,
+    /// The FFmpeg for each job.
+    pub ffmpeg: FfmpegSet,
     pub tools: Tools,
     pub temp: PathBuf,
     /// Chips for "tags from file name".
@@ -114,7 +115,7 @@ pub const OUTPUT_MIN_FREE: u64 = 256_000;
 
 impl Plan {
     fn env(&self) -> Env<'_> {
-        Env { ffmpeg: self.ffmpeg.as_deref(), ffmpeg_encoders: &self.ffmpeg_encoders, tools: &self.tools, temp: &self.temp }
+        Env { ffmpeg: &self.ffmpeg, tools: &self.tools, temp: &self.temp }
     }
 
     /// Codecs that produce files in this run.
@@ -417,7 +418,7 @@ enum JobResult {
 }
 
 /// The plan for a run with the current settings (a batch sets `keep_structure` afterwards).
-pub fn plan_from_settings(s: &crate::settings::Settings, codec: Codec, ffmpeg: Option<PathBuf>, encoders: Vec<String>) -> Plan {
+pub fn plan_from_settings(s: &crate::settings::Settings, codec: Codec, ffmpeg: FfmpegSet) -> Plan {
     Plan {
         codec,
         enc: s.enc.clone(),
@@ -433,7 +434,6 @@ pub fn plan_from_settings(s: &crate::settings::Settings, codec: Codec, ffmpeg: O
         threads: s.threads.max(1),
         low_priority: s.low_priority,
         ffmpeg,
-        ffmpeg_encoders: encoders,
         tools: s.tools.clone(),
         temp: s.temp_dir(),
         tag_scheme: s.tag_scheme.clone(),
@@ -581,8 +581,7 @@ mod safety_tests {
             copy_art: true,
             threads: 1,
             low_priority: false,
-            ffmpeg: None,
-            ffmpeg_encoders: Vec::new(),
+            ffmpeg: FfmpegSet::default(),
             tools: Tools::default(),
             temp: std::env::temp_dir(),
             tag_scheme: Vec::new(),
@@ -801,8 +800,7 @@ mod destination_tests {
             copy_art: true,
             threads: 1,
             low_priority: false,
-            ffmpeg: None,
-            ffmpeg_encoders: Vec::new(),
+            ffmpeg: FfmpegSet::default(),
             tools: Tools::default(),
             temp: std::env::temp_dir(),
             tag_scheme: s(crate::naming::TAG_SCHEME),
@@ -1048,7 +1046,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
     };
     let mut a = match &job.audio {
         Some(a) => (**a).clone(),
-        None => audio::decode(&job.src, env.ffmpeg, cancel, &progress_decode)?,
+        None => audio::decode(&job.src, env.ffmpeg.for_decode().map(|f| f.path.as_path()), cancel, &progress_decode)?,
     };
     let original_secs = a.seconds();
     let _ = tx.send(Msg::Progress(id, 0.35, crate::i18n::t("Effekte")));
@@ -1147,7 +1145,7 @@ fn run_job(plan: &Plan, job: &Job, cancel: &AtomicBool, tx: &Sender<Msg>, shared
         }
         if let Effect::Hdcd { amp_6db } = e {
             // report when HDCD was found and decoded
-            if dsp::hdcd_decode(&mut a, plan.ffmpeg.as_deref(), *amp_6db)? {
+            if dsp::hdcd_decode(&mut a, plan.ffmpeg.for_hdcd().map(|f| f.path.as_path()), *amp_6db)? {
                 let _ = tx.send(Msg::Report(format!("{}: {}", job.src.display(), crate::i18n::t("HDCD-Titel erkannt, auf 24 Bit dekodiert"))));
             }
             continue;
@@ -1402,7 +1400,9 @@ mod tests {
     /// End-to-end: a generated WAV converted to every format FFmpeg on this computer can write.
     #[test]
     fn convert_all_formats() {
-        let Some(ff) = audio::find_tool("", "ffmpeg") else { return };
+        // PSYAUDIO_TEST_FFMPEG: exactly this FFmpeg (the CI's shipped one), which must write all nine formats
+        let forced = std::env::var_os("PSYAUDIO_TEST_FFMPEG").map(PathBuf::from);
+        let Some(ff) = forced.clone().or_else(|| audio::find_tool("", "ffmpeg")) else { return };
         let dir = std::env::temp_dir().join(format!("psyaudio-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -1423,12 +1423,15 @@ mod tests {
         t.set("track", "1");
         tags::write(&src, &t, false).unwrap();
 
-        let encoders = audio::ffmpeg_encoders(&ff);
-        let enc = EncSettings {
-            multi: vec![Codec::Mp3, Codec::Flac, Codec::AacM4a, Codec::Alac, Codec::Opus, Codec::Vorbis, Codec::Wave, Codec::Aiff, Codec::WavPack, Codec::Wma],
-            flac_verify: true,
-            ..EncSettings::default()
-        };
+        let set = FfmpegSet::only(&ff);
+        assert!(set.main.is_some(), "FFmpeg does not start: {}", ff.display());
+        let mut multi =
+            vec![Codec::Mp3, Codec::Flac, Codec::AacM4a, Codec::Alac, Codec::Opus, Codec::Vorbis, Codec::Wave, Codec::Aiff, Codec::WavPack, Codec::Wma];
+        if forced.is_some() {
+            multi.push(Codec::Speex);
+        }
+        let expected = multi.len();
+        let enc = EncSettings { multi, flac_verify: true, ..EncSettings::default() };
         let plan = Plan {
             codec: Codec::Multi,
             enc,
@@ -1448,8 +1451,7 @@ mod tests {
             copy_art: true,
             threads: 2,
             low_priority: false,
-            ffmpeg: Some(ff.clone()),
-            ffmpeg_encoders: encoders,
+            ffmpeg: set,
             tools: Tools::default(),
             temp: std::env::temp_dir(),
             tag_scheme: Vec::new(),
@@ -1466,7 +1468,7 @@ mod tests {
                 println!("report: {r}");
             }
         }
-        assert_eq!(outs.len(), 10, "{outs:?}");
+        assert_eq!(outs.len(), expected, "{outs:?}");
         for o in &outs {
             assert!(o.exists(), "{}", o.display());
             assert!(o.parent().is_some_and(|d| d.ends_with(Path::new("Testband").join("Testalbum"))), "{}", o.display());
@@ -1543,7 +1545,6 @@ mod year_tests {
         let mut t = Tags::default();
         t.set("title", "Lied");
         t.set("year", "2001");
-        let encoders = audio::ffmpeg_encoders(&ff);
         let enc = EncSettings { multi: vec![Codec::Opus, Codec::Flac, Codec::Vorbis, Codec::Mp3, Codec::AacM4a, Codec::WavPack], ..Default::default() };
         let plan = Plan {
             codec: Codec::Multi,
@@ -1559,8 +1560,7 @@ mod year_tests {
             copy_art: false,
             threads: 1,
             low_priority: false,
-            ffmpeg: Some(ff),
-            ffmpeg_encoders: encoders,
+            ffmpeg: FfmpegSet::only(&ff),
             tools: Tools::default(),
             temp: std::env::temp_dir(),
             tag_scheme: Vec::new(),

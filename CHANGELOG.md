@@ -26,6 +26,7 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 - **Finder integration on macOS**: a "Convert with PsyAudio" quick action (switched on in the settings), Open With and dropping files on the Dock icon. Audio formats macOS does not know, like Opus, APE and WavPack, count as audio files.
 - **The macOS disk image is signed and notarized**, so it opens without a Gatekeeper warning.
 - **On macOS, ripping and converting keep the Mac awake**, ⌘Q asks like the close button while work runs, and FFmpeg and the other programs are also found when PsyAudio is started from the Finder.
+- **FFmpeg ships with every package**: MP3, FLAC, AAC, ALAC, Opus, Vorbis, WavPack, WMA, Speex and HDCD work right after installing. An FFmpeg already on the computer is still preferred; the shipped one steps in for anything it lacks.
 
 ### Fixed
 
