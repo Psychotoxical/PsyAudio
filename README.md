@@ -175,6 +175,7 @@ Core (`crates/core/src/`):
 - Colours come from the Catppuccin tokens in `src/styles/tokens.css` (Mocha and Latte, accent Mauve); a test checks text contrast.
 - Every option in a side column gets a one-line hint; units sit inside the value field ("192 kbit/s").
 - Every pull request adds an entry under `[Unreleased]` in the [changelog](CHANGELOG.md); the CI checks it.
+- The CI runs pull requests and main on Linux only. Windows and macOS run their tests when a release candidate or release is built, before the packages; a pull request that changes the packaging can be built by hand with the Packages workflow.
 
 </details>
 
