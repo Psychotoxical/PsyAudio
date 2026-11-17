@@ -36,7 +36,7 @@ mod tests {
             ..Settings::default()
         };
         let src = dir.join("release-1").join("01 Lied.flac");
-        let got = preview(&s, &src, None, FfmpegSet::default());
+        let got = preview(&s, &src, None, None, FfmpegSet::default());
         assert_eq!(got.map(std::path::PathBuf::from), Some(dir.join("out").join("01 Lied.mp3")));
     }
 
@@ -79,18 +79,25 @@ pub fn naming_options() -> NamingOptions {
     }
 }
 
-fn preview(s: &Settings, src: &Path, root: Option<&Path>, ffmpeg: FfmpegSet) -> Option<String> {
+fn preview(s: &Settings, src: &Path, root: Option<&Path>, position: Option<(usize, usize)>, ffmpeg: FfmpegSet) -> Option<String> {
     let plan = convert::plan_from_settings(s, s.codec, ffmpeg);
     let codec = *plan.outputs().first()?;
     let (t, info) = tags::read(src);
-    Some(plan.destination(src, root, &t, &info, codec).to_string_lossy().into_owned())
+    Some(plan.destination(src, root, &t, &info, codec, position).to_string_lossy().into_owned())
 }
 
-/// Where the converter would write `path` with these settings (none for tool formats).
+/// Where the converter would write `path` with these settings (none for tool formats);
+/// `position` is its number and count in its folder in the list (automatic track numbers).
 #[tauri::command]
-pub async fn preview_name(state: State<'_, AppState>, settings: Settings, path: String, root: Option<String>) -> Result<Option<String>, String> {
+pub async fn preview_name(
+    state: State<'_, AppState>,
+    settings: Settings,
+    path: String,
+    root: Option<String>,
+    position: Option<(usize, usize)>,
+) -> Result<Option<String>, String> {
     let cache = crate::tools_cmd::ffmpeg(&state, &settings.tools.ffmpeg, false);
-    tauri::async_runtime::spawn_blocking(move || preview(&settings, Path::new(&path), root.as_deref().map(Path::new), cache.set))
+    tauri::async_runtime::spawn_blocking(move || preview(&settings, Path::new(&path), root.as_deref().map(Path::new), position, cache.set))
         .await
         .map_err(|e| e.to_string())
 }
