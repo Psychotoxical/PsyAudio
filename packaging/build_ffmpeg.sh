@@ -72,7 +72,8 @@ fetch() {
 lib() {
     local dir=$work/$1
     shift
-    (cd "$dir" && ./configure --prefix="$prefix" "${host[@]}" --enable-static --disable-shared --with-pic "$@" \
+    # ${a[@]+"${a[@]}"}: an empty list is an error in macOS' bash 3.2 under set -u
+    (cd "$dir" && ./configure --prefix="$prefix" ${host[@]+"${host[@]}"} --enable-static --disable-shared --with-pic "$@" \
         && make -j"$jobs" && make install)
 }
 
@@ -100,7 +101,10 @@ parsers=aac,aac_latm,ac3,flac,mpegaudio,opus,tak,vorbis
 filters=aformat,anull,aresample,format,null,hdcd
 
 cd "$work/ffmpeg-$FFMPEG"
-PKG_CONFIG_LIBDIR=$prefix/lib/pkgconfig ./configure "${ff_platform[@]}" \
+# FFmpeg's configure says why a library was not found only in its log: show the end of it
+export PKG_CONFIG_LIBDIR=$prefix/lib/pkgconfig
+trap 'tail -n 80 ffbuild/config.log 2>/dev/null; rm -rf "$work"' EXIT
+./configure ${ff_platform[@]+"${ff_platform[@]}"} \
     --pkg-config=pkg-config --pkg-config-flags=--static \
     --extra-cflags="-I$prefix/include ${CFLAGS:-}" --extra-ldflags="-L$prefix/lib $ff_ldflags" \
     --disable-everything --disable-autodetect --disable-doc --disable-debug --disable-network --disable-iconv \
@@ -110,10 +114,12 @@ PKG_CONFIG_LIBDIR=$prefix/lib/pkgconfig ./configure "${ff_platform[@]}" \
     --enable-protocol=file,pipe --enable-filter="$filters" \
     --enable-encoder="$encoders" --enable-muxer="$muxers" \
     --enable-demuxer="$demuxers" --enable-decoder="$decoders" --enable-parser="$parsers"
+trap 'rm -rf "$work"' EXIT
 make -j"$jobs"
 
 exe=
 [ "$target" = windows ] && exe=.exe
+test -f "ffmpeg$exe" && test -f "ffprobe$exe"
 mkdir -p "$output/bin" "$output/licenses"
 cp "ffmpeg$exe" "ffprobe$exe" "$output/bin/"
 cp COPYING.LGPLv2.1 "$output/licenses/FFmpeg-LGPL-2.1.txt"
