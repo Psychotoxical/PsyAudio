@@ -34,3 +34,4 @@ The first release of PsyAudio: a bit-perfect CD ripper, a converter and a batch 
 - The AppImage shows its own icon in the Wayland taskbar; it no longer took the entry it carries inside for an installed package.
 - The Dolphin menu follows PsyAudio when its AppImage is moved, for example by Gear Lever; it is set to the program's current file on every start.
 - While converting, the window title shows the same percentage as the progress bar; it could run a few percent ahead.
+- In the AppImage, “Open output folder” and the links to the CUETools database and the FFmpeg download open again. Programs started from the AppImage, the system's FFmpeg included, no longer pick up its bundled libraries.

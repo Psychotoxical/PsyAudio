@@ -425,14 +425,7 @@ pub fn measure_drive(app: AppHandle, drive: String, on: Channel<MeasureEvent>) -
 pub fn open_ctdb_page(state: State<'_, AppState>) -> Result<(), String> {
     let toc = state.cd.lock().unwrap_or_else(|e| e.into_inner()).toc.clone().ok_or_else(|| t("Zuerst eine CD lesen").to_string())?;
     let url = ctdb::disc_url(&toc);
-    let result = if cfg!(windows) {
-        std::process::Command::new("explorer").arg(&url).spawn()
-    } else if cfg!(target_os = "macos") {
-        std::process::Command::new("open").arg(&url).spawn()
-    } else {
-        std::process::Command::new("xdg-open").arg(&url).spawn()
-    };
-    result.map(|_| ()).map_err(|e| e.to_string())
+    psyaudio_core::audio::open_external(url.as_ref())
 }
 
 /// One row of the track list as the rip needs it.
