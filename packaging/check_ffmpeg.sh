@@ -28,5 +28,10 @@ if ! "$ff" -hide_banner -filters | grep -qE "^ [^ ]+ +hdcd +"; then
     echo "::error::FFmpeg has no hdcd filter: $ff" >&2
     exit 1
 fi
+# PsyAudio pipes raw PCM in through stdin and reads raw PCM back: one second of silence each way
+pcm() { head -c 176400 /dev/zero | "$ff" -v error -nostdin -f s16le -ar 44100 -ac 2 -i - "$@" > /dev/null; }
+pcm -af hdcd -f s32le -
+pcm -c:a libopus -f opus -
+pcm -f f32le -
 "$probe" -hide_banner -version | head -n 1
 echo "FFmpeg can do what PsyAudio needs: $ff"

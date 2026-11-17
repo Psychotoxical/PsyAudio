@@ -103,8 +103,10 @@ lib "opus-$OPUS" --disable-doc --disable-extra-programs ${opus_extra[@]+"${opus_
 lib "speex-$SPEEX" --disable-binaries
 
 encoders=libmp3lame,flac,aac,alac,libopus,libvorbis,wavpack,wmav2,libspeex,pcm_s16le,pcm_s32le,pcm_f32le
-muxers=mp3,flac,ipod,opus,ogg,wv,asf,f32le,s16le,s32le
-demuxers=aac,ac3,aiff,amr,ape,asf,au,caf,dsf,eac3,flac,iff,matroska,mov,mp3,mpc,mpc8,ogg,tak,tta,w64,wav,wv,f32le,s16le,s32le
+# raw PCM through stdin and stdout: configure calls these pcm_s16le, not s16le as on the command line
+muxers=mp3,flac,ipod,opus,ogg,wv,asf,pcm_f32le,pcm_s16le,pcm_s32le
+demuxers=aac,ac3,aiff,amr,ape,asf,au,caf,dsf,eac3,flac,iff,matroska,mov,mp3,mpc,mpc8,ogg,tak,tta,w64,wav,wv
+demuxers+=,pcm_f32le,pcm_s16le,pcm_s32le
 # mka, webm and mp4 may carry DTS and TrueHD, a DFF may be DST-compressed
 decoders=aac,aac_latm,ac3,eac3,alac,amrnb,amrwb,ape,dca,dst,dsd_lsbf,dsd_lsbf_planar,dsd_msbf,dsd_msbf_planar,flac,mlp
 decoders+=,mp1float,mp2float,mp3float,mpc7,mpc8,opus,speex,tak,truehd,tta,vorbis,wavpack,wmalossless,wmapro,wmav1,wmav2
