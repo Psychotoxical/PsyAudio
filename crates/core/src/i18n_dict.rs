@@ -883,4 +883,12 @@ pub(crate) static EN: &[(&str, &str)] = &[
     ("Alles lässt sich später unter „Einstellungen“ ändern.", "Everything can be changed later under “Settings”."),
     ("Zurück", "Back"),
     ("Weiter", "Next"),
+    ("mitgeliefert", "bundled"),
+    ("FFmpeg: mitgeliefert ({1} Encoder)", "FFmpeg: bundled ({1} encoders)"),
+    ("Mitgeliefertes FFmpeg steht als Rückfall bereit.", "The bundled FFmpeg stands by as a fallback."),
+    ("FFmpeg mitgeliefert", "FFmpeg bundled"),
+    ("FFmpeg fehlt. Ohne FFmpeg schreibt PsyAudio nur WAV und AIFF. So installieren Sie es:", "FFmpeg is missing. Without it PsyAudio writes only WAV and AIFF. To install it:"),
+    ("Befehl kopieren", "Copy command"),
+    ("Befehl kopiert", "Command copied"),
+    ("ffmpeg.org öffnen", "Open ffmpeg.org"),
 ];

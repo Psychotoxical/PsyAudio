@@ -126,3 +126,27 @@
     transition: none;
   }
 }
+
+/* no FFmpeg at all: the install command for this system, ready to copy */
+.ffmpeg-install {
+  gap: 8px;
+}
+.ffmpeg-install .distro {
+  width: 110px;
+  flex: none;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.ffmpeg-install .command {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-field);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}

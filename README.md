@@ -32,7 +32,7 @@ Installers and packages are published on the [releases page](https://github.com/
 | Fedora, openSUSE | `.rpm` |
 | macOS, Apple Silicon and Intel | Disk image (`.dmg`), signed and notarized by Apple |
 
-PsyAudio uses [FFmpeg](https://ffmpeg.org/download.html) for most formats; install it first. The setup on first start shows whether PsyAudio finds it, and its path can also be set by hand.
+Every package brings its own [FFmpeg](https://ffmpeg.org/), which PsyAudio uses for most formats, so there is nothing else to install. An FFmpeg already on the computer is preferred, and a path set on the settings page always wins.
 
 ## Bit-perfect CD rips
 
@@ -86,7 +86,7 @@ Settings are kept in `settings.json` in your user folder:
 | Frontend checks | `npm run check` (Biome and TypeScript), `npm test` (Vitest) |
 | Rust checks | `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` |
 
-`cargo test` includes a real conversion into several formats and needs FFmpeg (on the `PATH`; on macOS also in Homebrew, MacPorts or `~/.local/bin`). It also writes the TypeScript types of the settings into `src/ipc/bindings` (ts-rs); CI fails when they differ from the committed files.
+`cargo test` includes a real conversion into several formats and needs FFmpeg (on the `PATH`; on macOS also in Homebrew, MacPorts or `~/.local/bin`). With `PSYAUDIO_TEST_FFMPEG=<path>` it uses exactly that FFmpeg and expects all nine FFmpeg formats, Speex included; the package workflow runs it this way with the shipped FFmpeg. It also writes the TypeScript types of the settings into `src/ipc/bindings` (ts-rs); CI fails when they differ from the committed files.
 
 </details>
 
@@ -109,6 +109,16 @@ Settings are kept in `settings.json` in your user folder:
 - Monkey's Audio, Musepack and DSD need `mac`, `mpcenc` and `sox`; their paths are set on the settings page.
 - HDCD decoding uses FFmpeg's `hdcd` filter.
 - Programs are found in this order: the path on the settings page, the `PATH`, on macOS Homebrew, MacPorts and `~/.local/bin` (an app started from the Finder gets a bare `PATH`), then the folder of PsyAudio itself.
+- For FFmpeg the shipped copy comes last (`ffmpeg.rs`). An FFmpeg found on the system lends the shipped one each job it cannot do itself: a missing encoder, FFprobe for reading, the `hdcd` filter. A path on the settings page stands alone. `PSYAUDIO_FFMPEG=bundled` takes only the shipped FFmpeg, for testing it on a computer that has its own.
+
+</details>
+
+<details>
+<summary><b>The shipped FFmpeg</b></summary>
+
+`packaging/build_ffmpeg.sh linux|windows|macos <folder>` builds FFmpeg 9.0.2 and FFprobe from source, statically and under the LGPL. It contains only what PsyAudio uses: the nine encoders, the readers for every format PsyAudio opens, and the `hdcd` filter. LAME, libogg, libvorbis, Opus and Speex are built from their sources first. Every download is checked against a pinned SHA256. Windows is built on Linux with mingw-w64, macOS on a Mac for each architecture.
+
+The package workflow builds it once per system and keeps it in the cache until the script changes. It then puts it into every package: as the resource folder `ffmpeg` on Windows and Linux (`/usr/lib/PsyAudio/ffmpeg` in the deb and rpm, never in `/usr/bin`), and as one universal file in `Contents/MacOS` on macOS, signed with the app. `packaging/check_ffmpeg.sh` checks each package's copy. The license texts and the source of every part are in `ffmpeg/licenses` inside the package (`Contents/Resources/ffmpeg-licenses` on macOS, where the program file `ffmpeg` takes the name). The shipped FFmpeg runs on macOS 13 and later; on older Macs PsyAudio needs an FFmpeg of its own. Every release carries the checked source archives of FFmpeg and its libraries together with the build script as `PsyAudio-<version>-FFmpeg-source.tar`, made by the Linux package job.
 
 </details>
 
@@ -131,6 +141,7 @@ Core (`crates/core/src/`):
 | `convert.rs` | Conversion pipeline: `Plan`, `Job`, thread pool, `run_job` (decode → effects → encode → tags), album ReplayGain, playlists |
 | `audio.rs` | `Audio` (interleaved f32), decoding with symphonia or FFmpeg, ffprobe, finding external programs, size and time formatting |
 | `encode.rs` | `Codec`, `EncSettings`, FFmpeg arguments per format, external encoders, lossless verification, size estimate |
+| `ffmpeg.rs` | Which FFmpeg does which job: the settings path, the system's, or the shipped one (`FfmpegSet`) |
 | `dsp.rs` | The effects (`Effect`, `catalogue()`, `catalogue_entries()` with a description each, `apply()`) |
 | `loudness.rs` | EBU R128 and ReplayGain (−18 LUFS) |
 | `naming.rs` | Folder and file names built from chips, naming presets |

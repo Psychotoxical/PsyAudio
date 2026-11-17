@@ -55,6 +55,8 @@ pub struct AppState {
     pub demo: Option<Demo>,
     /// FFmpeg as last found (see tools_cmd).
     pub tools: Mutex<Option<crate::tools_cmd::ToolCache>>,
+    /// The shipped FFmpeg's folder, set once in the app's setup (None in a build without one).
+    pub bundled_ffmpeg: std::sync::OnceLock<Option<PathBuf>>,
     /// Files from the command line and from second starts or drops before the frontend listens.
     pub startup_files: Mutex<Vec<PathBuf>>,
     /// The frontend has called `frontend_ready`; from then on files go out as events.

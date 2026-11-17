@@ -1,6 +1,7 @@
 //! Output formats ("encoders") with their settings, and writing a decoded file in that format.
 
 use crate::audio::{self, hidden, Audio, PcmFormat};
+use crate::ffmpeg::{Ffmpeg, FfmpegSet};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -290,40 +291,46 @@ pub struct Tools {
 }
 
 pub struct Env<'a> {
-    pub ffmpeg: Option<&'a Path>,
-    pub ffmpeg_encoders: &'a [String],
+    /// The FFmpeg for each job (see `ffmpeg::FfmpegSet`).
+    pub ffmpeg: &'a FfmpegSet,
     pub tools: &'a Tools,
     pub temp: &'a Path,
 }
 
-impl<'a> Env<'a> {
-    fn has(&self, enc: &str) -> bool {
-        self.ffmpeg_encoders.iter().any(|e| e == enc)
-    }
+/// The FFmpeg encoder a format needs; None for formats FFmpeg does not write.
+pub fn ffmpeg_encoder(c: Codec) -> Option<&'static str> {
+    Some(match c {
+        Codec::Mp3 => "libmp3lame",
+        Codec::Flac => "flac",
+        Codec::AacM4a | Codec::AudioBook => "aac",
+        Codec::Alac => "alac",
+        Codec::Opus => "libopus",
+        Codec::Vorbis => "libvorbis",
+        Codec::WavPack => "wavpack",
+        Codec::Wma => "wmav2",
+        Codec::Speex => "libspeex",
+        _ => return None,
+    })
+}
+
+/// The FFmpeg that writes format `c`.
+pub fn ffmpeg_for<'a>(c: Codec, env: &Env<'a>) -> Option<&'a Ffmpeg> {
+    ffmpeg_encoder(c).and_then(|enc| env.ffmpeg.for_encoder(enc))
 }
 
 /// What a format needs to work on this computer (None = ready).
 pub fn missing_requirement(c: Codec, env: &Env) -> Option<String> {
-    let ff = |enc: &str| -> Option<String> {
-        if env.ffmpeg.is_none() {
-            Some(crate::i18n::t("FFmpeg wird benötigt (Einstellungen » Encoder-Programme)").into())
-        } else if !env.ffmpeg_encoders.is_empty() && !env.has(enc) {
-            Some(crate::i18n::tf(crate::i18n::t("Das gefundene FFmpeg hat keinen Encoder „{enc}“"), &[("enc", enc.to_string())]))
-        } else {
-            None
-        }
-    };
+    if let Some(enc) = ffmpeg_encoder(c) {
+        return match env.ffmpeg.for_encoder(enc) {
+            None => Some(crate::i18n::t("FFmpeg wird benötigt (Einstellungen » Encoder-Programme)").into()),
+            Some(f) if !f.has_encoder(enc) => {
+                Some(crate::i18n::tf(crate::i18n::t("Das gefundene FFmpeg hat keinen Encoder „{enc}“"), &[("enc", enc.to_string())]))
+            }
+            Some(_) => None,
+        };
+    }
     match c {
         Codec::Wave | Codec::Aiff => None,
-        Codec::Mp3 => ff("libmp3lame"),
-        Codec::Flac => ff("flac"),
-        Codec::AacM4a | Codec::AudioBook => ff("aac"),
-        Codec::Alac => ff("alac"),
-        Codec::Opus => ff("libopus"),
-        Codec::Vorbis => ff("libvorbis"),
-        Codec::WavPack => ff("wavpack"),
-        Codec::Wma => ff("wmav2"),
-        Codec::Speex => ff("libspeex"),
         Codec::MonkeysAudio => {
             if audio::find_tool(&env.tools.mac, "mac").is_none() {
                 Some(crate::i18n::t("Programm mac.exe angeben (Einstellungen)").into())
@@ -389,7 +396,8 @@ fn feed_format(audio: &Audio, lossless_target: bool) -> (PcmFormat, &'static str
     }
 }
 
-fn ffmpeg_args(c: Codec, s: &EncSettings, audio: &Audio, env: &Env) -> Vec<String> {
+/// FFmpeg arguments for format `c`, for the FFmpeg `ff` that will write it.
+fn ffmpeg_args(c: Codec, s: &EncSettings, audio: &Audio, ff: &Ffmpeg) -> Vec<String> {
     let v = |x: &str| x.to_string();
     let mut a: Vec<String> = Vec::new();
     match c {
@@ -421,7 +429,8 @@ fn ffmpeg_args(c: Codec, s: &EncSettings, audio: &Audio, env: &Env) -> Vec<Strin
             }
         }
         Codec::AacM4a | Codec::AudioBook => {
-            if env.has("libfdk_aac") {
+            // only a listed fdk: an unknown encoder list must not pick it
+            if ff.encoders.iter().any(|e| e == "libfdk_aac") {
                 a.extend([v("-c:a"), v("libfdk_aac")]);
                 if s.aac_vbr {
                     a.extend([v("-vbr"), s.aac_quality.clamp(1, 5).to_string()]);
@@ -676,9 +685,9 @@ pub fn encode(
             r
         }
         _ => {
-            let ff = env.ffmpeg.ok_or(crate::i18n::t("FFmpeg wird benötigt"))?;
-            let args = ffmpeg_args(c, s, audio, env);
-            run_ffmpeg(ff, audio, out, &args, meta, c.lossless(), cancel, progress)?;
+            let ff = ffmpeg_for(c, env).ok_or(crate::i18n::t("FFmpeg wird benötigt"))?;
+            let args = ffmpeg_args(c, s, audio, ff);
+            run_ffmpeg(&ff.path, audio, out, &args, meta, c.lossless(), cancel, progress)?;
             let verify = match c {
                 Codec::Flac => s.flac_verify,
                 Codec::WavPack => s.wavpack_verify,
@@ -686,16 +695,25 @@ pub fn encode(
                 _ => false,
             };
             if verify {
-                verify_lossless(out, audio, env, cancel)?;
+                verify_lossless(out, audio, verify_reader(ff, env.ffmpeg), cancel)?;
             }
             Ok(())
         }
     }
 }
 
+/// The FFmpeg that reads a written file back: the writer, unless it lacks FFprobe and the
+/// reading FFmpeg has it (a system FFmpeg next to the shipped one).
+fn verify_reader<'a>(writer: &'a Ffmpeg, set: &'a FfmpegSet) -> &'a Path {
+    if writer.probe {
+        return &writer.path;
+    }
+    set.for_decode().filter(|f| f.probe).map_or(&writer.path, |f| &f.path)
+}
+
 /// Decode the written file again and compare it with what was encoded.
-pub fn verify_lossless(out: &Path, original: &Audio, env: &Env, cancel: &AtomicBool) -> Result<(), String> {
-    let back = audio::decode(out, env.ffmpeg, cancel, &|_| {})?;
+pub fn verify_lossless(out: &Path, original: &Audio, ffmpeg: &Path, cancel: &AtomicBool) -> Result<(), String> {
+    let back = audio::decode(out, Some(ffmpeg), cancel, &|_| {})?;
     if back.frames() != original.frames() || back.channels != original.channels {
         return Err(crate::i18n::tf(
             crate::i18n::t("Prüfung fehlgeschlagen: Länge {0} statt {1} Frames"),
@@ -722,4 +740,62 @@ pub fn plan_requirement(codec: Codec, enc: &EncSettings, env: &Env) -> Option<St
         return Some(crate::i18n::t("Im Mehrfach-Encoder ist kein Format gewählt").into());
     }
     codecs.into_iter().find_map(|c| missing_requirement(c, env).map(|m| format!("{}: {m}", c.name())))
+}
+
+#[cfg(test)]
+mod ffmpeg_choice_tests {
+    use super::*;
+    use crate::ffmpeg::{Ffmpeg, FfmpegSet, Source};
+
+    fn ff(source: Source, encoders: &[&str]) -> Ffmpeg {
+        Ffmpeg { path: PathBuf::from(format!("{source:?}")), source, encoders: encoders.iter().map(|e| e.to_string()).collect(), probe: true, hdcd: true }
+    }
+
+    fn env<'a>(set: &'a FfmpegSet, tools: &'a Tools) -> Env<'a> {
+        Env { ffmpeg: set, tools, temp: Path::new("") }
+    }
+
+    #[test]
+    fn each_codec_gets_its_own_ffmpeg() {
+        let set = FfmpegSet { main: Some(ff(Source::System, &["libmp3lame", "aac"])), fallback: Some(ff(Source::Bundled, &["libmp3lame", "aac", "libspeex"])) };
+        let tools = Tools::default();
+        let env = env(&set, &tools);
+        assert_eq!(missing_requirement(Codec::Speex, &env), None);
+        assert_eq!(ffmpeg_for(Codec::Speex, &env).map(|f| f.source), Some(Source::Bundled));
+        assert_eq!(ffmpeg_for(Codec::Mp3, &env).map(|f| f.source), Some(Source::System));
+        assert!(ffmpeg_for(Codec::Wave, &env).is_none(), "WAV needs no FFmpeg");
+    }
+
+    #[test]
+    fn a_configured_ffmpeg_without_the_encoder_reports_it() {
+        let set = FfmpegSet { main: Some(ff(Source::Configured, &["libmp3lame", "aac"])), fallback: Some(ff(Source::Bundled, &["libspeex"])) };
+        let tools = Tools::default();
+        let why = missing_requirement(Codec::Speex, &env(&set, &tools)).expect("Speex is missing");
+        assert!(why.contains("libspeex"), "{why}");
+        assert!(missing_requirement(Codec::Mp3, &env(&FfmpegSet::default(), &tools)).is_some(), "no FFmpeg at all");
+    }
+
+    #[test]
+    fn aac_uses_fdk_only_when_the_chosen_ffmpeg_has_it() {
+        let audio = Audio { rate: 44100, channels: 2, bits: 16, float: false, lossless: true, data: Vec::new() };
+        let s = EncSettings::default();
+        let fdk = ff(Source::System, &["aac", "libfdk_aac"]);
+        assert!(ffmpeg_args(Codec::AacM4a, &s, &audio, &fdk).iter().any(|a| a == "libfdk_aac"));
+        let plain = ff(Source::Bundled, &["aac"]);
+        let args = ffmpeg_args(Codec::AacM4a, &s, &audio, &plain);
+        assert!(!args.iter().any(|a| a == "libfdk_aac") && args.iter().any(|a| a == "aac"), "{args:?}");
+    }
+
+    /// WavPack is read back through FFmpeg and FFprobe: a system FFmpeg without FFprobe
+    /// borrows the shipped pair, a path from the settings stays on its own.
+    #[test]
+    fn verification_reads_back_with_an_ffmpeg_that_has_ffprobe() {
+        let no_probe = |source| Ffmpeg { probe: false, ..ff(source, &["wavpack"]) };
+        let set = FfmpegSet { main: Some(no_probe(Source::System)), fallback: Some(ff(Source::Bundled, &["wavpack"])) };
+        assert_eq!(verify_reader(set.main.as_ref().unwrap(), &set), Path::new("Bundled"));
+        let with_probe = FfmpegSet { main: Some(ff(Source::System, &["wavpack"])), fallback: Some(ff(Source::Bundled, &["wavpack"])) };
+        assert_eq!(verify_reader(with_probe.main.as_ref().unwrap(), &with_probe), Path::new("System"));
+        let configured = FfmpegSet { main: Some(no_probe(Source::Configured)), fallback: None };
+        assert_eq!(verify_reader(configured.main.as_ref().unwrap(), &configured), Path::new("Configured"));
+    }
 }

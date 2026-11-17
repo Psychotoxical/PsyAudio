@@ -9,6 +9,7 @@ use psyaudio_core::cdrip::{self, DiscMeta, Toc};
 use psyaudio_core::convert;
 use psyaudio_core::ctdb::{self, Entry};
 use psyaudio_core::encode::{self, Env};
+use psyaudio_core::ffmpeg::FfmpegSet;
 use psyaudio_core::i18n::t;
 use psyaudio_core::rip::{self, CtdbResult, RipContext, RipMsg, RipPhase, RipSummary, TrackStatus};
 use psyaudio_core::settings::{DriveProfile, OffsetMethod, OutputMode, Settings};
@@ -483,11 +484,11 @@ pub fn start_rip(app: AppHandle, settings: Settings, tracks: Vec<RipTrack>, meta
     };
     let codec = settings.rip_codec;
     let tools = crate::tools_cmd::ffmpeg(&state, &settings.tools.ffmpeg, false);
-    let env = Env { ffmpeg: tools.ffmpeg.as_deref(), ffmpeg_encoders: &tools.encoders, tools: &settings.tools, temp: Path::new("") };
+    let env = Env { ffmpeg: &tools.set, tools: &settings.tools, temp: Path::new("") };
     if let Some(m) = encode::plan_requirement(codec, &settings.enc, &env) {
         return Err(m);
     }
-    let mut plan = convert::plan_from_settings(&settings, codec, tools.ffmpeg.clone(), tools.encoders.clone());
+    let mut plan = convert::plan_from_settings(&settings, codec, tools.set.clone());
     plan.output_mode = OutputMode::SingleFolder;
     plan.output_folder = PathBuf::from(&settings.rip_folder);
     if let Some(m) = convert::output_location_problem(&plan.output_folder) {
@@ -554,7 +555,7 @@ pub fn start_rip(app: AppHandle, settings: Settings, tracks: Vec<RipTrack>, meta
 
 /// Where track `number` (row `row`, of `total`) would be saved with the CD ripper's folder, naming and format.
 fn rip_preview(settings: &Settings, meta: DiscMetaView, row: usize, number: u8, total: usize) -> Option<String> {
-    let mut plan = convert::plan_from_settings(settings, settings.rip_codec, None, Vec::new());
+    let mut plan = convert::plan_from_settings(settings, settings.rip_codec, FfmpegSet::default());
     plan.output_mode = OutputMode::SingleFolder;
     plan.output_folder = PathBuf::from(&settings.rip_folder);
     plan.scheme = settings.rip.name_scheme.clone();

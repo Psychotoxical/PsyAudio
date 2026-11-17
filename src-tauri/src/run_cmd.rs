@@ -113,11 +113,11 @@ fn jobs(items: Items) -> Vec<Job> {
 /// The plan for a run, or why it cannot start (the texts the egui version showed).
 fn prepared(state: &AppState, settings: &Settings, codec: Codec, keep_structure: bool) -> Result<Plan, String> {
     let cache = crate::tools_cmd::ffmpeg(state, &settings.tools.ffmpeg, false);
-    let env = Env { ffmpeg: cache.ffmpeg.as_deref(), ffmpeg_encoders: &cache.encoders, tools: &settings.tools, temp: Path::new("") };
+    let env = Env { ffmpeg: &cache.set, tools: &settings.tools, temp: Path::new("") };
     if let Some(m) = encode::plan_requirement(codec, &settings.enc, &env) {
         return Err(m);
     }
-    let mut plan = convert::plan_from_settings(settings, codec, cache.ffmpeg.clone(), cache.encoders.clone());
+    let mut plan = convert::plan_from_settings(settings, codec, cache.set.clone());
     plan.keep_structure = keep_structure;
     if (keep_structure || plan.output_mode != OutputMode::SourceFolder) && !plan.outputs().is_empty() {
         if let Some(m) = convert::output_location_problem(&plan.output_folder) {

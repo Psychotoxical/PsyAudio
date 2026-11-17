@@ -18,6 +18,11 @@ export function programs(settings: Settings, refresh = false): Promise<Program[]
   return invoke<Program[]>("programs", { settings, refresh });
 }
 
+/** FFmpeg's download page in the browser (when no FFmpeg is found). */
+export function openFfmpegDownload(): Promise<void> {
+  return invoke<void>("open_ffmpeg_download");
+}
+
 export function systemInfo(): Promise<SystemInfo> {
   return invoke<SystemInfo>("system_info");
 }
