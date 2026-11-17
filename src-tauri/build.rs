@@ -37,6 +37,7 @@ const COMMANDS: &[&str] = &[
     "eject",
     "measure_drive",
     "open_ctdb_page",
+    "open_ffmpeg_download",
     "start_rip",
     "cancel_rip",
     "preview_rip_name",

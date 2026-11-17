@@ -45,6 +45,7 @@
     "allow-eject",
     "allow-measure-drive",
     "allow-open-ctdb-page",
+    "allow-open-ffmpeg-download",
     "allow-start-rip",
     "allow-cancel-rip",
     "allow-preview-rip-name",

@@ -38,13 +38,22 @@ interface EncodeState {
   ffmpeg: string | null | undefined;
   /** How many encoders that FFmpeg offers. */
   encoders: number;
+  /** Where that FFmpeg comes from; null while unknown or missing. */
+  ffmpegSource: FfmpegSource | null;
+  /** The shipped FFmpeg when it only stands by for the one above. */
+  ffmpegFallback: string | null;
 }
+
+/** The settings path, the system's FFmpeg, or the one PsyAudio ships. */
+export type FfmpegSource = "configured" | "system" | "bundled";
 
 export const useEncode = create<EncodeState>(() => ({
   options: null,
   problems: {},
   ffmpeg: undefined,
   encoders: 0,
+  ffmpegSource: null,
+  ffmpegFallback: null,
 }));
 
 export function codecInfo(options: EncodeOptions | null, codec: Codec): CodecInfo | undefined {

@@ -140,6 +140,7 @@ pub fn run() {
             cd_cmd::eject,
             cd_cmd::measure_drive,
             cd_cmd::open_ctdb_page,
+            tools_cmd::open_ffmpeg_download,
             cd_cmd::start_rip,
             cd_cmd::cancel_rip,
             cd_cmd::preview_rip_name,

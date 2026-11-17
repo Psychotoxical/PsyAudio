@@ -79,6 +79,7 @@ export function SetupPage() {
   const { t } = useTranslation();
   const s = useSettings((x) => x.settings);
   const options = useEncode((x) => x.options);
+  const ffmpegSource = useEncode((x) => x.ffmpegSource);
   const measuring = useCd((x) => x.offset.busy);
   const info = useSystemInfo();
   const progs = usePrograms();
@@ -100,7 +101,13 @@ export function SetupPage() {
     { title: t("Willkommen"), summary: lookSummary(s.lang, s.dark) },
     {
       title: t("Programme"),
-      summary: !ffmpeg ? "…" : ffmpeg.found ? t("FFmpeg gefunden") : t("FFmpeg fehlt"),
+      summary: !ffmpeg
+        ? "…"
+        : !ffmpeg.found
+          ? t("FFmpeg fehlt")
+          : ffmpegSource === "bundled"
+            ? t("FFmpeg mitgeliefert")
+            : t("FFmpeg gefunden"),
     },
     {
       title: t("Rechtsklick"),

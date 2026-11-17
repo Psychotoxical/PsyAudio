@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { type EncodeOptions, useEncode } from "../store/encode";
+import { type EncodeOptions, type FfmpegSource, useEncode } from "../store/encode";
 import type { Codec } from "./bindings/Codec";
 import type { EncSettings } from "./bindings/EncSettings";
 import type { Settings } from "./bindings/Settings";
@@ -12,10 +12,16 @@ export function codecProblems(settings: Settings): Promise<Partial<Record<Codec,
   return invoke("codec_problems", { settings });
 }
 
-export function toolStatus(
-  settings: Settings,
-  refresh: boolean,
-): Promise<{ ffmpeg: string | null; encoders: number }> {
+export interface ToolStatus {
+  /** The FFmpeg that does the work. */
+  ffmpeg: string | null;
+  encoders: number;
+  source: FfmpegSource | null;
+  /** The shipped FFmpeg when it only stands by. */
+  fallback: string | null;
+}
+
+export function toolStatus(settings: Settings, refresh: boolean): Promise<ToolStatus> {
   return invoke("tool_status", { settings, refresh });
 }
 
@@ -39,5 +45,12 @@ export async function refreshEncode(settings: Settings, refresh = false): Promis
     toolStatus(settings, refresh),
     codecProblems(settings),
   ]);
-  useEncode.setState({ options, problems, ffmpeg: status.ffmpeg, encoders: status.encoders });
+  useEncode.setState({
+    options,
+    problems,
+    ffmpeg: status.ffmpeg,
+    encoders: status.encoders,
+    ffmpegSource: status.source,
+    ffmpegFallback: status.fallback,
+  });
 }

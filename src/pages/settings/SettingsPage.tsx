@@ -1,6 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { CircleCheck, CircleX, RefreshCw } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { Fragment, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { plural, setLanguage } from "../../i18n";
 import type { Tools } from "../../ipc/bindings/Tools";
@@ -21,6 +21,7 @@ import { CollapsibleBox } from "../../ui/CollapsibleBox";
 import { Check, Hint, Segmented } from "../../ui/controls";
 import { SliderField } from "../../ui/SliderField";
 import { DrivesBox } from "./DrivesBox";
+import { FfmpegInstallHint } from "./FfmpegInstallHint";
 import "./settings.css";
 
 const PROGRAM_LABELS: Record<Program["key"], string> = {
@@ -36,6 +37,9 @@ function ProgramRow({ program }: { program: Program }) {
   const id = useId();
   const configured = useSettings((s) => s.settings?.tools[program.key] ?? "");
   const update = useSettings((s) => s.update);
+  // the shipped FFmpeg's path changes with every AppImage start: name it instead
+  const shipped = useEncode((s) => program.key === "ffmpeg" && s.ffmpegSource === "bundled");
+  const found = program.found && shipped ? t("mitgeliefert") : program.found;
   const [draft, setDraft] = useState<string | null>(null);
   const commit = (value: string) => {
     setDraft(null);
@@ -63,7 +67,7 @@ function ProgramRow({ program }: { program: Program }) {
           className="text-field"
           type="text"
           value={draft ?? configured}
-          placeholder={program.found ?? t("nicht gefunden")}
+          placeholder={found ?? t("nicht gefunden")}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => draft !== null && commit(draft)}
           onKeyDown={(e) => {
@@ -81,7 +85,7 @@ function ProgramRow({ program }: { program: Program }) {
         </button>
         <span
           className={program.found ? "prog-state ok" : "prog-state bad"}
-          title={program.found ?? t("nicht gefunden")}
+          title={found ?? t("nicht gefunden")}
         >
           {program.found ? <CircleCheck size={18} /> : <CircleX size={18} />}
         </span>
@@ -136,6 +140,8 @@ export function ProgramsFields({ list, again }: ReturnType<typeof usePrograms>) 
   const { t } = useTranslation();
   const ffmpeg = useEncode((s) => s.ffmpeg);
   const encoders = useEncode((s) => s.encoders);
+  const source = useEncode((s) => s.ffmpegSource);
+  const fallback = useEncode((s) => s.ffmpegFallback);
   return (
     <>
       <Hint>
@@ -144,12 +150,21 @@ export function ProgramsFields({ list, again }: ReturnType<typeof usePrograms>) 
         )}
       </Hint>
       {list.map((p) => (
-        <ProgramRow key={p.key} program={p} />
+        <Fragment key={p.key}>
+          <ProgramRow program={p} />
+          {/* null: looked for and not found (undefined: still looking) */}
+          {p.key === "ffmpeg" && ffmpeg === null && <FfmpegInstallHint />}
+        </Fragment>
       ))}
       {ffmpeg && (
         <p className="muted small">
-          {t("FFmpeg: {0} ({1} Encoder)", { 0: ffmpeg, 1: String(encoders) })}
+          {source === "bundled"
+            ? t("FFmpeg: mitgeliefert ({1} Encoder)", { 1: String(encoders) })
+            : t("FFmpeg: {0} ({1} Encoder)", { 0: ffmpeg, 1: String(encoders) })}
         </p>
+      )}
+      {ffmpeg && fallback && (
+        <p className="muted small">{t("Mitgeliefertes FFmpeg steht als Rückfall bereit.")}</p>
       )}
       <button type="button" className="btn" onClick={() => void again()}>
         <RefreshCw size={15} />
