@@ -95,7 +95,7 @@ pub fn unavailable_text(why: &str) -> String {
 pub fn lookup(toc: &Toc) -> Result<Vec<Entry>, String> {
     let url = format!("http://db.cuetools.net/lookup2.php?version=3&ctdb=1&fuzzy=1&toc={}", toc_string(toc));
     let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(std::time::Duration::from_secs(10))).build().into();
-    let mut resp = agent.get(&url).header("User-Agent", "PsyAudio/1.0").call().map_err(|e| why_unreachable(&e))?;
+    let mut resp = agent.get(&url).header("User-Agent", crate::USER_AGENT).call().map_err(|e| why_unreachable(&e))?;
     let text = resp.body_mut().read_to_string().map_err(|e| why_unreachable(&e))?;
     Ok(parse(&text))
 }

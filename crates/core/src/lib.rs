@@ -21,6 +21,10 @@ pub mod settings;
 pub mod tags;
 pub mod timefmt;
 
+/// How PsyAudio introduces itself to MusicBrainz, the Cover Art Archive and CTDB: name, the
+/// real version and a contact address, as the MusicBrainz API rules ask of every application.
+pub const USER_AGENT: &str = concat!("PsyAudio/", env!("CARGO_PKG_VERSION"), " ( https://github.com/Psysonic/PsyAudio )");
+
 /// The app icon as PNG, for the file manager menu on Linux (Dolphin service menu).
 pub const APP_ICON_PNG: &[u8] = include_bytes!("../../../assets/PsyAudio.png");
 
@@ -30,5 +34,13 @@ mod icon_tests {
     #[test]
     fn app_icon_is_a_png() {
         assert!(crate::APP_ICON_PNG.starts_with(&[0x89, b'P', b'N', b'G']));
+    }
+
+    /// MusicBrainz wants "Name/version ( contact )"; the version is the one being built.
+    #[test]
+    fn user_agent_names_version_and_contact() {
+        let expected = format!("PsyAudio/{} ( https://github.com/Psysonic/PsyAudio )", env!("CARGO_PKG_VERSION"));
+        assert_eq!(crate::USER_AGENT, expected);
+        assert!(!env!("CARGO_PKG_VERSION").is_empty());
     }
 }
